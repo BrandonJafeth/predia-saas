@@ -1,0 +1,4 @@
+packages:
+  - 'predia-api'
+  - 'predia-front'
+  - 'predia-website'
