@@ -1,0 +1,12 @@
+{
+  "name": "predia-saas",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev:api": "pnpm --filter predia-api dev",
+    "dev:front": "pnpm --filter predia-front dev",
+    "dev:website": "pnpm --filter predia-website dev",
+    "generate:client": "pnpm --filter @predia/api-types generate",
+    "generate:api": "pnpm --filter predia-api generate:openapi && pnpm generate:client"
+  }
+}

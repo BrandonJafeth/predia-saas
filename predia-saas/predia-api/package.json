@@ -19,13 +19,15 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "generate:openapi": "ts-node --transpile-only -r tsconfig-paths/register src/scripts/generate-openapi.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.4",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "class-transformer": "^0.5.1",
@@ -63,6 +65,9 @@
     "typescript-eslint": "^8.20.0"
   },
   "pnpm": {
+    "approvedBuilds": {
+      "@scarf/scarf": true
+    },
     "onlyBuiltDependencies": [
       "@nestjs/core",
       "@prisma/client",
