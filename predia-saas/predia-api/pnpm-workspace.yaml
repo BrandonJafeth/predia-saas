@@ -3,5 +3,6 @@ packages:
 allowBuilds:
   '@nestjs/core': true
   '@prisma/engines': set this to true or false
+  '@scarf/scarf': false
   prisma: set this to true or false
   unrs-resolver: true
