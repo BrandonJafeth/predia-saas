@@ -7,7 +7,8 @@ allowBuilds:
   '@nestjs/core': true
   '@prisma/engines': true
   '@scarf/scarf': true
-  esbuild: set this to true or false
+  bcrypt: true
+  esbuild: true
   prisma: true
-  sharp: set this to true or false
+  sharp: true
   unrs-resolver: true
