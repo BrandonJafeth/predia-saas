@@ -8,9 +8,10 @@ export const apiClient = createApiClient(
 apiClient.use({
   onRequest({ request }) {
     const token = tokenStorage.getAccessToken()
+    const headers = new Headers(request.headers)
     if (token) {
-      request.headers.set('Authorization', `Bearer ${token}`)
+      headers.set('Authorization', `Bearer ${token}`)
     }
-    return request
+    return new Request(request, { credentials: 'include', headers })
   },
 })
