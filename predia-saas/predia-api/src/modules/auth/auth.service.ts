@@ -35,7 +35,7 @@ export class AuthService {
         
         // Habilitamos el RLS para este tenant temporalmente en esta transacción
         // para que PostgreSQL permita insertar el usuario administrador.
-        await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenant.id}'`);
+        await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
 
         const user = await tx.user.create({
           data: {
@@ -74,7 +74,7 @@ export class AuthService {
 
     const user = await this.prisma.$transaction(async (tx) => {
       // Configuramos el tenant temporalmente para que RLS permita leer al usuario
-      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenant.id}'`);
+      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
       return tx.user.findFirst({
         where: { email: dto.email, tenant_id: tenant.id },
       });

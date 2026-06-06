@@ -22,9 +22,7 @@ export class PrismaService
             const tenantId = tenantAls.getStore()?.tenantId;
             if (tenantId) {
               const [, result] = await client.$transaction([
-                client.$executeRawUnsafe(
-                  `SET LOCAL app.current_tenant_id = '${tenantId}'`,
-                ),
+                client.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`,
                 query(args),
               ]);
               return result;
