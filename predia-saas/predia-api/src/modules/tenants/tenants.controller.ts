@@ -1,11 +1,12 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { PageOptionsDto } from '../../common/dto/page-options.dto';
 
 @ApiTags('Tenants')
+@ApiBearerAuth()
 @Controller('api/v1/tenants')
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

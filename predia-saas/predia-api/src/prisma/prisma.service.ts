@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { ConfigService } from '@nestjs/config';
+import { tenantAls } from '../common/als/tenant.als';
 
 @Injectable()
 export class PrismaService
@@ -13,6 +14,33 @@ export class PrismaService
       connectionString: config.getOrThrow<string>('DATABASE_URL'),
     });
     super({ adapter });
+
+    const client = this.$extends({
+      query: {
+        $allModels: {
+          async $allOperations({ args, query }) {
+            const tenantId = tenantAls.getStore()?.tenantId;
+            if (tenantId) {
+              const [, result] = await client.$transaction([
+                client.$executeRawUnsafe(
+                  `SET LOCAL app.current_tenant_id = '${tenantId}'`,
+                ),
+                query(args),
+              ]);
+              return result;
+            }
+            return query(args);
+          },
+        },
+      },
+    });
+
+    Object.assign(client, {
+      onModuleInit: this.onModuleInit.bind(this),
+      onModuleDestroy: this.onModuleDestroy.bind(this),
+    });
+
+    return client as unknown as this;
   }
 
   async onModuleInit() {

@@ -32,6 +32,11 @@ export class AuthService {
             slug: dto.tenantSlug.toLowerCase().trim(),
           },
         });
+        
+        // Habilitamos el RLS para este tenant temporalmente en esta transacción
+        // para que PostgreSQL permita insertar el usuario administrador.
+        await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenant.id}'`);
+
         const user = await tx.user.create({
           data: {
             email: dto.email,
@@ -67,9 +72,14 @@ export class AuthService {
     });
     if (!tenant) throw new NotFoundException('Inmobiliaria no encontrada');
 
-    const user = await this.prisma.user.findFirst({
-      where: { email: dto.email, tenant_id: tenant.id },
+    const user = await this.prisma.$transaction(async (tx) => {
+      // Configuramos el tenant temporalmente para que RLS permita leer al usuario
+      await tx.$executeRawUnsafe(`SET LOCAL app.current_tenant_id = '${tenant.id}'`);
+      return tx.user.findFirst({
+        where: { email: dto.email, tenant_id: tenant.id },
+      });
     });
+
     if (!user) throw new UnauthorizedException('Credenciales inválidas');
 
     const passwordValid = await bcrypt.compare(dto.password, user.password_hash);
