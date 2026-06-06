@@ -1,5 +1,5 @@
 import createClient from 'openapi-fetch';
-import type { paths } from './schema';
+import type { paths, components } from './schema';
 
 // Ejecutar `pnpm generate:api` antes de importar este paquete
 export const createApiClient = (baseUrl: string) =>

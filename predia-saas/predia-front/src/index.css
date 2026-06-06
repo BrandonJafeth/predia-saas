@@ -80,14 +80,7 @@
   --text-caption: 13px;
 
   /* ── Spacing (base 4px) ── */
-  --spacing-xxs: 4px;
-  --spacing-xs: 8px;
-  --spacing-sm: 12px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-xxl: 48px;
-  --spacing-section: 96px;
+  /* Custom spacing tokens were removed to restore default Tailwind spacing scale */
 
   /* ── Radius ── */
   --radius-xs: 4px;
@@ -165,4 +158,23 @@
 
 @utility focus-ring {
   @apply outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+}
+
+/* Login page blob animation */
+@keyframes blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(24px, -32px) scale(1.06); }
+  66% { transform: translate(-18px, 18px) scale(0.94); }
+}
+
+@utility animate-blob {
+  animation: blob-drift 11s ease-in-out infinite;
+}
+
+@utility animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+@utility animation-delay-4000 {
+  animation-delay: 4s;
 }

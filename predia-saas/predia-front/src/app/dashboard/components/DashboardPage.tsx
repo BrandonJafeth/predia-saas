@@ -14,14 +14,14 @@ const stats = [
 function DashboardPage() {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Display as="sm">Dashboard</Display>
           <Text as="sm" className="text-muted-foreground mt-1">
             Resumen general de tu negocio
           </Text>
         </div>
-        <Button>Descargar reporte</Button>
+        <Button className="self-start sm:self-auto">Descargar reporte</Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
