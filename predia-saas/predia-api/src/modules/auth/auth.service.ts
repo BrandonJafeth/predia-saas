@@ -118,10 +118,14 @@ export class AuthService {
   }
 
   private get refreshSecret(): string {
-    return (
+    const secret =
       this.config.get<string>('JWT_REFRESH_SECRET') ??
-      this.config.get<string>('JWT_SECRET') ??
-      'refresh-secret'
-    );
+      this.config.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error(
+        'JWT_REFRESH_SECRET is not configured. Set it in your environment variables.',
+      );
+    }
+    return secret;
   }
 }

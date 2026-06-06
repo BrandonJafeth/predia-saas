@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule } from '@nestjs/swagger';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const cookieParser = require('cookie-parser') as typeof import('cookie-parser');
 import { AppModule } from './app.module';
 import { buildSwaggerConfig } from './config/swagger';
 
@@ -14,6 +16,8 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
     credentials: true,
   });
+
+  app.use(cookieParser());
 
   app.useGlobalPipes(
     new ValidationPipe({

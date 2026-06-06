@@ -23,4 +23,8 @@ export const authService = {
     if (error) throw error
     return data
   },
+
+  async logout(): Promise<void> {
+    await apiClient.POST('/auth/logout', {})
+  },
 }

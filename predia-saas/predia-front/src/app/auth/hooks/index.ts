@@ -10,7 +10,7 @@ export const useLogin = () => {
   return useMutation({
     mutationFn: (payload: LoginRequest) => authService.login(payload),
     onSuccess: (data) => {
-      tokenStorage.setTokens(data.accessToken, data.refreshToken)
+      tokenStorage.setTokens(data.accessToken)
       queryClient.invalidateQueries({ queryKey: ['auth'] })
     },
   })
@@ -20,7 +20,7 @@ export const useRegister = () => {
   return useMutation({
     mutationFn: (payload: RegisterRequest) => authService.register(payload),
     onSuccess: (data) => {
-      tokenStorage.setTokens(data.accessToken, data.refreshToken)
+      tokenStorage.setTokens(data.accessToken)
     },
   })
 }
@@ -29,7 +29,7 @@ export const useRefreshToken = () => {
   return useMutation({
     mutationFn: () => authService.refresh(),
     onSuccess: (data) => {
-      tokenStorage.setTokens(data.accessToken, data.refreshToken)
+      tokenStorage.setTokens(data.accessToken)
     },
   })
 }
@@ -37,7 +37,8 @@ export const useRefreshToken = () => {
 export const useLogout = () => {
   const queryClient = useQueryClient()
 
-  return () => {
+  return async () => {
+    await authService.logout()
     tokenStorage.clearTokens()
     queryClient.clear()
   }
