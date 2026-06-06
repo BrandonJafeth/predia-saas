@@ -5,4 +5,4 @@ import type { paths } from './schema';
 export const createApiClient = (baseUrl: string) =>
   createClient<paths>({ baseUrl });
 
-export type { paths };
+export type { paths, components };
