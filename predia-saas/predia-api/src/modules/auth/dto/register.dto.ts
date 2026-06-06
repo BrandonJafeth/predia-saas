@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
   IsNotEmpty,
@@ -7,10 +8,15 @@ import {
 } from 'class-validator';
 
 export class RegisterDto {
+  @ApiProperty({ example: 'Inmobiliaria Norte' })
   @IsString()
   @IsNotEmpty()
   tenantName!: string;
 
+  @ApiProperty({
+    example: 'inmobiliaria-norte',
+    description: 'Solo minúsculas, números y guiones',
+  })
   @IsString()
   @IsNotEmpty()
   @Matches(/^[a-z0-9-]+$/, {
@@ -18,17 +24,21 @@ export class RegisterDto {
   })
   tenantSlug!: string;
 
+  @ApiProperty({ example: 'admin@ejemplo.com' })
   @IsEmail()
   email!: string;
 
+  @ApiProperty({ example: 'password123', minLength: 8 })
   @IsString()
   @MinLength(8)
   password!: string;
 
+  @ApiProperty({ example: 'Juan' })
   @IsString()
   @IsNotEmpty()
   firstName!: string;
 
+  @ApiProperty({ example: 'Pérez' })
   @IsString()
   @IsNotEmpty()
   lastName!: string;

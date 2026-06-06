@@ -1,10 +1,15 @@
-import {IsString, IsNotEmpty, Matches} from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, Matches } from 'class-validator';
 
 export class CreateTenantDto {
-    @IsString() @IsNotEmpty()
-    name!: string;
+  @ApiProperty({ example: 'Inmobiliaria Norte' })
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
 
-    @IsString() @IsNotEmpty()
-    @Matches(/^[a-z0-9-]+$/, { message: 'Solo minúsculas, números y guiones' })
-    slug!: string;
+  @ApiProperty({ example: 'inmobiliaria-norte', description: 'Solo minúsculas, números y guiones' })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-z0-9-]+$/, { message: 'Solo minúsculas, números y guiones' })
+  slug!: string;
 }

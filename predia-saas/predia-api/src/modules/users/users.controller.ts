@@ -8,13 +8,21 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { PageOf } from '../../common/dto/page.dto';
 import { PageOptionsDto } from '../../common/dto/page-options.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -25,12 +33,14 @@ export class UsersController {
 
   @Post()
   @Roles(UserRole.admin)
+  @ApiCreatedResponse({ type: UserResponseDto })
   create(@Body() dto: CreateUserDto, @CurrentTenant() tenantId: string) {
     return this.usersService.create(dto, tenantId);
   }
 
   @Get()
   @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: PageOf(UserResponseDto) })
   findAll(
     @Query() pageOptionsDto: PageOptionsDto,
     @CurrentTenant() tenantId: string,
@@ -40,12 +50,14 @@ export class UsersController {
 
   @Get(':id')
   @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: UserResponseDto })
   findOne(@Param('id') id: string, @CurrentTenant() tenantId: string) {
     return this.usersService.findOne(id, tenantId);
   }
 
   @Patch(':id')
   @Roles(UserRole.admin)
+  @ApiOkResponse({ type: UserResponseDto })
   update(
     @Param('id') id: string,
     @Body() dto: UpdateUserDto,
@@ -56,6 +68,7 @@ export class UsersController {
 
   @Delete(':id')
   @Roles(UserRole.admin)
+  @ApiNoContentResponse({ description: 'Usuario eliminado correctamente' })
   remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
     return this.usersService.remove(id, tenantId);
   }
