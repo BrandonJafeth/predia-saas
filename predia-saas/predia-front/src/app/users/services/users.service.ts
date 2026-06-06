@@ -35,7 +35,8 @@ export const usersService = {
   async update(id: string, payload: UpdateUserRequest): Promise<User> {
     const { data, error } = await apiClient.PATCH('/api/v1/users/{id}', {
       params: { path: { id } },
-      body: payload,
+      // schema marks role as required but PATCH accepts partial fields; cast is intentional
+      body: payload as Required<UpdateUserRequest>,
     })
     if (error) throw error
     return data

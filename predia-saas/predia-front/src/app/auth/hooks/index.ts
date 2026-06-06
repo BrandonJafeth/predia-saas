@@ -1,6 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { tokenStorage } from '@/shared/lib/tokens'
 import { authService } from '../services/auth.service'
+import { usersService } from '@/app/users/services/users.service'
 import type { LoginRequest, RegisterRequest } from '../types'
 
 export const useLogin = () => {
@@ -40,4 +41,16 @@ export const useLogout = () => {
     tokenStorage.clearTokens()
     queryClient.clear()
   }
+}
+
+export const useCurrentUser = () => {
+  const payload = tokenStorage.decodeAccessToken()
+  const userId = payload?.sub ?? ''
+
+  return useQuery({
+    queryKey: ['auth', 'me', userId],
+    queryFn: () => usersService.findOne(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+  })
 }

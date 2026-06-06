@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from '@/design-system/ui/sidebar'
-import { Home, Building2, Users, BarChart3, Settings, HelpCircle, PanelLeftClose, PanelLeft } from 'lucide-react'
+import { Home, Building2, Users, BarChart3, Settings, HelpCircle, PanelLeftClose, PanelLeft, ShieldCheck } from 'lucide-react'
 
 const mainItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
@@ -23,6 +23,10 @@ const mainItems = [
 const secondaryItems = [
   { title: 'Configuración', url: '/settings', icon: Settings },
   { title: 'Ayuda', url: '/help', icon: HelpCircle },
+]
+
+const adminItems = [
+  { title: 'Organizaciones', url: '/admin/tenants', icon: ShieldCheck },
 ]
 
 function AppSidebar() {
@@ -78,6 +82,30 @@ function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {secondaryItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={collapsed ? item.title : undefined}
+                    className={collapsed ? 'justify-center px-0' : ''}
+                  >
+                    <a href={item.url}>
+                      <item.icon />
+                      {!collapsed && <span>{item.title}</span>}
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          {!collapsed && <SidebarGroupLabel className="font-body">Superadmin</SidebarGroupLabel>}
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

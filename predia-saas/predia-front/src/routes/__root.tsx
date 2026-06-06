@@ -1,15 +1,29 @@
-import { createRootRoute, Outlet, useLocation } from '@tanstack/react-router'
+import { createRootRoute, Outlet, redirect, useLocation } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import AppLayout from '@/layouts/AppLayout'
+import { tokenStorage } from '@/shared/lib/tokens'
+
+const AUTH_PATHS = ['/login']
 
 export const Route = createRootRoute({
+  beforeLoad: ({ location }) => {
+    const token = tokenStorage.getAccessToken()
+    const isAuthPath = AUTH_PATHS.includes(location.pathname)
+
+    if (isAuthPath && token) {
+      throw redirect({ to: '/dashboard' })
+    }
+    if (!isAuthPath && !token) {
+      throw redirect({ to: '/login' })
+    }
+  },
   component: () => {
     const { pathname } = useLocation()
-    const isLogin = pathname === '/login'
+    const isAuthPage = AUTH_PATHS.includes(pathname)
 
     return (
       <>
-        {isLogin ? (
+        {isAuthPage ? (
           <Outlet />
         ) : (
           <AppLayout>

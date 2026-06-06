@@ -18,7 +18,7 @@ function MobileSidebar() {
 }
 
 function LayoutContent({ children }: { children: ReactNode }) {
-  const { state } = useSidebar()
+  const { state, isMobile } = useSidebar()
   const sidebarWidth = state === 'expanded' ? '16rem' : '3rem'
 
   return (
@@ -35,13 +35,13 @@ function LayoutContent({ children }: { children: ReactNode }) {
 
       <MobileSidebar />
 
-      {/* Main content with dynamic margin */}
+      {/* inline style only on desktop — avoids inline-style overriding max-md:ml-0 */}
       <main
-        className="flex min-h-screen flex-col transition-[margin] duration-200 ease-linear max-md:ml-0"
-        style={{ marginLeft: sidebarWidth }}
+        className="flex min-h-screen flex-col transition-[margin] duration-200 ease-linear"
+        style={{ marginLeft: isMobile ? 0 : sidebarWidth }}
       >
         <AppNavbar />
-        <div className="flex-1 p-6">{children}</div>
+        <div className="flex-1 p-4 md:p-6">{children}</div>
       </main>
     </div>
   )
