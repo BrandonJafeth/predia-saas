@@ -1,7 +1,6 @@
 import {
   ConflictException,
   Injectable,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -14,6 +13,11 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { LookupDto } from './dto/lookup.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+
+// Pre-computed hash used when the user doesn't exist so bcrypt.compare always
+// runs and response time stays constant regardless of email/tenant existence.
+const DUMMY_HASH =
+  '$2b$12$invalidhashpadding000000000000000000000000000000000000000';
 
 @Injectable()
 export class AuthService {
@@ -87,23 +91,38 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
+    const MIN_MS = 500;
+    const start = Date.now();
+
     const tenant = await this.systemPrisma.tenant.findUnique({
       where: { id: dto.tenantId },
       select: { id: true },
     });
-    if (!tenant) throw new NotFoundException('Organización no encontrada');
 
-    const user = await this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
-      return tx.user.findFirst({
-        where: { email: dto.email, tenant_id: tenant.id },
-      });
-    });
+    const user = tenant
+      ? await this.prisma.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
+          return tx.user.findFirst({
+            where: { email: dto.email, tenant_id: tenant.id },
+          });
+        })
+      : null;
 
-    if (!user) throw new UnauthorizedException('Credenciales inválidas');
+    // Always run bcrypt to normalize response time regardless of whether the
+    // user or tenant exists — prevents email/tenant enumeration via timing.
+    const passwordValid =
+      user != null
+        ? await bcrypt.compare(dto.password, user.password_hash)
+        : await bcrypt.compare(dto.password, DUMMY_HASH);
 
-    const passwordValid = await bcrypt.compare(dto.password, user.password_hash);
-    if (!passwordValid) throw new UnauthorizedException('Credenciales inválidas');
+    const elapsed = Date.now() - start;
+    if (elapsed < MIN_MS) {
+      await new Promise((r) => setTimeout(r, MIN_MS - elapsed));
+    }
+
+    if (!tenant || !user || !passwordValid) {
+      throw new UnauthorizedException('Credenciales inválidas');
+    }
 
     return this.generateTokens({
       sub: user.id,
