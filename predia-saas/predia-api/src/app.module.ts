@@ -19,6 +19,7 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
       isGlobal: true,
       validationSchema: Joi.object({
         DATABASE_URL: Joi.string().required(),
+        SYSTEM_DATABASE_URL: Joi.string().required(),
         JWT_SECRET: Joi.string().min(32).required(),
         JWT_REFRESH_SECRET: Joi.string().min(32).required(),
         PORT: Joi.number().default(3000),

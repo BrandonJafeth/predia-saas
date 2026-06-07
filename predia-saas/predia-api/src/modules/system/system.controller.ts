@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, HttpCode, HttpStatus, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles } from 'src/common/decorators/roles.decorator';
@@ -17,6 +17,16 @@ export class SystemController {
   @ApiOkResponse({ description: 'Lista de todos los usuarios del sistema' })
   findAllUsers(@Query() pageOptionsDto: PageOptionsDto) {
     return this.systemService.findAllUsers(pageOptionsDto);
+  }
+
+  @Get('tenants/:id/users')
+  @Roles(UserRole.super_admin)
+  @ApiOkResponse({ description: 'Usuarios del tenant' })
+  findUsersByTenant(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() pageOptionsDto: PageOptionsDto,
+  ) {
+    return this.systemService.findUsersByTenant(id, pageOptionsDto);
   }
 
   @Post('superadmins')
