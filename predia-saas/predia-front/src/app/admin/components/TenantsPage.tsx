@@ -52,6 +52,10 @@ function TenantsPage() {
     defaultValues: {
       name: '',
       slug: '',
+      advisor_email: '',
+      advisor_password: '',
+      advisor_first_name: '',
+      advisor_last_name: '',
     },
   })
 
@@ -104,7 +108,7 @@ function TenantsPage() {
           if (!v) reset()
         }}
         title="Nueva organización"
-        description="Crea un nuevo tenant en la plataforma."
+        description="Crea un nuevo tenant y su asesor principal."
         onSubmit={handleSubmit(onSubmit)}
         isSubmitting={isPending}
         submitLabel="Crear organización"
@@ -124,6 +128,28 @@ function TenantsPage() {
             {...register('slug')}
             autoComplete="off"
           />
+        </FormField>
+
+        <hr className="border-hairline" />
+
+        <Text as="sm" className="font-semibold text-foreground">
+          Asesor principal
+        </Text>
+
+        <FormField label="Nombre" htmlFor="advisor_first_name" error={errors.advisor_first_name?.message}>
+          <Input id="advisor_first_name" placeholder="Ej. Carlos" {...register('advisor_first_name')} autoComplete="given-name" />
+        </FormField>
+
+        <FormField label="Apellido" htmlFor="advisor_last_name" error={errors.advisor_last_name?.message}>
+          <Input id="advisor_last_name" placeholder="Ej. Mendoza" {...register('advisor_last_name')} autoComplete="family-name" />
+        </FormField>
+
+        <FormField label="Correo electrónico" htmlFor="advisor_email" error={errors.advisor_email?.message}>
+          <Input id="advisor_email" type="email" placeholder="asesor@inmobiliaria.com" {...register('advisor_email')} autoComplete="email" />
+        </FormField>
+
+        <FormField label="Contraseña" htmlFor="advisor_password" error={errors.advisor_password?.message}>
+          <Input id="advisor_password" type="password" placeholder="Mínimo 8 caracteres" {...register('advisor_password')} autoComplete="new-password" />
         </FormField>
       </FormSheet>
 

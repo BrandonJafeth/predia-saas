@@ -73,6 +73,11 @@
     "typescript-eslint": "^8.20.0"
   },
   "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "@nestjs/common": "11"
+      }
+    },
     "approvedBuilds": {
       "@scarf/scarf": true
     },

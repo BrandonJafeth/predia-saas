@@ -38,7 +38,7 @@ export class PrismaService
       onModuleDestroy: this.onModuleDestroy.bind(this),
     });
 
-    return client as unknown as this;
+    return client;
   }
 
   async onModuleInit() {
