@@ -1,98 +1,277 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# predia-api
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend del SaaS inmobiliario **Predia**. NestJS + Prisma 7 + PostgreSQL, multi-tenant con aislamiento por RLS.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Tecnología | Versión |
+|---|---|
+| NestJS | 11 |
+| Prisma | 7 |
+| PostgreSQL | 15+ |
+| Node.js | 20+ |
+| pnpm | 9+ |
 
-## Project setup
+---
 
-```bash
-$ pnpm install
-```
+## 1. Requisitos previos
 
-## Compile and run the project
+- Node.js 20+
+- pnpm 9+
+- PostgreSQL 15+ corriendo localmente
+
+---
+
+## 2. Instalación
 
 ```bash
-# development
-$ pnpm run start
+# Desde la raíz del monorepo
+pnpm install
 
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+# O solo el API
+cd predia-api
+pnpm install
 ```
 
-## Run tests
+`postinstall` corre `prisma generate` automáticamente.
+
+---
+
+## 3. Variables de entorno
+
+Crea `predia-api/.env` copiando esto y completando los valores:
+
+```env
+# Base de datos — tenant app (rol con NOBYPASSRLS)
+DATABASE_URL=postgresql://predia_app:tu-password@localhost:5432/predia
+
+# Base de datos — sistema (rol con BYPASSRLS, solo lectura + INSERT en User)
+SYSTEM_DATABASE_URL=postgresql://predia_system:tu-password@localhost:5432/predia
+
+# JWT — mínimo 32 caracteres cada uno
+JWT_SECRET=cambia-esto-por-un-secreto-de-minimo-32-chars
+JWT_REFRESH_SECRET=otro-secreto-diferente-de-minimo-32-chars
+
+# Servidor
+PORT=3000
+NODE_ENV=development
+
+# CORS — URL del frontend (separar con coma si son varias)
+CORS_ORIGIN=http://localhost:5173
+```
+
+---
+
+## 4. Setup de base de datos
+
+### 4.1 Crear roles PostgreSQL
+
+Corre esto **una sola vez** como superusuario (`postgres`):
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+psql -U postgres -d predia -f src/prisma/rls-setup.sql
 ```
 
-## Deployment
+O copia y pega directamente en psql:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```sql
+-- Rol para la app (NOBYPASSRLS — RLS se aplica siempre)
+CREATE ROLE predia_app LOGIN PASSWORD 'change-me-app' NOBYPASSRLS;
+GRANT SELECT, INSERT, UPDATE, DELETE ON "Tenant", "User" TO predia_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO predia_app;
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+-- Rol para sistema (BYPASSRLS — lee datos cross-tenant, escritura mínima)
+CREATE ROLE predia_system LOGIN PASSWORD 'change-me-system' BYPASSRLS;
+GRANT SELECT ON "Tenant", "User" TO predia_system;
+GRANT INSERT ON "User" TO predia_system;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO predia_system;
+```
+
+> Actualiza `.env` con las contraseñas reales que pongas aquí.
+
+### 4.2 Correr migraciones
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+node_modules/.bin/prisma migrate dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Las migraciones crean las tablas `Tenant` y `User` y configuran RLS automáticamente.
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## 5. Seed — crear primer superadmin
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+pnpm run seed:superadmin admin@predia.com MiPassword123!
+```
 
-## Support
+O con variables de entorno:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+SUPERADMIN_EMAIL=admin@predia.com \
+SUPERADMIN_PASSWORD=MiPassword123! \
+SUPERADMIN_FIRST_NAME=Admin \
+SUPERADMIN_LAST_NAME=Predia \
+pnpm run seed:superadmin
+```
 
-## Stay in touch
+Esto crea el tenant del sistema (`predia-saas`) y el usuario `super_admin`.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+> Requisitos: contraseña mínimo 12 caracteres.
 
-## License
+---
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## 6. Levantar el servidor
+
+```bash
+# Desarrollo (watch mode)
+pnpm run dev
+
+# Producción
+pnpm run build
+pnpm run start:prod
+```
+
+API disponible en `http://localhost:3000`
+Swagger en `http://localhost:3000/docs`
+
+---
+
+## 7. Auth — flujo de login
+
+```
+POST /auth/login
+Body: { "email": "...", "password": "..." }
+
+Response:
+  - accessToken (JWT corto) en body → usar como: Authorization: Bearer <token>
+  - refreshToken (JWT largo) en cookie httpOnly → renovar con POST /auth/refresh
+```
+
+| Endpoint | Método | Auth | Descripción |
+|---|---|---|---|
+| `/auth/register` | POST | Público | Registrar usuario |
+| `/auth/login` | POST | Público | Login → access + refresh token |
+| `/auth/refresh` | POST | Cookie | Renovar access token |
+| `/auth/logout` | POST | Cookie | Limpiar cookie |
+
+---
+
+## 8. Roles y permisos
+
+| Rol | Acceso |
+|---|---|
+| `super_admin` | Endpoints `/system/*` y `/api/v1/tenants/*` |
+| `admin` | CRUD usuarios de su tenant (`/api/v1/users/*`) |
+| `agent` | Lectura usuarios de su tenant |
+
+Todos los endpoints requieren JWT por defecto. Usar `@Public()` para rutas públicas.
+
+---
+
+## 9. Endpoints principales
+
+| Ruta | Roles permitidos | Descripción |
+|---|---|---|
+| `GET /system/users` | super_admin | Listar todos los usuarios (cross-tenant) |
+| `GET /system/tenants/:id/users` | super_admin | Usuarios de un tenant específico |
+| `POST /system/superadmins` | super_admin | Crear superadmin |
+| `GET /api/v1/tenants` | super_admin | Listar tenants |
+| `POST /api/v1/tenants` | super_admin | Crear tenant |
+| `PATCH /api/v1/tenants/:id` | super_admin | Actualizar tenant |
+| `DELETE /api/v1/tenants/:id` | super_admin | Eliminar tenant |
+| `GET /api/v1/users` | admin, agent | Listar usuarios del tenant |
+| `POST /api/v1/users` | admin | Crear usuario en el tenant |
+| `PATCH /api/v1/users/:id` | admin | Actualizar usuario |
+| `DELETE /api/v1/users/:id` | admin | Eliminar usuario |
+| `GET /health` | Público | Health check |
+
+---
+
+## 10. Comandos de referencia
+
+```bash
+# Desarrollo
+pnpm run dev
+
+# Tests
+pnpm run test
+pnpm run test:e2e
+pnpm run test:cov
+
+# Calidad de código
+pnpm run lint
+pnpm run format
+
+# Prisma
+node_modules/.bin/prisma migrate dev --name <nombre>   # nueva migración
+node_modules/.bin/prisma generate                      # regenerar cliente
+node_modules/.bin/prisma studio                        # GUI de base de datos
+
+# Scripts
+pnpm run seed:superadmin <email> <password>            # crear superadmin
+pnpm run generate:openapi                              # exportar OpenAPI JSON
+```
+
+---
+
+## 11. Estructura del proyecto
+
+```
+src/
+├── main.ts                       # Bootstrap (CORS, cookies, Swagger, ValidationPipe)
+├── app.module.ts                 # Guards globales + TenantInterceptor
+├── prisma/
+│   ├── prisma.service.ts         # DB tenant — inyecta tenant context via ALS
+│   ├── system-prisma.service.ts  # DB sistema — BYPASSRLS, cross-tenant
+│   └── rls-setup.sql             # Setup roles PostgreSQL (correr una vez)
+├── modules/
+│   ├── auth/                     # Login, registro, refresh
+│   ├── system/                   # Gestión superadmin (usuarios globales)
+│   ├── tenants/                  # CRUD tenants (solo super_admin)
+│   └── users/                    # CRUD usuarios por tenant
+└── common/
+    ├── als/tenant.store.ts       # AsyncLocalStorage para contexto de tenant
+    ├── decorators/               # @Public(), @Roles(), @CurrentUser(), @CurrentTenant()
+    ├── guards/                   # JwtAuthGuard (global), RolesGuard (global)
+    ├── interceptors/             # TenantInterceptor — propaga tenantId del JWT al ALS
+    └── dto/                      # PageOptionsDto, PageOf<T>
+```
+
+---
+
+## 12. Multi-tenant — cómo funciona
+
+1. Login devuelve JWT con `{ sub, tenantId, role }` en payload
+2. `TenantInterceptor` lee `tenantId` del JWT → lo guarda en `tenantStore` (AsyncLocalStorage)
+3. `PrismaService` envuelve cada query con `SET LOCAL app.current_tenant_id = '<id>'`
+4. RLS en PostgreSQL filtra filas donde `tenant_id = current_setting('app.current_tenant_id')`
+
+| Rol DB | RLS | Uso |
+|---|---|---|
+| `predia_app` | NOBYPASSRLS (enforced) | App principal — queries tenant-scoped |
+| `predia_system` | BYPASSRLS | Sistema — ve datos de todos los tenants |
+
+---
+
+## 13. Agregar un nuevo módulo
+
+```bash
+# 1. Crear archivos
+src/modules/<nombre>/
+  ├── <nombre>.module.ts
+  ├── <nombre>.controller.ts
+  └── <nombre>.service.ts
+
+# 2. En el service, inyectar PrismaService directamente (es global)
+constructor(private prisma: PrismaService) {}
+
+# 3. Usar @CurrentTenant() para operaciones tenant-scoped
+@Get()
+findAll(@CurrentTenant() tenantId: string) { ... }
+
+# 4. Registrar en app.module.ts
+imports: [..., NombreModule]
+```

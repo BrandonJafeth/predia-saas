@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Loader2, ArrowLeft } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
 import { useTenant } from '@/app/tenants/hooks'
 import { useUsersByTenant } from '@/app/admin/hooks'
+
+const PAGE_LIMIT = 20
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Superadmin',
@@ -19,8 +23,9 @@ const ROLE_VARIANT: Record<string, 'default' | 'emerald' | 'orange'> = {
 }
 
 function TenantDetailPage({ tenantId }: { tenantId: string }) {
+  const [page, setPage] = useState(1)
   const { data: tenant, isLoading: loadingTenant } = useTenant(tenantId)
-  const { data, isLoading: loadingUsers, error } = useUsersByTenant(tenantId, { limit: 50 })
+  const { data, isLoading: loadingUsers, error } = useUsersByTenant(tenantId, { page, limit: PAGE_LIMIT })
 
   const users = data?.data ?? []
 
@@ -102,6 +107,15 @@ function TenantDetailPage({ tenantId }: { tenantId: string }) {
               </tbody>
             </table>
           </div>
+        )}
+        {data?.meta && (
+          <PaginationControls
+            page={page}
+            pageCount={data.meta.pageCount}
+            itemCount={data.meta.itemCount}
+            limit={PAGE_LIMIT}
+            onPageChange={setPage}
+          />
         )}
       </div>
     </div>

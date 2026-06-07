@@ -4,10 +4,13 @@ import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
 import { Label } from '@/design-system/ui/label'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
 import { useAllUsers, useCreateSuperAdmin } from '@/app/admin/hooks'
 import type { CreateSuperAdminRequest } from '@/app/admin/services/system.service'
+
+const PAGE_LIMIT = 20
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Superadmin',
@@ -43,8 +46,9 @@ function UsersAdminPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState<CreateSuperAdminRequest>(EMPTY_FORM)
   const [created, setCreated] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
-  const { data, isLoading, error: fetchError } = useAllUsers({ limit: 50 })
+  const { data, isLoading, error: fetchError } = useAllUsers({ page, limit: PAGE_LIMIT })
   const { mutate: createSuperAdmin, isPending, error: createError, reset } = useCreateSuperAdmin()
 
   const users = data?.data ?? []
@@ -234,6 +238,15 @@ function UsersAdminPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {data?.meta && (
+          <PaginationControls
+            page={page}
+            pageCount={data.meta.pageCount}
+            itemCount={data.meta.itemCount}
+            limit={PAGE_LIMIT}
+            onPageChange={setPage}
+          />
         )}
       </div>
     </div>

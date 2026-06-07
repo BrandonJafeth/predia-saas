@@ -2,6 +2,9 @@ import { useId, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Eye, EyeOff, Loader2, CheckCircle2, Plus, ChevronDown, ChevronUp, Users } from 'lucide-react'
 import { Button } from '@/design-system/ui/button'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
+
+const PAGE_LIMIT = 20
 import { Input } from '@/design-system/ui/input'
 import { Label } from '@/design-system/ui/label'
 import { Badge } from '@/design-system/ui/badge'
@@ -59,9 +62,10 @@ function TenantsPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<RegisterRequest>(EMPTY_FORM)
   const [created, setCreated] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   const { mutate: register, isPending, error, reset } = useRegister()
-  const { data: tenantsData, isLoading: loadingTenants } = useTenants()
+  const { data: tenantsData, isLoading: loadingTenants } = useTenants({ page, limit: PAGE_LIMIT })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target
@@ -286,6 +290,15 @@ function TenantsPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {tenantsData?.meta && (
+          <PaginationControls
+            page={page}
+            pageCount={tenantsData.meta.totalPages}
+            itemCount={tenantsData.meta.total}
+            limit={PAGE_LIMIT}
+            onPageChange={setPage}
+          />
         )}
       </div>
     </div>

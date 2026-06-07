@@ -1,5 +1,3 @@
-const ACCESS_TOKEN_KEY = 'predia_access_token'
-
 interface JwtPayload {
   sub: string
   tenantId: string
@@ -17,16 +15,15 @@ function decodeJwt(token: string): JwtPayload | null {
   }
 }
 
+// Access token lives only in JS memory — never in localStorage/sessionStorage.
+// XSS cannot read it. On page reload the __root.tsx beforeLoad restores it
+// via the HttpOnly refresh cookie.
+let _accessToken: string | null = null
+
 export const tokenStorage = {
-  getAccessToken: () => localStorage.getItem(ACCESS_TOKEN_KEY),
-  setTokens: (accessToken: string) => {
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
-  },
-  clearTokens: () => {
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
-  },
-  decodeAccessToken: (): JwtPayload | null => {
-    const token = localStorage.getItem(ACCESS_TOKEN_KEY)
-    return token ? decodeJwt(token) : null
-  },
+  getAccessToken: () => _accessToken,
+  setTokens: (accessToken: string) => { _accessToken = accessToken },
+  clearTokens: () => { _accessToken = null },
+  decodeAccessToken: (): JwtPayload | null =>
+    _accessToken ? decodeJwt(_accessToken) : null,
 }

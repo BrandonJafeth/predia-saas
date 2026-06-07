@@ -4,6 +4,7 @@ import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
 import { Label } from '@/design-system/ui/label'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import {
   Select,
   SelectContent,
@@ -15,6 +16,8 @@ import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
 import { useUsers, useCreateUser } from '@/app/users/hooks'
 import type { CreateUserRequest } from '@/app/users/types'
+
+const PAGE_LIMIT = 20
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin',
@@ -49,8 +52,9 @@ function TenantUsersPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState<CreateUserRequest>(EMPTY_FORM)
   const [created, setCreated] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
-  const { data, isLoading, error: fetchError } = useUsers({ limit: 50 })
+  const { data, isLoading, error: fetchError } = useUsers({ page, limit: PAGE_LIMIT })
   const { mutate: createUser, isPending, error: createError, reset } = useCreateUser()
 
   const users = (data as any)?.data ?? []
@@ -251,6 +255,15 @@ function TenantUsersPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {(data as any)?.meta && (
+          <PaginationControls
+            page={page}
+            pageCount={(data as any).meta.pageCount}
+            itemCount={(data as any).meta.itemCount}
+            limit={PAGE_LIMIT}
+            onPageChange={setPage}
+          />
         )}
       </div>
     </div>

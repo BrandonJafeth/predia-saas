@@ -4,4 +4,4 @@ export interface TenantContext {
   tenantId: string;
 }
 
-export const tenantAls = new AsyncLocalStorage<TenantContext>();
+export const tenantStore = new AsyncLocalStorage<TenantContext>();
