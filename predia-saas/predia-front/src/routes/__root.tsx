@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import AppLayout from '@/layouts/AppLayout'
 import { tokenStorage } from '@/shared/lib/tokens'
 import { refreshAccessToken } from '@/shared/lib/api'
+import { Toaster, TOASTER_OPTIONS } from '@/shared/lib/notifications'
 
 const AUTH_PATHS = ['/login', '/forgot-password']
 
@@ -46,6 +47,7 @@ export const Route = createRootRoute({
             <Outlet />
           </AppLayout>
         )}
+        <Toaster position="top-right" options={TOASTER_OPTIONS} />
         {import.meta.env.DEV && <TanStackRouterDevtools />}
       </>
     )

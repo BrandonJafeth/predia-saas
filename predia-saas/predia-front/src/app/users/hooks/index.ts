@@ -6,6 +6,7 @@ import {
   type PaginationParams,
   type UpdateUserRequest,
 } from '../types'
+import { notify, extractApiError } from '@/shared/lib/notifications'
 
 export const useUsers = (params?: PaginationParams) => {
   return useQuery({
@@ -28,7 +29,11 @@ export const useCreateUser = () => {
   return useMutation({
     mutationFn: (payload: CreateUserRequest) => usersService.create(payload),
     onSuccess: () => {
+      notify.success({ title: 'Usuario creado' })
       queryClient.invalidateQueries({ queryKey: userKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al crear usuario', description: extractApiError(err) })
     },
   })
 }
@@ -40,8 +45,12 @@ export const useUpdateUser = () => {
     mutationFn: ({ id, ...payload }: UpdateUserRequest & { id: string }) =>
       usersService.update(id, payload),
     onSuccess: (_, { id }) => {
+      notify.success({ title: 'Usuario actualizado' })
       queryClient.invalidateQueries({ queryKey: userKeys.detail(id) })
       queryClient.invalidateQueries({ queryKey: userKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al actualizar usuario', description: extractApiError(err) })
     },
   })
 }
@@ -52,7 +61,11 @@ export const useDeleteUser = () => {
   return useMutation({
     mutationFn: (id: string) => usersService.remove(id),
     onSuccess: () => {
+      notify.success({ title: 'Usuario eliminado' })
       queryClient.invalidateQueries({ queryKey: userKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al eliminar usuario', description: extractApiError(err) })
     },
   })
 }
