@@ -1,3 +1,4 @@
+import { Link, useRouterState } from '@tanstack/react-router'
 import { useSidebar } from '@/design-system/ui/sidebar'
 import {
   SidebarContent,
@@ -11,30 +12,91 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from '@/design-system/ui/sidebar'
-import { Home, Building2, Users, BarChart3, Settings, HelpCircle, PanelLeftClose, PanelLeft, ShieldCheck, UsersRound } from 'lucide-react'
+import {
+  Home,
+  Building2,
+  Users,
+  BarChart3,
+  Settings,
+  HelpCircle,
+  PanelLeftClose,
+  PanelLeft,
+  ShieldCheck,
+  UsersRound,
+} from 'lucide-react'
 import { tokenStorage } from '@/shared/lib/tokens'
 
-const mainItems = [
+const tenantItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
   { title: 'Propiedades', url: '/properties', icon: Building2 },
   { title: 'Leads', url: '/leads', icon: Users },
   { title: 'Reportes', url: '/reports', icon: BarChart3 },
 ]
 
-const secondaryItems = [
+const tenantTeamItems = [
+  { title: 'Usuarios', url: '/users', icon: UsersRound },
+]
+
+const tenantSecondaryItems = [
   { title: 'Configuración', url: '/settings', icon: Settings },
   { title: 'Ayuda', url: '/help', icon: HelpCircle },
 ]
 
-const adminItems = [
+const systemAdminItems = [
   { title: 'Organizaciones', url: '/admin/tenants', icon: ShieldCheck },
   { title: 'Usuarios', url: '/admin/users', icon: UsersRound },
 ]
 
+type NavItem = { title: string; url: string; icon: React.ElementType }
+
+function NavGroup({
+  label,
+  items,
+  collapsed,
+  activePath,
+}: {
+  label: string
+  items: NavItem[]
+  collapsed: boolean
+  activePath: string
+}) {
+  return (
+    <SidebarGroup>
+      {!collapsed && <SidebarGroupLabel className="font-body">{label}</SidebarGroupLabel>}
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => {
+            const isActive =
+              activePath === item.url || activePath.startsWith(item.url + '/')
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive}
+                  tooltip={collapsed ? item.title : undefined}
+                  className={collapsed ? 'justify-center px-0' : ''}
+                >
+                  <Link to={item.url}>
+                    <item.icon />
+                    {!collapsed && <span>{item.title}</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          })}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  )
+}
+
 function AppSidebar() {
   const { state, toggleSidebar, isMobile } = useSidebar()
+  const { location } = useRouterState()
   const collapsed = !isMobile && state === 'collapsed'
-  const isSuperAdmin = tokenStorage.decodeAccessToken()?.role === 'super_admin'
+  const role = tokenStorage.decodeAccessToken()?.role
+  const isSuperAdmin = role === 'super_admin'
+  const isAdmin = role === 'admin'
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -56,76 +118,39 @@ function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          {!collapsed && <SidebarGroupLabel className="font-body">Principal</SidebarGroupLabel>}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={collapsed ? item.title : undefined}
-                    className={collapsed ? 'justify-center px-0' : ''}
-                  >
-                    <a href={item.url}>
-                      <item.icon />
-                      {!collapsed && <span>{item.title}</span>}
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          {!collapsed && <SidebarGroupLabel className="font-body">Sistema</SidebarGroupLabel>}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {secondaryItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={collapsed ? item.title : undefined}
-                    className={collapsed ? 'justify-center px-0' : ''}
-                  >
-                    <a href={item.url}>
-                      <item.icon />
-                      {!collapsed && <span>{item.title}</span>}
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {isSuperAdmin && (
+        {isSuperAdmin ? (
+          <NavGroup
+            label="Administración"
+            items={systemAdminItems}
+            collapsed={collapsed}
+            activePath={location.pathname}
+          />
+        ) : (
           <>
+            <NavGroup
+              label="Principal"
+              items={tenantItems}
+              collapsed={collapsed}
+              activePath={location.pathname}
+            />
+            {isAdmin && (
+              <>
+                <SidebarSeparator />
+                <NavGroup
+                  label="Equipo"
+                  items={tenantTeamItems}
+                  collapsed={collapsed}
+                  activePath={location.pathname}
+                />
+              </>
+            )}
             <SidebarSeparator />
-            <SidebarGroup>
-              {!collapsed && <SidebarGroupLabel className="font-body">Superadmin</SidebarGroupLabel>}
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {adminItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={collapsed ? item.title : undefined}
-                        className={collapsed ? 'justify-center px-0' : ''}
-                      >
-                        <a href={item.url}>
-                          <item.icon />
-                          {!collapsed && <span>{item.title}</span>}
-                        </a>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+            <NavGroup
+              label="Sistema"
+              items={tenantSecondaryItems}
+              collapsed={collapsed}
+              activePath={location.pathname}
+            />
           </>
         )}
       </SidebarContent>

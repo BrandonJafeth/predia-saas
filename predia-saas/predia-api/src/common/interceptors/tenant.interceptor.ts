@@ -5,7 +5,7 @@ import {
   CallHandler,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { tenantAls } from '../als/tenant.als';
+import { tenantStore } from '../als/tenant.store';
 import { JwtPayload } from '../../modules/auth/interfaces/jwt-payload.interface';
 
 @Injectable()
@@ -16,7 +16,7 @@ export class TenantInterceptor implements NestInterceptor {
     const tenantId = user?.tenantId;
 
     if (tenantId) {
-      return tenantAls.run({ tenantId }, () => {
+      return tenantStore.run({ tenantId }, () => {
         return next.handle();
       });
     }

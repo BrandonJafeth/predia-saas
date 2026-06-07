@@ -5,12 +5,22 @@ export const systemKeys = {
   all: ['system'] as const,
   users: () => [...systemKeys.all, 'users'] as const,
   usersList: (params?: SystemUserParams) => [...systemKeys.users(), params] as const,
+  tenantUsers: (tenantId: string, params?: SystemUserParams) =>
+    [...systemKeys.all, 'tenants', tenantId, 'users', params] as const,
 }
 
 export const useAllUsers = (params?: SystemUserParams) => {
   return useQuery({
     queryKey: systemKeys.usersList(params),
     queryFn: () => systemService.findAllUsers(params),
+  })
+}
+
+export const useUsersByTenant = (tenantId: string, params?: SystemUserParams) => {
+  return useQuery({
+    queryKey: systemKeys.tenantUsers(tenantId, params),
+    queryFn: () => systemService.findUsersByTenant(tenantId, params),
+    enabled: !!tenantId,
   })
 }
 

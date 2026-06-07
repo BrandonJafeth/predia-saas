@@ -1,7 +1,6 @@
 import {
   ConflictException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
@@ -73,16 +72,12 @@ export class SystemService {
   }
 
   async createSuperAdmin(dto: CreateSuperAdminDto) {
-    const tenant = await this.prisma.tenant.findUnique({
+    const tenant = await this.prisma.tenant.upsert({
       where: { slug: SYSTEM_TENANT_SLUG },
+      create: { name: 'Predia SaaS', slug: SYSTEM_TENANT_SLUG },
+      update: {},
       select: { id: true },
     });
-
-    if (!tenant) {
-      throw new InternalServerErrorException(
-        'System tenant not found. Run the seed script first.',
-      );
-    }
 
     const password_hash = await bcrypt.hash(dto.password, 12);
 

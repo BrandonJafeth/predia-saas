@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { ConfigService } from '@nestjs/config';
-import { tenantAls } from '../common/als/tenant.als';
+import { tenantStore } from '../common/als/tenant.store';
 
 @Injectable()
 export class PrismaService
@@ -19,7 +19,7 @@ export class PrismaService
       query: {
         $allModels: {
           async $allOperations({ args, query }) {
-            const tenantId = tenantAls.getStore()?.tenantId;
+            const tenantId = tenantStore.getStore()?.tenantId;
             if (tenantId) {
               const [, result] = await client.$transaction([
                 client.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`,

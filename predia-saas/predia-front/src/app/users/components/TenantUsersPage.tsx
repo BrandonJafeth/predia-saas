@@ -5,30 +5,36 @@ import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
 import { Label } from '@/design-system/ui/label'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/design-system/ui/select'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
-import { useAllUsers, useCreateSuperAdmin } from '@/app/admin/hooks'
-import type { CreateSuperAdminRequest } from '@/app/admin/services/system.service'
+import { useUsers, useCreateUser } from '@/app/users/hooks'
+import type { CreateUserRequest } from '@/app/users/types'
 
 const PAGE_LIMIT = 20
 
 const ROLE_LABEL: Record<string, string> = {
-  super_admin: 'Superadmin',
   admin: 'Admin',
   agent: 'Agente',
 }
 
-const ROLE_VARIANT: Record<string, 'default' | 'emerald' | 'orange'> = {
-  super_admin: 'default',
+const ROLE_VARIANT: Record<string, 'emerald' | 'orange'> = {
   admin: 'emerald',
   agent: 'orange',
 }
 
-const EMPTY_FORM: CreateSuperAdminRequest = {
+const EMPTY_FORM: CreateUserRequest = {
   email: '',
   password: '',
   first_name: '',
   last_name: '',
+  role: 'agent',
 }
 
 function extractMessage(error: unknown): string {
@@ -37,19 +43,19 @@ function extractMessage(error: unknown): string {
     if (typeof message === 'string') return message
     if (Array.isArray(message) && typeof message[0] === 'string') return message[0]
   }
-  return 'Error al crear el superadmin. Intenta nuevamente.'
+  return 'Error al crear el usuario. Intenta nuevamente.'
 }
 
-function UsersAdminPage() {
+function TenantUsersPage() {
   const errorId = useId()
   const [showForm, setShowForm] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [form, setForm] = useState<CreateSuperAdminRequest>(EMPTY_FORM)
+  const [form, setForm] = useState<CreateUserRequest>(EMPTY_FORM)
   const [created, setCreated] = useState<string | null>(null)
   const [page, setPage] = useState(1)
 
-  const { data, isLoading, error: fetchError } = useAllUsers({ page, limit: PAGE_LIMIT })
-  const { mutate: createSuperAdmin, isPending, error: createError, reset } = useCreateSuperAdmin()
+  const { data, isLoading, error: fetchError } = useUsers({ page, limit: PAGE_LIMIT })
+  const { mutate: createUser, isPending, error: createError, reset } = useCreateUser()
 
   const users = data?.data ?? []
   const errorMessage = createError ? extractMessage(createError) : null
@@ -59,9 +65,13 @@ function UsersAdminPage() {
     setForm(prev => ({ ...prev, [name]: value }))
   }
 
+  function handleRoleChange(value: string) {
+    setForm(prev => ({ ...prev, role: value as 'admin' | 'agent' }))
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    createSuperAdmin(form, {
+    createUser(form, {
       onSuccess: () => {
         setCreated(`${form.first_name} ${form.last_name}`)
         setForm(EMPTY_FORM)
@@ -80,25 +90,25 @@ function UsersAdminPage() {
     <div className="p-6 max-w-5xl mx-auto w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Heading as="lg">Usuarios del sistema</Heading>
+          <Heading as="lg">Usuarios</Heading>
           <Text as="sm" className="text-muted-foreground mt-1">
-            Todos los usuarios registrados en la plataforma.
+            Administra los usuarios de tu organización.
           </Text>
         </div>
         <Button onClick={() => setShowForm(v => !v)} className="self-start sm:self-auto gap-2">
           <Plus className="size-4" />
-          Nuevo superadmin
+          Nuevo usuario
           {showForm ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
       </div>
 
-      {/* Create superadmin form */}
+      {/* Create user form */}
       {showForm && (
         <div className="bg-canvas rounded-2xl border border-hairline shadow-raised p-8">
           <div className="mb-6 pb-5 border-b border-hairline">
-            <Text as="md" className="font-semibold text-foreground">Nuevo superadmin</Text>
+            <Text as="md" className="font-semibold text-foreground">Nuevo usuario</Text>
             <Text as="sm" className="text-muted-foreground mt-1">
-              El usuario tendrá acceso completo al sistema.
+              Asigna rol de administrador o agente.
             </Text>
           </div>
 
@@ -108,13 +118,13 @@ function UsersAdminPage() {
                 <CheckCircle2 className="size-8 text-success" />
               </div>
               <div className="space-y-1.5">
-                <Heading as="md">Superadmin creado</Heading>
+                <Heading as="md">Usuario creado</Heading>
                 <Text as="sm" className="text-muted-foreground">
-                  <span className="font-semibold text-foreground">{created}</span> ya tiene acceso al sistema.
+                  <span className="font-semibold text-foreground">{created}</span> ya tiene acceso.
                 </Text>
               </div>
               <Button className="mt-4" onClick={handleNew}>
-                Crear otro superadmin
+                Crear otro usuario
               </Button>
             </div>
           ) : (
@@ -144,8 +154,21 @@ function UsersAdminPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="email">Correo electrónico</Label>
-                <Input id="email" name="email" type="email" placeholder="admin@predia.com"
+                <Input id="email" name="email" type="email" placeholder="usuario@correo.com"
                   value={form.email} onChange={handleChange} required autoComplete="off" />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="role">Rol</Label>
+                <Select value={form.role} onValueChange={handleRoleChange}>
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Selecciona un rol" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="agent">Agente</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-1.5">
@@ -153,7 +176,7 @@ function UsersAdminPage() {
                 <div className="relative">
                   <Input id="password" name="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="Mínimo 12 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     value={form.password} onChange={handleChange}
                     required autoComplete="new-password" className="pr-9" />
                   <button type="button" onClick={() => setShowPassword(v => !v)}
@@ -162,14 +185,13 @@ function UsersAdminPage() {
                     {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                   </button>
                 </div>
-                <Text as="caption" className="text-muted-foreground">Mínimo 12 caracteres.</Text>
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
                 <Button type="submit" disabled={isPending} className="px-8">
                   {isPending && <Loader2 className="animate-spin mr-2" />}
-                  Crear superadmin
+                  Crear usuario
                 </Button>
               </div>
             </form>
@@ -181,7 +203,7 @@ function UsersAdminPage() {
       <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
         <div className="px-6 py-4 border-b border-hairline">
           <Text as="md" className="font-semibold">
-            Usuarios
+            Miembros
             {data && (
               <span className="ml-2 text-muted-foreground font-normal text-sm">
                 ({data.meta?.itemCount ?? users.length})
@@ -200,7 +222,7 @@ function UsersAdminPage() {
           </div>
         ) : users.length === 0 ? (
           <div className="flex items-center justify-center py-16">
-            <Text as="sm" className="text-muted-foreground">No hay usuarios registrados.</Text>
+            <Text as="sm" className="text-muted-foreground">No hay usuarios en esta organización.</Text>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -210,7 +232,6 @@ function UsersAdminPage() {
                   <th className="text-left px-6 py-3 font-medium text-muted-foreground">Nombre</th>
                   <th className="text-left px-6 py-3 font-medium text-muted-foreground">Email</th>
                   <th className="text-left px-6 py-3 font-medium text-muted-foreground">Rol</th>
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Organización</th>
                   <th className="text-left px-6 py-3 font-medium text-muted-foreground">Creado</th>
                 </tr>
               </thead>
@@ -225,10 +246,6 @@ function UsersAdminPage() {
                       <Badge variant={ROLE_VARIANT[user.role] ?? 'default'}>
                         {ROLE_LABEL[user.role] ?? user.role}
                       </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-mono text-xs text-muted-foreground">{user.tenant.slug}</span>
-                      <span className="ml-1 text-muted-foreground">· {user.tenant.name}</span>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {new Date(user.created_at).toLocaleDateString('es-CR')}
@@ -253,4 +270,4 @@ function UsersAdminPage() {
   )
 }
 
-export default UsersAdminPage
+export default TenantUsersPage

@@ -23,8 +23,10 @@ export interface PaginatedResponse<T> {
   meta: {
     page: number
     limit: number
-    total: number
-    totalPages: number
+    itemCount: number
+    pageCount: number
+    hasPreviousPage: boolean
+    hasNextPage: boolean
   }
 }
 

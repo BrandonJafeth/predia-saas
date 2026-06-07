@@ -1,12 +1,27 @@
--- RLS setup is now managed via Prisma migrations.
--- See: prisma/migrations/20260605220000_rls_tenant_isolation/migration.sql
+-- Run ONCE in psql as superuser before deploying to production.
+-- Sets up the two app roles with least-privilege permissions.
 --
--- This file is kept only as a reference for the required app role setup.
--- Run these commands ONCE in psql before deploying:
+-- Usage:
+--   psql -U postgres -d predia -f src/prisma/rls-setup.sql
 --
---   CREATE ROLE predia_app LOGIN PASSWORD 'change-me' NOBYPASSRLS;
---   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO predia_app;
---   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO predia_app;
---
--- Then set DATABASE_URL in .env to use the predia_app credentials (not postgres superuser).
--- Without NOBYPASSRLS, RLS policies are bypassed entirely.
+-- Then update .env:
+--   DATABASE_URL     → credentials for predia_app
+--   SYSTEM_DATABASE_URL → credentials for predia_system
+
+-- ─── predia_app ───────────────────────────────────────────────────────────────
+-- Used by PrismaService (tenant DB). NOBYPASSRLS enforces RLS tenant isolation.
+
+CREATE ROLE predia_app LOGIN PASSWORD 'change-me-app' NOBYPASSRLS;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON "Tenant", "User" TO predia_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO predia_app;
+
+-- ─── predia_system ────────────────────────────────────────────────────────────
+-- Used by SystemPrismaService. BYPASSRLS needed to read users across all tenants.
+-- Write access is intentionally limited: only INSERT on "User" (createSuperAdmin).
+
+CREATE ROLE predia_system LOGIN PASSWORD 'change-me-system' BYPASSRLS;
+
+GRANT SELECT ON "Tenant", "User" TO predia_system;
+GRANT INSERT ON "User" TO predia_system;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO predia_system;
