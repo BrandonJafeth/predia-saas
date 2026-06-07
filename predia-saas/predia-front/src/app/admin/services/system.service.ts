@@ -84,6 +84,9 @@ export const systemService = {
   findAllUsers(params?: SystemUserParams): Promise<PaginatedSystemUsers> {
     return systemGet<PaginatedSystemUsers>('/system/users', params as Record<string, unknown>)
   },
+  findUsersByTenant(tenantId: string, params?: SystemUserParams): Promise<PaginatedSystemUsers> {
+    return systemGet<PaginatedSystemUsers>(`/system/tenants/${tenantId}/users`, params as Record<string, unknown>)
+  },
   createSuperAdmin(payload: CreateSuperAdminRequest): Promise<CreatedSuperAdmin> {
     return systemPost<CreatedSuperAdmin>('/system/superadmins', payload)
   },

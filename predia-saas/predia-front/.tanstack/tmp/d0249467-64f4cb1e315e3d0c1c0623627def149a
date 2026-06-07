@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as PropertiesRouteImport } from './routes/properties'
 import { Route as LoginRouteImport } from './routes/login'
@@ -16,7 +17,13 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTenantsRouteImport } from './routes/admin.tenants'
+import { Route as AdminTenantsIdRouteImport } from './routes/admin.tenants.$id'
 
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -52,6 +59,11 @@ const AdminTenantsRoute = AdminTenantsRouteImport.update({
   path: '/admin/tenants',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminTenantsIdRoute = AdminTenantsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminTenantsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -59,8 +71,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/properties': typeof PropertiesRoute
   '/register': typeof RegisterRoute
-  '/admin/tenants': typeof AdminTenantsRoute
+  '/users': typeof UsersRoute
+  '/admin/tenants': typeof AdminTenantsRouteWithChildren
   '/admin/users': typeof AdminUsersRoute
+  '/admin/tenants/$id': typeof AdminTenantsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -68,8 +82,10 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/properties': typeof PropertiesRoute
   '/register': typeof RegisterRoute
-  '/admin/tenants': typeof AdminTenantsRoute
+  '/users': typeof UsersRoute
+  '/admin/tenants': typeof AdminTenantsRouteWithChildren
   '/admin/users': typeof AdminUsersRoute
+  '/admin/tenants/$id': typeof AdminTenantsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -78,8 +94,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/properties': typeof PropertiesRoute
   '/register': typeof RegisterRoute
-  '/admin/tenants': typeof AdminTenantsRoute
+  '/users': typeof UsersRoute
+  '/admin/tenants': typeof AdminTenantsRouteWithChildren
   '/admin/users': typeof AdminUsersRoute
+  '/admin/tenants/$id': typeof AdminTenantsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -89,8 +107,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/properties'
     | '/register'
+    | '/users'
     | '/admin/tenants'
     | '/admin/users'
+    | '/admin/tenants/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -98,8 +118,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/properties'
     | '/register'
+    | '/users'
     | '/admin/tenants'
     | '/admin/users'
+    | '/admin/tenants/$id'
   id:
     | '__root__'
     | '/'
@@ -107,8 +129,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/properties'
     | '/register'
+    | '/users'
     | '/admin/tenants'
     | '/admin/users'
+    | '/admin/tenants/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -117,12 +141,20 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PropertiesRoute: typeof PropertiesRoute
   RegisterRoute: typeof RegisterRoute
-  AdminTenantsRoute: typeof AdminTenantsRoute
+  UsersRoute: typeof UsersRoute
+  AdminTenantsRoute: typeof AdminTenantsRouteWithChildren
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -172,8 +204,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTenantsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/tenants/$id': {
+      id: '/admin/tenants/$id'
+      path: '/$id'
+      fullPath: '/admin/tenants/$id'
+      preLoaderRoute: typeof AdminTenantsIdRouteImport
+      parentRoute: typeof AdminTenantsRoute
+    }
   }
 }
+
+interface AdminTenantsRouteChildren {
+  AdminTenantsIdRoute: typeof AdminTenantsIdRoute
+}
+
+const AdminTenantsRouteChildren: AdminTenantsRouteChildren = {
+  AdminTenantsIdRoute: AdminTenantsIdRoute,
+}
+
+const AdminTenantsRouteWithChildren = AdminTenantsRoute._addFileChildren(
+  AdminTenantsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -181,7 +232,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PropertiesRoute: PropertiesRoute,
   RegisterRoute: RegisterRoute,
-  AdminTenantsRoute: AdminTenantsRoute,
+  UsersRoute: UsersRoute,
+  AdminTenantsRoute: AdminTenantsRouteWithChildren,
   AdminUsersRoute: AdminUsersRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
-import { Eye, EyeOff, Loader2, CheckCircle2, Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Eye, EyeOff, Loader2, CheckCircle2, Plus, ChevronDown, ChevronUp, Users } from 'lucide-react'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
 import { Label } from '@/design-system/ui/label'
@@ -254,6 +255,7 @@ function TenantsPage() {
                   <th className="text-left px-6 py-3 font-medium text-muted-foreground">Slug</th>
                   <th className="text-left px-6 py-3 font-medium text-muted-foreground">Estado</th>
                   <th className="text-left px-6 py-3 font-medium text-muted-foreground">Creado</th>
+                  <th className="px-6 py-3" />
                 </tr>
               </thead>
               <tbody>
@@ -268,6 +270,16 @@ function TenantsPage() {
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {new Date(tenant.created_at).toLocaleDateString('es-CR')}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        to="/admin/tenants/$id"
+                        params={{ id: tenant.id }}
+                        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Users className="size-3.5" />
+                        Usuarios
+                      </Link>
                     </td>
                   </tr>
                 ))}
