@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Controller } from 'react-hook-form'
+import { useForm } from '@tanstack/react-form'
 import { Loader2, Plus, Eye, EyeOff } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
@@ -43,32 +41,28 @@ function TenantUsersPage() {
   const { data, isLoading, error: fetchError } = useUsers({ page, limit: PAGE_LIMIT })
   const { mutate: createUser, isPending } = useCreateUser()
 
-  const form = useForm<CreateUserFormValues>({
-    resolver: zodResolver(createUserSchema),
+  const form = useForm({
     defaultValues: {
       email: '',
       password: '',
       first_name: '',
       last_name: '',
-      role: 'agent',
+      role: 'agent' as CreateUserFormValues['role'],
+    },
+    validators: {
+      onSubmit: createUserSchema,
+    },
+    onSubmit: ({ value }: { value: CreateUserFormValues }) => {
+      createUser(value as CreateUserRequest, {
+        onSuccess: () => { setOpen(false); form.reset() },
+      })
     },
   })
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = form
-
-  function onSubmit(data: CreateUserFormValues) {
-    createUser(data as CreateUserRequest, {
-      onSuccess: () => {
-        setOpen(false)
-        reset()
-      },
-    })
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    form.handleSubmit()
   }
 
   const users: User[] = data?.data ?? []
@@ -92,35 +86,45 @@ function TenantUsersPage() {
         open={open}
         onOpenChange={(v) => {
           setOpen(v)
-          if (!v) reset()
+          if (!v) form.reset()
         }}
         title="Nuevo usuario"
         description="Asigna rol de administrador o agente."
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleFormSubmit}
         isSubmitting={isPending}
         submitLabel="Crear usuario"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField label="Nombre" htmlFor="first_name" error={errors.first_name?.message}>
-            <Input id="first_name" placeholder="Juan" {...register('first_name')} autoComplete="off" />
-          </FormField>
-          <FormField label="Apellido" htmlFor="last_name" error={errors.last_name?.message}>
-            <Input id="last_name" placeholder="Pérez" {...register('last_name')} autoComplete="off" />
-          </FormField>
+          <form.Field name="first_name">
+            {(field) => (
+              <FormField label="Nombre" htmlFor="first_name" error={field.state.meta.errors[0]?.message}>
+                <Input id="first_name" placeholder="Juan" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+              </FormField>
+            )}
+          </form.Field>
+          <form.Field name="last_name">
+            {(field) => (
+              <FormField label="Apellido" htmlFor="last_name" error={field.state.meta.errors[0]?.message}>
+                <Input id="last_name" placeholder="Pérez" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+              </FormField>
+            )}
+          </form.Field>
         </div>
 
-        <FormField label="Correo electrónico" htmlFor="email" error={errors.email?.message}>
-          <Input id="email" type="email" placeholder="usuario@correo.com" {...register('email')} autoComplete="off" />
-        </FormField>
+        <form.Field name="email">
+          {(field) => (
+            <FormField label="Correo electrónico" htmlFor="email" error={field.state.meta.errors[0]?.message}>
+              <Input id="email" type="email" placeholder="usuario@correo.com" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+            </FormField>
+          )}
+        </form.Field>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="role">Rol</Label>
-          <Controller
-            name="role"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger id="role" aria-invalid={!!errors.role} aria-describedby={errors.role ? 'role-error' : undefined}>
+        <form.Field name="role">
+          {(field) => (
+            <div className="space-y-1.5">
+              <Label htmlFor="role">Rol</Label>
+              <Select value={field.state.value} onValueChange={(v: 'admin' | 'agent') => field.handleChange(v)}>
+                <SelectTrigger id="role" aria-invalid={!!(field.state.meta.errors[0] as { message?: string } | undefined)?.message} aria-describedby={field.state.meta.errors[0] ? 'role-error' : undefined}>
                   <SelectValue placeholder="Selecciona un rol" />
                 </SelectTrigger>
                 <SelectContent>
@@ -128,35 +132,41 @@ function TenantUsersPage() {
                   <SelectItem value="agent">Agente</SelectItem>
                 </SelectContent>
               </Select>
-            )}
-          />
-          {errors.role && (
-            <p id="role-error" role="alert" className="text-caption text-destructive font-body font-medium leading-[1.4]">
-              {errors.role.message}
-            </p>
+              {field.state.meta.errors[0]?.message && (
+                <p id="role-error" role="alert" className="text-caption text-destructive font-body font-medium leading-[1.4]">
+                  {field.state.meta.errors[0]?.message}
+                </p>
+              )}
+            </div>
           )}
-        </div>
+        </form.Field>
 
-        <FormField label="Contraseña" htmlFor="password" error={errors.password?.message}>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Mínimo 8 caracteres"
-              {...register('password')}
-              autoComplete="new-password"
-              className="pr-9"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
-        </FormField>
+        <form.Field name="password">
+          {(field) => (
+            <FormField label="Contraseña" htmlFor="password" error={field.state.meta.errors[0]?.message}>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Mínimo 8 caracteres"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  autoComplete="new-password"
+                  className="pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </FormField>
+          )}
+        </form.Field>
       </FormSheet>
 
       {/* Users table */}

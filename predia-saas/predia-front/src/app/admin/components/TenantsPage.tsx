@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
-import { useForm, useWatch } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm, useStore } from '@tanstack/react-form'
 import { Loader2, Plus, Users } from 'lucide-react'
 import { Button } from '@/design-system/ui/button'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
@@ -47,8 +46,7 @@ function TenantsPage() {
   const { mutate: createTenant, isPending } = useCreateTenant()
   const { data: tenantsData, isLoading: loadingTenants } = useTenants({ page, limit: PAGE_LIMIT })
 
-  const form = useForm<CreateTenantFormValues>({
-    resolver: zodResolver(createTenantSchema),
+  const form = useForm({
     defaultValues: {
       name: '',
       slug: '',
@@ -56,32 +54,28 @@ function TenantsPage() {
       advisor_password: '',
       advisor_first_name: '',
       advisor_last_name: '',
+    } satisfies CreateTenantFormValues,
+    validators: {
+      onSubmit: createTenantSchema,
+    },
+    onSubmit: ({ value }: { value: CreateTenantFormValues }) => {
+      createTenant(value, {
+        onSuccess: () => { setOpen(false); form.reset() },
+      })
     },
   })
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    control,
-    setValue,
-    reset,
-  } = form
-
-  const watchedName = useWatch({ control, name: 'name' })
+  const formName = useStore(form.store, (state) => state.values.name)
 
   useEffect(() => {
-    const slug = slugify(watchedName ?? '')
-    setValue('slug', slug, { shouldValidate: false })
-  }, [watchedName, setValue])
+    const slug = slugify(formName ?? '')
+    form.setFieldValue('slug', slug, { dontValidate: true })
+  }, [formName, form])
 
-  function onSubmit(data: CreateTenantFormValues) {
-    createTenant(data, {
-      onSuccess: () => {
-        setOpen(false)
-        reset()
-      },
-    })
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    form.handleSubmit()
   }
 
   const tenants: Tenant[] = tenantsData?.data ?? []
@@ -105,30 +99,29 @@ function TenantsPage() {
         open={open}
         onOpenChange={(v) => {
           setOpen(v)
-          if (!v) reset()
+          if (!v) form.reset()
         }}
         title="Nueva organización"
         description="Crea un nuevo tenant y su asesor principal."
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleFormSubmit}
         isSubmitting={isPending}
         submitLabel="Crear organización"
       >
-        <FormField label="Nombre de la inmobiliaria" htmlFor="name" error={errors.name?.message}>
-          <Input id="name" placeholder="Ej. Inmobiliaria Norte" {...register('name')} autoComplete="off" />
-        </FormField>
+        <form.Field name="name">
+          {(field) => (
+            <FormField label="Nombre de la inmobiliaria" htmlFor="name" error={field.state.meta.errors[0]?.message}>
+              <Input id="name" placeholder="Ej. Inmobiliaria Norte" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+            </FormField>
+          )}
+        </form.Field>
 
-        <FormField
-          label="Identificador único"
-          htmlFor="slug"
-          error={errors.slug?.message}
-        >
-          <Input
-            id="slug"
-            placeholder="inmobiliaria-norte"
-            {...register('slug')}
-            autoComplete="off"
-          />
-        </FormField>
+        <form.Field name="slug">
+          {(field) => (
+            <FormField label="Identificador único" htmlFor="slug" error={field.state.meta.errors[0]?.message}>
+              <Input id="slug" placeholder="inmobiliaria-norte" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+            </FormField>
+          )}
+        </form.Field>
 
         <hr className="border-hairline" />
 
@@ -136,21 +129,37 @@ function TenantsPage() {
           Asesor principal
         </Text>
 
-        <FormField label="Nombre" htmlFor="advisor_first_name" error={errors.advisor_first_name?.message}>
-          <Input id="advisor_first_name" placeholder="Ej. Carlos" {...register('advisor_first_name')} autoComplete="given-name" />
-        </FormField>
+        <form.Field name="advisor_first_name">
+          {(field) => (
+            <FormField label="Nombre" htmlFor="advisor_first_name" error={field.state.meta.errors[0]?.message}>
+              <Input id="advisor_first_name" placeholder="Ej. Carlos" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="given-name" />
+            </FormField>
+          )}
+        </form.Field>
 
-        <FormField label="Apellido" htmlFor="advisor_last_name" error={errors.advisor_last_name?.message}>
-          <Input id="advisor_last_name" placeholder="Ej. Mendoza" {...register('advisor_last_name')} autoComplete="family-name" />
-        </FormField>
+        <form.Field name="advisor_last_name">
+          {(field) => (
+            <FormField label="Apellido" htmlFor="advisor_last_name" error={field.state.meta.errors[0]?.message}>
+              <Input id="advisor_last_name" placeholder="Ej. Mendoza" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="family-name" />
+            </FormField>
+          )}
+        </form.Field>
 
-        <FormField label="Correo electrónico" htmlFor="advisor_email" error={errors.advisor_email?.message}>
-          <Input id="advisor_email" type="email" placeholder="asesor@inmobiliaria.com" {...register('advisor_email')} autoComplete="email" />
-        </FormField>
+        <form.Field name="advisor_email">
+          {(field) => (
+            <FormField label="Correo electrónico" htmlFor="advisor_email" error={field.state.meta.errors[0]?.message}>
+              <Input id="advisor_email" type="email" placeholder="asesor@inmobiliaria.com" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="email" />
+            </FormField>
+          )}
+        </form.Field>
 
-        <FormField label="Contraseña" htmlFor="advisor_password" error={errors.advisor_password?.message}>
-          <Input id="advisor_password" type="password" placeholder="Mínimo 8 caracteres" {...register('advisor_password')} autoComplete="new-password" />
-        </FormField>
+        <form.Field name="advisor_password">
+          {(field) => (
+            <FormField label="Contraseña" htmlFor="advisor_password" error={field.state.meta.errors[0]?.message}>
+              <Input id="advisor_password" type="password" placeholder="Mínimo 8 caracteres" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="new-password" />
+            </FormField>
+          )}
+        </form.Field>
       </FormSheet>
 
       {/* Tenants list */}

@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from '@tanstack/react-form'
 import { Loader2, Plus, Eye, EyeOff } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
@@ -36,30 +35,27 @@ function UsersAdminPage() {
   const { data, isLoading, error: fetchError } = useAllUsers({ page, limit: PAGE_LIMIT })
   const { mutate: createSuperAdmin, isPending } = useCreateSuperAdmin()
 
-  const form = useForm<CreateSuperAdminFormValues>({
-    resolver: zodResolver(createSuperAdminSchema),
+  const form = useForm({
     defaultValues: {
       email: '',
       password: '',
       first_name: '',
       last_name: '',
+    } satisfies CreateSuperAdminFormValues,
+    validators: {
+      onSubmit: createSuperAdminSchema,
+    },
+    onSubmit: ({ value }: { value: CreateSuperAdminFormValues }) => {
+      createSuperAdmin(value as CreateSuperAdminRequest, {
+        onSuccess: () => { setOpen(false); form.reset() },
+      })
     },
   })
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = form
-
-  function onSubmit(data: CreateSuperAdminFormValues) {
-    createSuperAdmin(data as CreateSuperAdminRequest, {
-      onSuccess: () => {
-        setOpen(false)
-        reset()
-      },
-    })
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    form.handleSubmit()
   }
 
   const users = data?.data ?? []
@@ -83,47 +79,65 @@ function UsersAdminPage() {
         open={open}
         onOpenChange={(v) => {
           setOpen(v)
-          if (!v) reset()
+          if (!v) form.reset()
         }}
         title="Nuevo superadmin"
         description="El usuario tendrá acceso completo al sistema."
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleFormSubmit}
         isSubmitting={isPending}
         submitLabel="Crear superadmin"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField label="Nombre" htmlFor="first_name" error={errors.first_name?.message}>
-            <Input id="first_name" placeholder="Juan" {...register('first_name')} autoComplete="off" />
-          </FormField>
-          <FormField label="Apellido" htmlFor="last_name" error={errors.last_name?.message}>
-            <Input id="last_name" placeholder="Pérez" {...register('last_name')} autoComplete="off" />
-          </FormField>
+          <form.Field name="first_name">
+            {(field) => (
+              <FormField label="Nombre" htmlFor="first_name" error={field.state.meta.errors[0]?.message}>
+                <Input id="first_name" placeholder="Juan" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+              </FormField>
+            )}
+          </form.Field>
+          <form.Field name="last_name">
+            {(field) => (
+              <FormField label="Apellido" htmlFor="last_name" error={field.state.meta.errors[0]?.message}>
+                <Input id="last_name" placeholder="Pérez" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+              </FormField>
+            )}
+          </form.Field>
         </div>
 
-        <FormField label="Correo electrónico" htmlFor="email" error={errors.email?.message}>
-          <Input id="email" type="email" placeholder="admin@predia.com" {...register('email')} autoComplete="off" />
-        </FormField>
+        <form.Field name="email">
+          {(field) => (
+            <FormField label="Correo electrónico" htmlFor="email" error={field.state.meta.errors[0]?.message}>
+              <Input id="email" type="email" placeholder="admin@predia.com" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+            </FormField>
+          )}
+        </form.Field>
 
-        <FormField label="Contraseña" htmlFor="password" error={errors.password?.message}>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Mínimo 12 caracteres"
-              {...register('password')}
-              autoComplete="new-password"
-              className="pr-9"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
-        </FormField>
+        <form.Field name="password">
+          {(field) => (
+            <FormField label="Contraseña" htmlFor="password" error={field.state.meta.errors[0]?.message}>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Mínimo 12 caracteres"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                  autoComplete="new-password"
+                  className="pr-9"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </FormField>
+          )}
+        </form.Field>
       </FormSheet>
 
       {/* Users table */}
