@@ -1,13 +1,17 @@
-import { useId, useState } from 'react'
-import { Loader2, Plus, ChevronDown, ChevronUp, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2, Plus, Eye, EyeOff } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
-import { Label } from '@/design-system/ui/label'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
+import { FormSheet } from '@/design-system/ui/form-sheet'
+import { FormField } from '@/design-system/ui/form-field'
 import { useAllUsers, useCreateSuperAdmin } from '@/app/admin/hooks'
+import { createSuperAdminSchema, type CreateSuperAdminFormValues } from '@/app/admin/types/create-super-admin.schema'
 import type { CreateSuperAdminRequest } from '@/app/admin/services/system.service'
 
 const PAGE_LIMIT = 20
@@ -24,57 +28,41 @@ const ROLE_VARIANT: Record<string, 'default' | 'emerald' | 'orange'> = {
   agent: 'orange',
 }
 
-const EMPTY_FORM: CreateSuperAdminRequest = {
-  email: '',
-  password: '',
-  first_name: '',
-  last_name: '',
-}
-
-function extractMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'message' in error) {
-    const { message } = error as { message: unknown }
-    if (typeof message === 'string') return message
-    if (Array.isArray(message) && typeof message[0] === 'string') return message[0]
-  }
-  return 'Error al crear el superadmin. Intenta nuevamente.'
-}
-
 function UsersAdminPage() {
-  const errorId = useId()
-  const [showForm, setShowForm] = useState(false)
+  const [open, setOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [form, setForm] = useState<CreateSuperAdminRequest>(EMPTY_FORM)
-  const [created, setCreated] = useState<string | null>(null)
   const [page, setPage] = useState(1)
 
   const { data, isLoading, error: fetchError } = useAllUsers({ page, limit: PAGE_LIMIT })
-  const { mutate: createSuperAdmin, isPending, error: createError, reset } = useCreateSuperAdmin()
+  const { mutate: createSuperAdmin, isPending } = useCreateSuperAdmin()
 
-  const users = data?.data ?? []
-  const errorMessage = createError ? extractMessage(createError) : null
+  const form = useForm<CreateSuperAdminFormValues>({
+    resolver: zodResolver(createSuperAdminSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      first_name: '',
+      last_name: '',
+    },
+  })
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
-  }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = form
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    createSuperAdmin(form, {
+  function onSubmit(data: CreateSuperAdminFormValues) {
+    createSuperAdmin(data as CreateSuperAdminRequest, {
       onSuccess: () => {
-        setCreated(`${form.first_name} ${form.last_name}`)
-        setForm(EMPTY_FORM)
+        setOpen(false)
         reset()
-        setShowForm(false)
       },
     })
   }
 
-  function handleNew() {
-    setCreated(null)
-    setShowForm(true)
-  }
+  const users = data?.data ?? []
 
   return (
     <div className="p-6 max-w-5xl mx-auto w-full space-y-6">
@@ -85,97 +73,58 @@ function UsersAdminPage() {
             Todos los usuarios registrados en la plataforma.
           </Text>
         </div>
-        <Button onClick={() => setShowForm(v => !v)} className="self-start sm:self-auto gap-2">
+        <Button onClick={() => setOpen(true)} className="self-start sm:self-auto gap-2">
           <Plus className="size-4" />
           Nuevo superadmin
-          {showForm ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
       </div>
 
-      {/* Create superadmin form */}
-      {showForm && (
-        <div className="bg-canvas rounded-2xl border border-hairline shadow-raised p-8">
-          <div className="mb-6 pb-5 border-b border-hairline">
-            <Text as="md" className="font-semibold text-foreground">Nuevo superadmin</Text>
-            <Text as="sm" className="text-muted-foreground mt-1">
-              El usuario tendrá acceso completo al sistema.
-            </Text>
-          </div>
-
-          {created ? (
-            <div className="flex flex-col items-center gap-4 py-10 text-center">
-              <div className="size-14 rounded-full bg-success/10 flex items-center justify-center mb-2">
-                <CheckCircle2 className="size-8 text-success" />
-              </div>
-              <div className="space-y-1.5">
-                <Heading as="md">Superadmin creado</Heading>
-                <Text as="sm" className="text-muted-foreground">
-                  <span className="font-semibold text-foreground">{created}</span> ya tiene acceso al sistema.
-                </Text>
-              </div>
-              <Button className="mt-4" onClick={handleNew}>
-                Crear otro superadmin
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} noValidate className="space-y-6">
-              {errorMessage && (
-                <div
-                  id={errorId}
-                  role="alert"
-                  className="rounded-lg bg-destructive/8 border border-destructive/20 text-destructive px-4 py-3 text-sm"
-                >
-                  {errorMessage}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="first_name">Nombre</Label>
-                  <Input id="first_name" name="first_name" placeholder="Juan"
-                    value={form.first_name} onChange={handleChange} required autoComplete="off" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="last_name">Apellido</Label>
-                  <Input id="last_name" name="last_name" placeholder="Pérez"
-                    value={form.last_name} onChange={handleChange} required autoComplete="off" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input id="email" name="email" type="email" placeholder="admin@predia.com"
-                  value={form.email} onChange={handleChange} required autoComplete="off" />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Contraseña</Label>
-                <div className="relative">
-                  <Input id="password" name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Mínimo 12 caracteres"
-                    value={form.password} onChange={handleChange}
-                    required autoComplete="new-password" className="pr-9" />
-                  <button type="button" onClick={() => setShowPassword(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-                <Text as="caption" className="text-muted-foreground">Mínimo 12 caracteres.</Text>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-                <Button type="submit" disabled={isPending} className="px-8">
-                  {isPending && <Loader2 className="animate-spin mr-2" />}
-                  Crear superadmin
-                </Button>
-              </div>
-            </form>
-          )}
+      <FormSheet
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v)
+          if (!v) reset()
+        }}
+        title="Nuevo superadmin"
+        description="El usuario tendrá acceso completo al sistema."
+        onSubmit={handleSubmit(onSubmit)}
+        isSubmitting={isPending}
+        submitLabel="Crear superadmin"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField label="Nombre" htmlFor="first_name" error={errors.first_name?.message}>
+            <Input id="first_name" placeholder="Juan" {...register('first_name')} autoComplete="off" />
+          </FormField>
+          <FormField label="Apellido" htmlFor="last_name" error={errors.last_name?.message}>
+            <Input id="last_name" placeholder="Pérez" {...register('last_name')} autoComplete="off" />
+          </FormField>
         </div>
-      )}
+
+        <FormField label="Correo electrónico" htmlFor="email" error={errors.email?.message}>
+          <Input id="email" type="email" placeholder="admin@predia.com" {...register('email')} autoComplete="off" />
+        </FormField>
+
+        <FormField label="Contraseña" htmlFor="password" error={errors.password?.message}>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Mínimo 12 caracteres"
+              {...register('password')}
+              autoComplete="new-password"
+              className="pr-9"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+        </FormField>
+      </FormSheet>
 
       {/* Users table */}
       <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
@@ -228,7 +177,7 @@ function UsersAdminPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-mono text-xs text-muted-foreground">{user.tenant.slug}</span>
-                      <span className="ml-1 text-muted-foreground">· {user.tenant.name}</span>
+                      <span className="ml-1 text-muted-foreground"> · {user.tenant.name}</span>
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">
                       {new Date(user.created_at).toLocaleDateString('es-CR')}

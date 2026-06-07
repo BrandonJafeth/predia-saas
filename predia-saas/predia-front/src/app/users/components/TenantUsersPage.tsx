@@ -1,5 +1,8 @@
-import { useId, useState } from 'react'
-import { Loader2, Plus, ChevronDown, ChevronUp, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Controller } from 'react-hook-form'
+import { Loader2, Plus, Eye, EyeOff } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
@@ -14,8 +17,11 @@ import {
 } from '@/design-system/ui/select'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
+import { FormSheet } from '@/design-system/ui/form-sheet'
+import { FormField } from '@/design-system/ui/form-field'
 import { useUsers, useCreateUser } from '@/app/users/hooks'
-import type { CreateUserRequest } from '@/app/users/types'
+import { createUserSchema, type CreateUserFormValues } from '@/app/users/types/create-user.schema'
+import type { CreateUserRequest, User } from '@/app/users/types'
 
 const PAGE_LIMIT = 20
 
@@ -29,62 +35,43 @@ const ROLE_VARIANT: Record<string, 'emerald' | 'orange'> = {
   agent: 'orange',
 }
 
-const EMPTY_FORM: CreateUserRequest = {
-  email: '',
-  password: '',
-  first_name: '',
-  last_name: '',
-  role: 'agent',
-}
-
-function extractMessage(error: unknown): string {
-  if (error && typeof error === 'object' && 'message' in error) {
-    const { message } = error as { message: unknown }
-    if (typeof message === 'string') return message
-    if (Array.isArray(message) && typeof message[0] === 'string') return message[0]
-  }
-  return 'Error al crear el usuario. Intenta nuevamente.'
-}
-
 function TenantUsersPage() {
-  const errorId = useId()
-  const [showForm, setShowForm] = useState(false)
+  const [open, setOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [form, setForm] = useState<CreateUserRequest>(EMPTY_FORM)
-  const [created, setCreated] = useState<string | null>(null)
   const [page, setPage] = useState(1)
 
   const { data, isLoading, error: fetchError } = useUsers({ page, limit: PAGE_LIMIT })
-  const { mutate: createUser, isPending, error: createError, reset } = useCreateUser()
+  const { mutate: createUser, isPending } = useCreateUser()
 
-  const users = data?.data ?? []
-  const errorMessage = createError ? extractMessage(createError) : null
+  const form = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+      first_name: '',
+      last_name: '',
+      role: 'agent',
+    },
+  })
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
-  }
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = form
 
-  function handleRoleChange(value: string) {
-    setForm(prev => ({ ...prev, role: value as 'admin' | 'agent' }))
-  }
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    createUser(form, {
+  function onSubmit(data: CreateUserFormValues) {
+    createUser(data as CreateUserRequest, {
       onSuccess: () => {
-        setCreated(`${form.first_name} ${form.last_name}`)
-        setForm(EMPTY_FORM)
+        setOpen(false)
         reset()
-        setShowForm(false)
       },
     })
   }
 
-  function handleNew() {
-    setCreated(null)
-    setShowForm(true)
-  }
+  const users: User[] = data?.data ?? []
 
   return (
     <div className="p-6 max-w-5xl mx-auto w-full space-y-6">
@@ -95,109 +82,82 @@ function TenantUsersPage() {
             Administra los usuarios de tu organización.
           </Text>
         </div>
-        <Button onClick={() => setShowForm(v => !v)} className="self-start sm:self-auto gap-2">
+        <Button onClick={() => setOpen(true)} className="self-start sm:self-auto gap-2">
           <Plus className="size-4" />
           Nuevo usuario
-          {showForm ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
       </div>
 
-      {/* Create user form */}
-      {showForm && (
-        <div className="bg-canvas rounded-2xl border border-hairline shadow-raised p-8">
-          <div className="mb-6 pb-5 border-b border-hairline">
-            <Text as="md" className="font-semibold text-foreground">Nuevo usuario</Text>
-            <Text as="sm" className="text-muted-foreground mt-1">
-              Asigna rol de administrador o agente.
-            </Text>
-          </div>
+      <FormSheet
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v)
+          if (!v) reset()
+        }}
+        title="Nuevo usuario"
+        description="Asigna rol de administrador o agente."
+        onSubmit={handleSubmit(onSubmit)}
+        isSubmitting={isPending}
+        submitLabel="Crear usuario"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField label="Nombre" htmlFor="first_name" error={errors.first_name?.message}>
+            <Input id="first_name" placeholder="Juan" {...register('first_name')} autoComplete="off" />
+          </FormField>
+          <FormField label="Apellido" htmlFor="last_name" error={errors.last_name?.message}>
+            <Input id="last_name" placeholder="Pérez" {...register('last_name')} autoComplete="off" />
+          </FormField>
+        </div>
 
-          {created ? (
-            <div className="flex flex-col items-center gap-4 py-10 text-center">
-              <div className="size-14 rounded-full bg-success/10 flex items-center justify-center mb-2">
-                <CheckCircle2 className="size-8 text-success" />
-              </div>
-              <div className="space-y-1.5">
-                <Heading as="md">Usuario creado</Heading>
-                <Text as="sm" className="text-muted-foreground">
-                  <span className="font-semibold text-foreground">{created}</span> ya tiene acceso.
-                </Text>
-              </div>
-              <Button className="mt-4" onClick={handleNew}>
-                Crear otro usuario
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} noValidate className="space-y-6">
-              {errorMessage && (
-                <div
-                  id={errorId}
-                  role="alert"
-                  className="rounded-lg bg-destructive/8 border border-destructive/20 text-destructive px-4 py-3 text-sm"
-                >
-                  {errorMessage}
-                </div>
-              )}
+        <FormField label="Correo electrónico" htmlFor="email" error={errors.email?.message}>
+          <Input id="email" type="email" placeholder="usuario@correo.com" {...register('email')} autoComplete="off" />
+        </FormField>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="first_name">Nombre</Label>
-                  <Input id="first_name" name="first_name" placeholder="Juan"
-                    value={form.first_name} onChange={handleChange} required autoComplete="off" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="last_name">Apellido</Label>
-                  <Input id="last_name" name="last_name" placeholder="Pérez"
-                    value={form.last_name} onChange={handleChange} required autoComplete="off" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input id="email" name="email" type="email" placeholder="usuario@correo.com"
-                  value={form.email} onChange={handleChange} required autoComplete="off" />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="role">Rol</Label>
-                <Select value={form.role} onValueChange={handleRoleChange}>
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Selecciona un rol" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="agent">Agente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Contraseña</Label>
-                <div className="relative">
-                  <Input id="password" name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Mínimo 8 caracteres"
-                    value={form.password} onChange={handleChange}
-                    required autoComplete="new-password" className="pr-9" />
-                  <button type="button" onClick={() => setShowPassword(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-                <Button type="submit" disabled={isPending} className="px-8">
-                  {isPending && <Loader2 className="animate-spin mr-2" />}
-                  Crear usuario
-                </Button>
-              </div>
-            </form>
+        <div className="space-y-1.5">
+          <Label htmlFor="role">Rol</Label>
+          <Controller
+            name="role"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger id="role" aria-invalid={!!errors.role} aria-describedby={errors.role ? 'role-error' : undefined}>
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="agent">Agente</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {errors.role && (
+            <p id="role-error" role="alert" className="text-caption text-destructive font-body font-medium leading-[1.4]">
+              {errors.role.message}
+            </p>
           )}
         </div>
-      )}
+
+        <FormField label="Contraseña" htmlFor="password" error={errors.password?.message}>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Mínimo 8 caracteres"
+              {...register('password')}
+              autoComplete="new-password"
+              className="pr-9"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
+        </FormField>
+      </FormSheet>
 
       {/* Users table */}
       <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">

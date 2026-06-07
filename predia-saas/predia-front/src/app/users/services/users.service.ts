@@ -1,7 +1,7 @@
 import { apiClient } from '@/shared/lib/api'
 import type {
   CreateUserRequest,
-  PaginatedUsers,
+  PaginatedResponse,
   PaginationParams,
   User,
   UpdateUserRequest,
