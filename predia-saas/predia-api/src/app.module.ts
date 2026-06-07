@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { SystemModule } from './modules/system/system.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -18,6 +19,7 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
       isGlobal: true,
       validationSchema: Joi.object({
         DATABASE_URL: Joi.string().required(),
+        SYSTEM_DATABASE_URL: Joi.string().required(),
         JWT_SECRET: Joi.string().min(32).required(),
         JWT_REFRESH_SECRET: Joi.string().min(32).required(),
         PORT: Joi.number().default(3000),
@@ -30,6 +32,7 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
     PrismaModule,
     HealthModule,
     AuthModule,
+    SystemModule,
     TenantsModule,
     UsersModule,
   ],

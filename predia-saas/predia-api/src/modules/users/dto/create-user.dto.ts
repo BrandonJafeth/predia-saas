@@ -29,8 +29,10 @@ export class CreateUserDto {
   @IsNotEmpty()
   last_name!: string;
 
-  @ApiPropertyOptional({ enum: UserRole, default: UserRole.agent, required: false })
+  @ApiPropertyOptional({ enum: [UserRole.admin, UserRole.agent], default: UserRole.agent })
   @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  @IsEnum([UserRole.admin, UserRole.agent], {
+    message: 'El rol debe ser admin o agent',
+  })
+  role?: 'admin' | 'agent';
 }

@@ -11,7 +11,8 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from '@/design-system/ui/sidebar'
-import { Home, Building2, Users, BarChart3, Settings, HelpCircle, PanelLeftClose, PanelLeft, ShieldCheck } from 'lucide-react'
+import { Home, Building2, Users, BarChart3, Settings, HelpCircle, PanelLeftClose, PanelLeft, ShieldCheck, UsersRound } from 'lucide-react'
+import { tokenStorage } from '@/shared/lib/tokens'
 
 const mainItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Home },
@@ -27,11 +28,13 @@ const secondaryItems = [
 
 const adminItems = [
   { title: 'Organizaciones', url: '/admin/tenants', icon: ShieldCheck },
+  { title: 'Usuarios', url: '/admin/users', icon: UsersRound },
 ]
 
 function AppSidebar() {
   const { state, toggleSidebar, isMobile } = useSidebar()
   const collapsed = !isMobile && state === 'collapsed'
+  const isSuperAdmin = tokenStorage.decodeAccessToken()?.role === 'super_admin'
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -99,29 +102,32 @@ function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          {!collapsed && <SidebarGroupLabel className="font-body">Superadmin</SidebarGroupLabel>}
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    tooltip={collapsed ? item.title : undefined}
-                    className={collapsed ? 'justify-center px-0' : ''}
-                  >
-                    <a href={item.url}>
-                      <item.icon />
-                      {!collapsed && <span>{item.title}</span>}
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {isSuperAdmin && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              {!collapsed && <SidebarGroupLabel className="font-body">Superadmin</SidebarGroupLabel>}
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {adminItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        tooltip={collapsed ? item.title : undefined}
+                        className={collapsed ? 'justify-center px-0' : ''}
+                      >
+                        <a href={item.url}>
+                          <item.icon />
+                          {!collapsed && <span>{item.title}</span>}
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
       </SidebarContent>
 
       {!isMobile && (
