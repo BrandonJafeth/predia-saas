@@ -1,9 +1,12 @@
+export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'cancelled'
+
 export interface Tenant {
   id: string
   name: string
   slug: string
-  createdAt: string
-  updatedAt: string
+  subscription_status: SubscriptionStatus
+  created_at: string
+  updated_at: string
 }
 
 export interface CreateTenantRequest {

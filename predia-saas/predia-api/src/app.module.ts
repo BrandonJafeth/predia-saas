@@ -7,6 +7,7 @@ import { HealthModule } from './health/health.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { SystemModule } from './modules/system/system.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -30,6 +31,7 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
     PrismaModule,
     HealthModule,
     AuthModule,
+    SystemModule,
     TenantsModule,
     UsersModule,
   ],

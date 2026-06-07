@@ -7,8 +7,8 @@ import { CreateUserDto } from './create-user.dto';
 export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ['password'] as const),
 ) {
-  @ApiPropertyOptional({ enum: UserRole, default: UserRole.agent })
+  @ApiPropertyOptional({ enum: [UserRole.admin, UserRole.agent], default: UserRole.agent })
   @IsOptional()
-  @IsEnum(UserRole)
-  override role?: UserRole;
+  @IsEnum([UserRole.admin, UserRole.agent], { message: 'El rol debe ser admin o agent' })
+  override role?: 'admin' | 'agent';
 }

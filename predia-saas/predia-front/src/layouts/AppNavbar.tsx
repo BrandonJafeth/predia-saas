@@ -32,9 +32,9 @@ function AppNavbar() {
     ? getInitials(currentUser.first_name, currentUser.last_name)
     : '?'
 
-  function handleLogout() {
-    logout()
-    void navigate({ to: '/login' })
+  async function handleLogout() {
+    await logout()
+    await navigate({ to: '/login' })
   }
 
   return (
