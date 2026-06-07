@@ -12,6 +12,10 @@ export interface Tenant {
 export interface CreateTenantRequest {
   name: string
   slug: string
+  advisor_email?: string
+  advisor_password?: string
+  advisor_first_name?: string
+  advisor_last_name?: string
 }
 
 export interface UpdateTenantRequest {

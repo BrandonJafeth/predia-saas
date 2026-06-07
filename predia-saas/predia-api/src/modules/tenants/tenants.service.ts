@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, Tenant } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -16,20 +17,42 @@ export class TenantsService {
   constructor(private prisma: PrismaService) {}
 
   async create(dto: CreateTenantDto) {
-    const data = {
-      ...dto,
-      slug: dto.slug.toLowerCase().trim(),
-    };
+    const { advisor_email, advisor_password, advisor_first_name, advisor_last_name, ...tenantData } = dto;
 
     try {
-      return await this.prisma.tenant.create({
-        data,
+      return await this.prisma.$transaction(async (tx) => {
+        const tenant = await tx.tenant.create({
+          data: {
+            ...tenantData,
+            slug: dto.slug.toLowerCase().trim(),
+          },
+        });
+
+        if (advisor_email && advisor_password && advisor_first_name && advisor_last_name) {
+          const password_hash = await bcrypt.hash(advisor_password, 12);
+          await tx.user.create({
+            data: {
+              email: advisor_email,
+              first_name: advisor_first_name,
+              last_name: advisor_last_name,
+              role: 'admin',
+              password_hash,
+              tenant_id: tenant.id,
+            },
+          });
+        }
+
+        return tenant;
       });
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
+        const target = error.meta?.target as string[] | undefined;
+        if (target?.includes('email')) {
+          throw new ConflictException('El email ya está registrado en esta inmobiliaria');
+        }
         throw new ConflictException('El slug ya está en uso');
       }
       throw error;
