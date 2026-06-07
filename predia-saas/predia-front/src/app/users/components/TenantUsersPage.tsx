@@ -57,7 +57,7 @@ function TenantUsersPage() {
   const { data, isLoading, error: fetchError } = useUsers({ page, limit: PAGE_LIMIT })
   const { mutate: createUser, isPending, error: createError, reset } = useCreateUser()
 
-  const users = (data as any)?.data ?? []
+  const users = data?.data ?? []
   const errorMessage = createError ? extractMessage(createError) : null
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -206,7 +206,7 @@ function TenantUsersPage() {
             Miembros
             {data && (
               <span className="ml-2 text-muted-foreground font-normal text-sm">
-                ({(data as any).meta?.itemCount ?? users.length})
+                ({data.meta?.itemCount ?? users.length})
               </span>
             )}
           </Text>
@@ -236,7 +236,7 @@ function TenantUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((user: any, i: number) => (
+                {users.map((user, i) => (
                   <tr key={user.id} className={i !== users.length - 1 ? 'border-b border-hairline' : ''}>
                     <td className="px-6 py-4 font-medium">
                       {user.first_name} {user.last_name}
@@ -256,11 +256,11 @@ function TenantUsersPage() {
             </table>
           </div>
         )}
-        {(data as any)?.meta && (
+        {data?.meta && (
           <PaginationControls
             page={page}
-            pageCount={(data as any).meta.pageCount}
-            itemCount={(data as any).meta.itemCount}
+            pageCount={data.meta.pageCount}
+            itemCount={data.meta.itemCount}
             limit={PAGE_LIMIT}
             onPageChange={setPage}
           />

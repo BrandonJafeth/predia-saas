@@ -10,6 +10,6 @@ export class CreateTenantDto {
   @ApiProperty({ example: 'inmobiliaria-norte', description: 'Solo minúsculas, números y guiones' })
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[a-z0-9-]+$/, { message: 'Solo minúsculas, números y guiones' })
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, { message: 'Solo minúsculas, números y guiones. No puede empezar, terminar ni tener guiones dobles.' })
   slug!: string;
 }

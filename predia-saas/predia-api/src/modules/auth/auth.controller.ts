@@ -8,11 +8,19 @@ import {
   Res,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiCreatedResponse } from '@nestjs/swagger';
+import {
+  ApiBody,
+  ApiOkResponse,
+  ApiCreatedResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import * as express from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { LookupDto } from './dto/lookup.dto';
+import { TenantOptionDto } from './dto/tenant-option.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { Public } from 'src/common/decorators/public.decorator';
 
@@ -26,9 +34,19 @@ const COOKIE_OPTIONS = {
 };
 
 @Public()
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  @Post('lookup')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @ApiBody({ type: LookupDto })
+  @ApiOkResponse({ type: [TenantOptionDto], description: 'Organizaciones donde existe el email' })
+  lookupTenants(@Body() dto: LookupDto): Promise<TenantOptionDto[]> {
+    return this.authService.lookupTenants(dto);
+  }
 
   @Post('register')
   @ApiBody({ type: RegisterDto })
@@ -44,6 +62,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @ApiBody({ type: LoginDto })
   @ApiOkResponse({ type: AuthResponseDto })
   async login(

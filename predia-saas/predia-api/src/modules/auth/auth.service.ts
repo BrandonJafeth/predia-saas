@@ -9,17 +9,39 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SystemPrismaService } from 'src/prisma/system-prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { LookupDto } from './dto/lookup.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
+    private systemPrisma: SystemPrismaService,
     private jwtService: JwtService,
     private config: ConfigService,
   ) {}
+
+  async lookupTenants(dto: LookupDto) {
+    const MIN_MS = 400;
+    const start = Date.now();
+
+    const users = await this.systemPrisma.user.findMany({
+      where: { email: dto.email },
+      select: { tenant: { select: { id: true, name: true } } },
+    });
+
+    // Timing normalization — response time stays constant regardless of whether
+    // the email exists, preventing enumeration via response timing.
+    const elapsed = Date.now() - start;
+    if (elapsed < MIN_MS) {
+      await new Promise((r) => setTimeout(r, MIN_MS - elapsed));
+    }
+
+    return users.map((u) => u.tenant);
+  }
 
   async register(dto: RegisterDto) {
     const password_hash = await bcrypt.hash(dto.password, 12);
@@ -32,9 +54,7 @@ export class AuthService {
             slug: dto.tenantSlug.toLowerCase().trim(),
           },
         });
-        
-        // Habilitamos el RLS para este tenant temporalmente en esta transacción
-        // para que PostgreSQL permita insertar el usuario administrador.
+
         await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
 
         const user = await tx.user.create({
@@ -67,13 +87,13 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: dto.tenantSlug },
+    const tenant = await this.systemPrisma.tenant.findUnique({
+      where: { id: dto.tenantId },
+      select: { id: true },
     });
-    if (!tenant) throw new NotFoundException('Inmobiliaria no encontrada');
+    if (!tenant) throw new NotFoundException('Organización no encontrada');
 
     const user = await this.prisma.$transaction(async (tx) => {
-      // Configuramos el tenant temporalmente para que RLS permita leer al usuario
       await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
       return tx.user.findFirst({
         where: { email: dto.email, tenant_id: tenant.id },
@@ -93,19 +113,27 @@ export class AuthService {
   }
 
   async refreshTokens(refreshToken: string) {
-    const refreshSecret = this.refreshSecret;
+    let payload: JwtPayload;
     try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
-        secret: refreshSecret,
-      });
-      return this.generateTokens({
-        sub: payload.sub,
-        tenantId: payload.tenantId,
-        role: payload.role,
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+        secret: this.refreshSecret,
       });
     } catch {
       throw new UnauthorizedException('Refresh token inválido o expirado');
     }
+
+    // Fetch fresh user data — picks up role changes since last login
+    const user = await this.systemPrisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, role: true, tenant_id: true },
+    });
+    if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+    return this.generateTokens({
+      sub: user.id,
+      tenantId: user.tenant_id,
+      role: user.role,
+    });
   }
 
   private generateTokens(payload: JwtPayload) {

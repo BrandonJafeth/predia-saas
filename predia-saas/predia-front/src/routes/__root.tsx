@@ -4,7 +4,7 @@ import AppLayout from '@/layouts/AppLayout'
 import { tokenStorage } from '@/shared/lib/tokens'
 import { refreshAccessToken } from '@/shared/lib/api'
 
-const AUTH_PATHS = ['/login']
+const AUTH_PATHS = ['/login', '/forgot-password']
 
 // Tracks whether we've already attempted session restoration this page load.
 // Prevents re-calling /auth/refresh on every navigation.

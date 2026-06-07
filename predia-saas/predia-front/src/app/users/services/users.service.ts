@@ -8,12 +8,12 @@ import type {
 } from '../types'
 
 export const usersService = {
-  async findAll(params?: PaginationParams): Promise<PaginatedUsers> {
+  async findAll(params?: PaginationParams): Promise<PaginatedResponse<User>> {
     const { data, error } = await apiClient.GET('/api/v1/users', {
       params: { query: params },
     })
     if (error) throw error
-    return data
+    return data as unknown as PaginatedResponse<User>
   },
 
   async findOne(id: string): Promise<User> {

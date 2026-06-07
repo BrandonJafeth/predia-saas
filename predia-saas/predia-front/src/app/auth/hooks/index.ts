@@ -2,7 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { tokenStorage } from '@/shared/lib/tokens'
 import { authService } from '../services/auth.service'
 import { usersService } from '@/app/users/services/users.service'
-import type { LoginRequest, RegisterRequest } from '../types'
+import type { LoginRequest, LookupRequest, RegisterRequest } from '../types'
+
+export const useLookupTenants = () => {
+  return useMutation({
+    mutationFn: (payload: LookupRequest) => authService.lookupTenants(payload),
+  })
+}
 
 export const useLogin = () => {
   const queryClient = useQueryClient()
