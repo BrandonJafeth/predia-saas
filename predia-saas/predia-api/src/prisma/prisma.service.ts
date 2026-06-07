@@ -15,14 +15,17 @@ export class PrismaService
     });
     super({ adapter });
 
-    const client = this.$extends({
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const base = this;
+
+    const extended = base.$extends({
       query: {
         $allModels: {
           async $allOperations({ args, query }) {
             const tenantId = tenantStore.getStore()?.tenantId;
             if (tenantId) {
-              const [, result] = await client.$transaction([
-                client.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`,
+              const [, result] = await base.$transaction([
+                base.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`,
                 query(args),
               ]);
               return result;
@@ -33,12 +36,13 @@ export class PrismaService
       },
     });
 
-    Object.assign(client, {
-      onModuleInit: this.onModuleInit.bind(this),
-      onModuleDestroy: this.onModuleDestroy.bind(this),
+    // $extends returns a new object; bind lifecycle hooks so NestJS can invoke them
+    Object.assign(extended, {
+      onModuleInit: (): Promise<void> => this.onModuleInit(),
+      onModuleDestroy: (): Promise<void> => this.onModuleDestroy(),
     });
 
-    return client as unknown as this;
+    return extended as this;
   }
 
   async onModuleInit() {
