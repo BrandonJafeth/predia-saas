@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { systemService, type SystemUserParams, type CreateSuperAdminRequest } from '../services/system.service'
+import { notify, extractApiError } from '@/shared/lib/notifications'
 
 export const systemKeys = {
   all: ['system'] as const,
@@ -29,7 +30,11 @@ export const useCreateSuperAdmin = () => {
   return useMutation({
     mutationFn: (payload: CreateSuperAdminRequest) => systemService.createSuperAdmin(payload),
     onSuccess: () => {
+      notify.success({ title: 'Super admin creado' })
       queryClient.invalidateQueries({ queryKey: systemKeys.users() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al crear super admin', description: extractApiError(err) })
     },
   })
 }

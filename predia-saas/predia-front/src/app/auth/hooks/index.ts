@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { tokenStorage } from '@/shared/lib/tokens'
 import { authService } from '../services/auth.service'
 import { usersService } from '@/app/users/services/users.service'
+import { notify } from '@/shared/lib/notifications'
 import type { LoginRequest, LookupRequest, RegisterRequest } from '../types'
 
 export const useLookupTenants = () => {
@@ -18,6 +19,7 @@ export const useLogin = () => {
     onSuccess: (data) => {
       tokenStorage.setTokens(data.accessToken)
       queryClient.invalidateQueries({ queryKey: ['auth'] })
+      notify.success({ title: 'Sesión iniciada', description: 'Bienvenido al CRM' })
     },
   })
 }
@@ -44,6 +46,7 @@ export const useLogout = () => {
   const queryClient = useQueryClient()
 
   return async () => {
+    notify.info({ title: 'Sesión cerrada' })
     await authService.logout()
     tokenStorage.clearTokens()
     queryClient.clear()

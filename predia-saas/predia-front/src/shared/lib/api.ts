@@ -1,5 +1,6 @@
 import { createApiClient } from '@predia/api-types'
 import { tokenStorage } from './tokens'
+import { router } from '@/router'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -43,12 +44,12 @@ apiClient.use({
   async onResponse({ request, response }) {
     if (response.status !== 401) return response
     // Avoid refresh loop if the refresh endpoint itself returns 401
-    if (request.url.includes('/auth/refresh')) return response
+    if (new URL(request.url).pathname.endsWith('/auth/refresh')) return response
 
     const newToken = await refreshAccessToken()
     if (!newToken) {
       tokenStorage.clearTokens()
-      window.location.href = '/login'
+      void router.navigate({ to: '/login', replace: true })
       return response
     }
 

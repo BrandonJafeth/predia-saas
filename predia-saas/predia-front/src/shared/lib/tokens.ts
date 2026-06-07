@@ -20,8 +20,20 @@ function decodeJwt(token: string): JwtPayload | null {
 // via the HttpOnly refresh cookie.
 let _accessToken: string | null = null
 
+function isTokenExpired(token: string): boolean {
+  const payload = decodeJwt(token)
+  if (!payload) return true
+  // Give a 10-second buffer to account for clock skew
+  return payload.exp * 1000 < Date.now() + 10_000
+}
+
 export const tokenStorage = {
-  getAccessToken: () => _accessToken,
+  getAccessToken: () => {
+    if (_accessToken && isTokenExpired(_accessToken)) {
+      _accessToken = null
+    }
+    return _accessToken
+  },
   setTokens: (accessToken: string) => { _accessToken = accessToken },
   clearTokens: () => { _accessToken = null },
   decodeAccessToken: (): JwtPayload | null =>

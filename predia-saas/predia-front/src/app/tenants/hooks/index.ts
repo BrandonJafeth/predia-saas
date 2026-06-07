@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { tenantsService } from '../services/tenants.service'
 import { tenantKeys, type CreateTenantRequest, type PaginationParams, type UpdateTenantRequest } from '../types'
+import { notify, extractApiError } from '@/shared/lib/notifications'
 
 export const useTenants = (params?: PaginationParams) => {
   return useQuery({
@@ -27,7 +28,11 @@ export const useCreateTenant = () => {
   return useMutation({
     mutationFn: (payload: CreateTenantRequest) => tenantsService.create(payload),
     onSuccess: () => {
+      notify.success({ title: 'Organización creada' })
       queryClient.invalidateQueries({ queryKey: tenantKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al crear organización', description: extractApiError(err) })
     },
   })
 }
@@ -39,8 +44,12 @@ export const useUpdateTenant = () => {
     mutationFn: ({ id, ...payload }: UpdateTenantRequest & { id: string }) =>
       tenantsService.update(id, payload),
     onSuccess: (_, { id }) => {
+      notify.success({ title: 'Organización actualizada' })
       queryClient.invalidateQueries({ queryKey: tenantKeys.detail(id) })
       queryClient.invalidateQueries({ queryKey: tenantKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al actualizar organización', description: extractApiError(err) })
     },
   })
 }
@@ -51,7 +60,11 @@ export const useDeleteTenant = () => {
   return useMutation({
     mutationFn: (id: string) => tenantsService.remove(id),
     onSuccess: () => {
+      notify.success({ title: 'Organización eliminada' })
       queryClient.invalidateQueries({ queryKey: tenantKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al eliminar organización', description: extractApiError(err) })
     },
   })
 }

@@ -10,11 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@predia/api-types": "workspace:*",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/manrope": "^5.2.8",
+    "@fontsource/martel": "^5.2.8",
+    "@fontsource/poppins": "^5.2.7",
+    "@predia/api-types": "workspace:*",
     "@radix-ui/react-avatar": "^1.1.12",
     "@radix-ui/react-collapsible": "^1.1.13",
     "@radix-ui/react-dialog": "^1.1.16",
@@ -35,6 +37,7 @@
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "sileo": "^0.1.5",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0"
   },
