@@ -36,6 +36,7 @@ const tenantItems = [
 
 const tenantTeamItems = [
   { title: 'Usuarios', url: '/users', icon: UsersRound },
+  { title: 'Audit Log', url: '/audit-log', icon: ClipboardList },
 ]
 
 const tenantSecondaryItems = [

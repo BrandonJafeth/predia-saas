@@ -74,4 +74,11 @@ export const auditLogService = {
       params as Record<string, unknown>,
     )
   },
+
+  getTenantAuditLog(params?: QueryAuditLogParams): Promise<PaginatedAuditLog> {
+    return auditGet<PaginatedAuditLog>(
+      '/api/v1/audit-log',
+      params as Record<string, unknown>,
+    )
+  },
 }
