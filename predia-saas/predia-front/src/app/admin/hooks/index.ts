@@ -29,12 +29,21 @@ export const useUsersByTenant = (tenantId: string, params?: SystemUserParams) =>
 export const auditLogKeys = {
   system: () => ['system', 'audit-log'] as const,
   systemList: (params?: QueryAuditLogParams) => [...auditLogKeys.system(), params] as const,
+  tenant: () => ['tenant', 'audit-log'] as const,
+  tenantList: (params?: QueryAuditLogParams) => [...auditLogKeys.tenant(), params] as const,
 }
 
 export const useSystemAuditLog = (params?: QueryAuditLogParams) => {
   return useQuery({
     queryKey: auditLogKeys.systemList(params),
     queryFn: () => auditLogService.getSystemAuditLog(params),
+  })
+}
+
+export const useTenantAuditLog = (params?: QueryAuditLogParams) => {
+  return useQuery({
+    queryKey: auditLogKeys.tenantList(params),
+    queryFn: () => auditLogService.getTenantAuditLog(params),
   })
 }
 
