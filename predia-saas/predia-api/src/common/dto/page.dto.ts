@@ -26,5 +26,6 @@ export function PageOf<T>(ItemDto: Type<T>) {
     @ApiProperty({ type: () => ItemDto, isArray: true })
     declare readonly data: T[];
   }
+  Object.defineProperty(PageOfDto, 'name', { value: `PageOf${ItemDto.name}` });
   return PageOfDto;
 }

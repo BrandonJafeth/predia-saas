@@ -12,6 +12,8 @@ import { SystemModule } from './modules/system/system.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
+import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
+import { AuditLogModule } from './modules/audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -42,6 +44,7 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
     SystemModule,
     TenantsModule,
     UsersModule,
+    AuditLogModule,
   ],
   providers: [
     {
@@ -59,6 +62,10 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
     {
       provide: APP_INTERCEPTOR,
       useClass: TenantInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditLogInterceptor,
     },
   ],
 })

@@ -20,6 +20,7 @@ import { CurrentTenant } from '../../common/decorators/current-tenant.decorator'
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PageOf } from '../../common/dto/page.dto';
 import { PageOptionsDto } from '../../common/dto/page-options.dto';
+import { AuditLog } from '../../common/decorators/audit-log.decorator';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
@@ -33,6 +34,7 @@ export class UsersController {
 
   @Post()
   @Roles(UserRole.admin)
+  @AuditLog({ action: 'CREATE', entity: 'user' })
   @ApiCreatedResponse({ type: UserResponseDto })
   create(@Body() dto: CreateUserDto, @CurrentTenant() tenantId: string) {
     return this.usersService.create(dto, tenantId);
@@ -57,6 +59,7 @@ export class UsersController {
 
   @Patch(':id')
   @Roles(UserRole.admin)
+  @AuditLog({ action: 'UPDATE', entity: 'user' })
   @ApiOkResponse({ type: UserResponseDto })
   update(
     @Param('id') id: string,
@@ -68,6 +71,7 @@ export class UsersController {
 
   @Delete(':id')
   @Roles(UserRole.admin)
+  @AuditLog({ action: 'DELETE', entity: 'user' })
   @ApiNoContentResponse({ description: 'Usuario eliminado correctamente' })
   remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
     return this.usersService.remove(id, tenantId);

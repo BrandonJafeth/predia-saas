@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Loader2, ArrowLeft } from 'lucide-react'
+import { createColumnHelper } from '@tanstack/react-table'
+import { ArrowLeft } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
-import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
+import { DataTable } from '@/shared/components/data-table'
 import { useTenant } from '@/app/tenants/hooks'
 import { useUsersByTenant } from '@/app/admin/hooks'
+import type { UserWithTenant } from '@/app/admin/services/system.service'
 
-const PAGE_LIMIT = 20
+const DEFAULT_LIMIT = 20
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Superadmin',
@@ -22,10 +24,38 @@ const ROLE_VARIANT: Record<string, 'default' | 'emerald' | 'orange'> = {
   agent: 'orange',
 }
 
+const colHelper = createColumnHelper<UserWithTenant>()
+
+const columns = [
+  colHelper.accessor((row) => `${row.first_name} ${row.last_name}`, {
+    id: 'name',
+    header: 'Nombre',
+    meta: { className: 'font-medium' },
+  }),
+  colHelper.accessor('email', {
+    header: 'Email',
+    meta: { className: 'text-muted-foreground' },
+  }),
+  colHelper.accessor('role', {
+    header: 'Rol',
+    cell: (info) => (
+      <Badge variant={ROLE_VARIANT[info.getValue()] ?? 'default'}>
+        {ROLE_LABEL[info.getValue()] ?? info.getValue()}
+      </Badge>
+    ),
+  }),
+  colHelper.accessor('created_at', {
+    header: 'Creado',
+    cell: (info) => new Date(info.getValue()).toLocaleDateString('es-CR'),
+    meta: { className: 'text-muted-foreground' },
+  }),
+]
+
 function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const [page, setPage] = useState(1)
+  const [limit, setLimit] = useState(DEFAULT_LIMIT)
   const { data: tenant, isLoading: loadingTenant } = useTenant(tenantId)
-  const { data, isLoading: loadingUsers, error } = useUsersByTenant(tenantId, { page, limit: PAGE_LIMIT })
+  const { data, isLoading: loadingUsers, error } = useUsersByTenant(tenantId, { page, limit })
 
   const users = data?.data ?? []
 
@@ -64,59 +94,21 @@ function TenantDetailPage({ tenantId }: { tenantId: string }) {
           </Text>
         </div>
 
-        {loadingUsers ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="flex items-center justify-center py-16">
-            <Text as="sm" className="text-destructive">Error al cargar los usuarios.</Text>
-          </div>
-        ) : users.length === 0 ? (
-          <div className="flex items-center justify-center py-16">
-            <Text as="sm" className="text-muted-foreground">Esta organización no tiene usuarios aún.</Text>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-hairline bg-surface-soft/40">
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Nombre</th>
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Email</th>
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Rol</th>
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Creado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user, i) => (
-                  <tr key={user.id} className={i !== users.length - 1 ? 'border-b border-hairline' : ''}>
-                    <td className="px-6 py-4 font-medium">
-                      {user.first_name} {user.last_name}
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">{user.email}</td>
-                    <td className="px-6 py-4">
-                      <Badge variant={ROLE_VARIANT[user.role] ?? 'default'}>
-                        {ROLE_LABEL[user.role] ?? user.role}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-muted-foreground">
-                      {new Date(user.created_at).toLocaleDateString('es-CR')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {data?.meta && (
-          <PaginationControls
-            page={page}
-            pageCount={data.meta.pageCount}
-            itemCount={data.meta.itemCount}
-            limit={PAGE_LIMIT}
-            onPageChange={setPage}
-          />
-        )}
+        <DataTable
+          columns={columns}
+          data={users}
+          isLoading={loadingUsers}
+          error={!!error}
+          emptyMessage="Esta organización no tiene usuarios aún."
+          pagination={data?.meta ? {
+            page,
+            pageCount: data.meta.pageCount,
+            itemCount: data.meta.itemCount,
+            limit,
+            onPageChange: setPage,
+            onLimitChange: (l) => { setLimit(l); setPage(1) },
+          } : undefined}
+        />
       </div>
     </div>
   )

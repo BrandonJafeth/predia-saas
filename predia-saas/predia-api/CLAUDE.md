@@ -133,7 +133,9 @@ Row-level isolation via PostgreSQL `set_config`:
 2. `PrismaService.$extends` wraps every query in a transaction: runs `SELECT set_config('app.current_tenant_id', tenantId, true)` before the actual query
 3. PostgreSQL RLS policies read `current_setting('app.current_tenant_id')` to filter rows
 
-`SystemPrismaService` connects to a separate system DB — no ALS, no tenant scoping. Used exclusively by `SystemModule`.
+`SystemPrismaService` connects via `SYSTEM_DATABASE_URL` (role `predia_system`, `BYPASSRLS`) — no ALS, no tenant scoping. Used by `SystemModule` and `TenantsModule`.
+
+> **RLS gotcha:** `PrismaService` sets `app.current_tenant_id` from the caller's JWT. If an operation inserts rows with a `tenant_id` different from the caller's (e.g. super_admin creating a new tenant + admin user), the RLS policy blocks the INSERT with code `42501`. Use `SystemPrismaService` for those operations.
 
 ## Auth flow
 
@@ -163,6 +165,111 @@ Services return `PageOf<T>` (uses `PageMetaDto` internally).
 3. Use `@CurrentTenant()` to get `tenantId` for tenant-scoped operations
 4. Apply `@Roles()` as needed; use `@Public()` only on auth-style endpoints
 5. Register module in `app.module.ts`
+
+### Checklist completo para funcionalidad nueva
+
+#### Prisma / DB
+- [ ] Agregar modelo en `schema.prisma` con todos los campos tipados
+- [ ] Agregar `@@index` para campos usados en `where` frecuentes (ej. `tenant_id`, `created_at`)
+- [ ] Si la tabla es tenant-scoped: agregar RLS policy en `rls-setup.sql` (`ENABLE ROW LEVEL SECURITY` + `CREATE POLICY ... USING (tenant_id = current_setting('app.current_tenant_id', true))`)
+- [ ] Correr `prisma migrate dev --name <nombre-descriptivo>`
+- [ ] Correr `prisma generate` después de cualquier cambio al schema
+- [ ] Si la tabla es append-only (como `audit_log`): agregar `REVOKE UPDATE, DELETE ON <tabla> FROM predia_app` en `rls-setup.sql`
+
+#### DTOs
+- [ ] Todos los campos con `@ApiProperty` o `@ApiPropertyOptional` (Swagger los requiere)
+- [ ] Campos opcionales con `@IsOptional()` + tipo `?: T`
+- [ ] Validadores de `class-validator` en todos los campos de entrada (`@IsString`, `@IsUUID`, `@IsEmail`, `@IsEnum`, `@IsDateString`, etc.)
+- [ ] DTOs de respuesta con `!` (non-null assertion) — son shapes de salida, no de entrada
+- [ ] Response DTOs no extienden `PageOptionsDto` — solo los de query params lo hacen
+
+#### Controller
+- [ ] `@ApiTags('NombreModulo')` en la clase
+- [ ] `@ApiBearerAuth()` en la clase (excepto `@Public()`)
+- [ ] `@ApiOkResponse({ type: ... })` o `@ApiCreatedResponse` en cada handler
+- [ ] `@Roles(UserRole.xxx)` en handlers o en la clase entera
+- [ ] `@AuditLog({ action, entity })` en **todo endpoint que mute datos** (ver tabla abajo)
+- [ ] Usar `@CurrentTenant()` para operaciones tenant-scoped, nunca leer `tenantId` del body
+
+#### Service
+- [ ] Usar `PrismaService` (tenant-scoped con RLS) para operaciones del tenant
+- [ ] Usar `SystemPrismaService` solo si la operación es genuinamente cross-tenant (ej. audit log write, superadmin ops)
+- [ ] **Importante RLS:** Cualquier operación que inserte/actualice filas con un `tenant_id` distinto al del JWT del caller (ej. super_admin creando tenants/usuarios) DEBE usar `SystemPrismaService`. `PrismaService` setea `app.current_tenant_id` al tenantId del caller; si el registro tiene un tenant_id diferente, la policy RLS bloquea con código `42501`.
+- [ ] Paginación: recibir `PageOptionsDto`, devolver `PageDto<T>` con `PageMetaDto`
+- [ ] Errores: lanzar `NotFoundException`, `ConflictException`, etc. de `@nestjs/common` — nunca exponer errores internos
+
+#### Module
+- [ ] Registrar en `app.module.ts`
+- [ ] Exportar el service si otros módulos lo necesitan (ej. `AuditLogModule` exporta `AuditLogService`)
+- [ ] Importar `SystemPrismaModule` si el service usa `SystemPrismaService`
+
+---
+
+## Audit Log — qué requiere @AuditLog()
+
+`@AuditLog({ action, entity })` va en el **controller handler**, no en el servicio. El interceptor lo captura automáticamente al terminar con éxito.
+
+### Regla general
+Cualquier endpoint que **cree, modifique o elimine** un recurso persistente.
+
+### Tabla de acciones válidas
+
+| `action` | Cuándo usarlo |
+|----------|--------------|
+| `CREATE` | POST que crea un recurso |
+| `UPDATE` | PATCH/PUT que modifica campos |
+| `DELETE` | DELETE que elimina |
+| `SUSPEND` | Acción que suspende/desactiva sin borrar |
+| `ACTIVATE` | Acción que reactiva un recurso suspendido |
+| `ROLE_CHANGE` | PATCH que cambia el rol de un usuario (puede usar `UPDATE` si no hay handler dedicado) |
+| `REVOKE` | Revocación de API key u otro token |
+
+### Endpoints con @AuditLog hoy
+
+| Controller | Método | action | entity |
+|-----------|--------|--------|--------|
+| `UsersController` | `POST /api/v1/users` | `CREATE` | `user` |
+| `UsersController` | `PATCH /api/v1/users/:id` | `UPDATE` | `user` |
+| `UsersController` | `DELETE /api/v1/users/:id` | `DELETE` | `user` |
+| `TenantsController` | `POST /api/v1/tenants` | `CREATE` | `tenant` |
+| `TenantsController` | `PATCH /api/v1/tenants/:id` | `UPDATE` | `tenant` |
+| `TenantsController` | `DELETE /api/v1/tenants/:id` | `DELETE` | `tenant` |
+| `SystemController` | `POST /system/superadmins` | `CREATE` | `super_admin` |
+
+### Endpoints que NO usan @AuditLog (y por qué)
+
+| Endpoint | Razón |
+|----------|-------|
+| `GET *` | Solo lectura |
+| `POST /auth/login` | `@Public()` — no hay JWT al momento del intercept; el `user` es `null` |
+| `POST /auth/logout` | Retorna `void` (204); sin entity_id. Auditar requeriría llamada directa al service |
+| `POST /auth/register` | Igual que login — no hay JWT todavía |
+| `POST /auth/refresh` | Operación técnica de token, no acción de negocio |
+
+### Para futuros módulos
+
+Cuando agregues `properties`, `leads`, `api_keys`, etc.:
+```ts
+// properties
+@AuditLog({ action: 'CREATE',  entity: 'property' })
+@AuditLog({ action: 'UPDATE',  entity: 'property' })
+@AuditLog({ action: 'DELETE',  entity: 'property' })
+@AuditLog({ action: 'SUSPEND', entity: 'property' })
+
+// leads
+@AuditLog({ action: 'CREATE', entity: 'lead' })
+@AuditLog({ action: 'UPDATE', entity: 'lead' })
+@AuditLog({ action: 'DELETE', entity: 'lead' })
+
+// api_keys
+@AuditLog({ action: 'CREATE', entity: 'api_key' })
+@AuditLog({ action: 'REVOKE', entity: 'api_key' })
+```
+
+### Limitación del interceptor: entity_id
+El interceptor extrae el `entity_id` de `responseData.id` o `request.params.id`.
+- Si el handler devuelve el objeto creado/actualizado con `.id` → funciona automáticamente
+- Si el handler devuelve `void` o un objeto sin `.id` → el `entity_id` queda como `'unknown'`; en ese caso auditar directamente llamando `auditLogService.log()` desde el service
 
 ## Swagger
 
