@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { systemService, type SystemUserParams, type CreateSuperAdminRequest } from '../services/system.service'
+import { auditLogService, type QueryAuditLogParams } from '../services/audit-log.service'
 import { notify, extractApiError } from '@/shared/lib/notifications'
 
 export const systemKeys = {
@@ -22,6 +23,18 @@ export const useUsersByTenant = (tenantId: string, params?: SystemUserParams) =>
     queryKey: systemKeys.tenantUsers(tenantId, params),
     queryFn: () => systemService.findUsersByTenant(tenantId, params),
     enabled: !!tenantId,
+  })
+}
+
+export const auditLogKeys = {
+  system: () => ['system', 'audit-log'] as const,
+  systemList: (params?: QueryAuditLogParams) => [...auditLogKeys.system(), params] as const,
+}
+
+export const useSystemAuditLog = (params?: QueryAuditLogParams) => {
+  return useQuery({
+    queryKey: auditLogKeys.systemList(params),
+    queryFn: () => auditLogService.getSystemAuditLog(params),
   })
 }
 

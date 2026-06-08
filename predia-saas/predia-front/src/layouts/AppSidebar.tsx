@@ -23,6 +23,7 @@ import {
   PanelLeft,
   ShieldCheck,
   UsersRound,
+  ClipboardList,
 } from 'lucide-react'
 import { tokenStorage } from '@/shared/lib/tokens'
 
@@ -45,6 +46,7 @@ const tenantSecondaryItems = [
 const systemAdminItems = [
   { title: 'Organizaciones', url: '/admin/tenants', icon: ShieldCheck },
   { title: 'Usuarios', url: '/admin/users', icon: UsersRound },
+  { title: 'Audit Log', url: '/admin/audit-log', icon: ClipboardList },
 ]
 
 type NavItem = { title: string; url: string; icon: React.ElementType }

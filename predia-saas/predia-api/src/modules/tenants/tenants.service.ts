@@ -7,14 +7,14 @@ import { Prisma, Tenant } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { SystemPrismaService } from 'src/prisma/system-prisma.service';
 import { PageOptionsDto } from '../../common/dto/page-options.dto';
 import { PageDto } from '../../common/dto/page.dto';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
 
 @Injectable()
 export class TenantsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: SystemPrismaService) {}
 
   async create(dto: CreateTenantDto) {
     const { advisor_email, advisor_password, advisor_first_name, advisor_last_name, ...tenantData } = dto;

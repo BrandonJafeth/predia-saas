@@ -24,12 +24,10 @@ export const tenantsService = {
     return data as unknown as Tenant
   },
 
-  async create(payload: CreateTenantRequest): Promise<Tenant> {
-    const { data, error } = await apiClient.POST('/api/v1/tenants', {
-      body: payload,
-    })
+  async create(payload: CreateTenantRequest): Promise<void> {
+    const { error } = await apiClient.POST('/auth/register', { body: payload })
     if (error) throw error
-    return data as unknown as Tenant
+    // Discard returned JWT — super_admin session stays active
   },
 
   async update(id: string, payload: UpdateTenantRequest): Promise<Tenant> {

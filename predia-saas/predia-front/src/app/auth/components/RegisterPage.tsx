@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { useForm } from '@tanstack/react-form'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Button } from '@/design-system/ui/button'
@@ -7,7 +8,9 @@ import { Label } from '@/design-system/ui/label'
 import { Separator } from '@/design-system/ui/separator'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
+import { FormField } from '@/shared/components/form-field'
 import { useRegister } from '@/app/auth/hooks'
+import { registerSchema, type RegisterFormValues } from '@/app/auth/types/register.schema'
 import type { RegisterRequest } from '@/app/auth/types'
 
 function slugify(value: string): string {
@@ -23,32 +26,32 @@ function RegisterPage() {
   const navigate = useNavigate()
   const errorId = useId()
   const [showPassword, setShowPassword] = useState(false)
-  const [form, setForm] = useState<RegisterRequest>({
-    tenantName: '',
-    tenantSlug: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-  })
 
   const { mutate: register, isPending, error } = useRegister()
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value } = e.target
-    setForm(prev => {
-      if (name === 'tenantName') {
-        return { ...prev, tenantName: value, tenantSlug: slugify(value) }
-      }
-      return { ...prev, [name]: value }
-    })
-  }
+  const form = useForm({
+    defaultValues: {
+      tenantName: '',
+      tenantSlug: '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+    } satisfies RegisterFormValues,
+    validators: {
+      onSubmit: registerSchema,
+    },
+    onSubmit: ({ value }: { value: RegisterFormValues }) => {
+      register(value as RegisterRequest, {
+        onSuccess: () => void navigate({ to: '/dashboard' }),
+      })
+    },
+  })
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    register(form, {
-      onSuccess: () => void navigate({ to: '/dashboard' }),
-    })
+    e.stopPropagation()
+    form.handleSubmit()
   }
 
   const errorMessage = error ? extractMessage(error) : null
@@ -69,7 +72,7 @@ function RegisterPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} noValidate className="space-y-6">
+          <form onSubmit={handleFormSubmit} noValidate className="space-y-6">
             {errorMessage && (
               <div
                 id={errorId}
@@ -86,39 +89,63 @@ function RegisterPage() {
                 Datos de la organización
               </Text>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="tenantName">Nombre de la inmobiliaria</Label>
-                <Input
-                  id="tenantName"
-                  name="tenantName"
-                  placeholder="Inmobiliaria Norte"
-                  value={form.tenantName}
-                  onChange={handleChange}
-                  required
-                  aria-describedby={errorMessage ? errorId : undefined}
-                  className="shadow-none"
-                />
-              </div>
+              <form.Field name="tenantName">
+                {(field) => (
+                  <FormField field={field} label="Nombre de la inmobiliaria">
+                    <Input
+                      id="tenantName"
+                      placeholder="Inmobiliaria Norte"
+                      value={field.state.value}
+                      onChange={(e) => {
+                        field.handleChange(e.target.value)
+                        form.setFieldValue('tenantSlug', slugify(e.target.value))
+                      }}
+                      onBlur={field.handleBlur}
+                      className="shadow-none"
+                    />
+                  </FormField>
+                )}
+              </form.Field>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="tenantSlug">
-                  Identificador
-                  <span className="ml-1.5 text-xs text-muted-foreground font-normal">(auto-generado)</span>
-                </Label>
-                <Input
-                  id="tenantSlug"
-                  name="tenantSlug"
-                  placeholder="inmobiliaria-norte"
-                  value={form.tenantSlug}
-                  onChange={handleChange}
-                  required
-                  aria-describedby={errorMessage ? errorId : undefined}
-                  className="shadow-none"
-                />
-                <Text as="caption" className="text-muted-foreground">
-                  Solo minúsculas, números y guiones
-                </Text>
-              </div>
+              <form.Field name="tenantSlug">
+                {(field) => {
+                  const errors = field.state.meta.isTouched ? field.state.meta.errors : []
+                  const errorMsg = errors.length > 0
+                    ? (typeof errors[0] === 'string'
+                        ? errors[0]
+                        : (errors[0] as { message?: string } | undefined)?.message)
+                    : undefined
+                  return (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="tenantSlug">
+                        Identificador
+                        <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                          (auto-generado)
+                        </span>
+                      </Label>
+                      <Input
+                        id="tenantSlug"
+                        placeholder="inmobiliaria-norte"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        className="shadow-none"
+                        aria-invalid={!!errorMsg}
+                        aria-describedby={errorMsg ? 'tenantSlug-error' : undefined}
+                      />
+                      {errorMsg ? (
+                        <p id="tenantSlug-error" role="alert" className="text-[13px] font-body font-medium leading-[1.4] text-destructive">
+                          {errorMsg}
+                        </p>
+                      ) : (
+                        <Text as="caption" className="text-muted-foreground">
+                          Solo minúsculas, números y guiones
+                        </Text>
+                      )}
+                    </div>
+                  )
+                }}
+              </form.Field>
             </div>
 
             <Separator />
@@ -130,76 +157,89 @@ function RegisterPage() {
               </Text>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="firstName">Nombre</Label>
-                  <Input
-                    id="firstName"
-                    name="firstName"
-                    placeholder="Juan"
-                    value={form.firstName}
-                    onChange={handleChange}
-                    required
-                    autoComplete="given-name"
-                    className="shadow-none"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="lastName">Apellido</Label>
-                  <Input
-                    id="lastName"
-                    name="lastName"
-                    placeholder="Pérez"
-                    value={form.lastName}
-                    onChange={handleChange}
-                    required
-                    autoComplete="family-name"
-                    className="shadow-none"
-                  />
-                </div>
+                <form.Field name="firstName">
+                  {(field) => (
+                    <FormField field={field} label="Nombre">
+                      <Input
+                        id="firstName"
+                        placeholder="Juan"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        autoComplete="given-name"
+                        className="shadow-none"
+                      />
+                    </FormField>
+                  )}
+                </form.Field>
+
+                <form.Field name="lastName">
+                  {(field) => (
+                    <FormField field={field} label="Apellido">
+                      <Input
+                        id="lastName"
+                        placeholder="Pérez"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        autoComplete="family-name"
+                        className="shadow-none"
+                      />
+                    </FormField>
+                  )}
+                </form.Field>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="admin@correo.com"
-                  value={form.email}
-                  onChange={handleChange}
-                  required
-                  autoComplete="email"
-                  className="shadow-none"
-                />
-              </div>
+              <form.Field name="email">
+                {(field) => (
+                  <FormField field={field} label="Correo electrónico">
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="admin@correo.com"
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      autoComplete="email"
+                      className="shadow-none"
+                    />
+                  </FormField>
+                )}
+              </form.Field>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Contraseña</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={form.password}
-                    onChange={handleChange}
-                    required
-                    autoComplete="new-password"
-                    className="pr-9 shadow-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
+              <form.Field name="password">
+                {(field) => (
+                  <FormField field={field} label="Contraseña">
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={field.state.value}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                        onBlur={field.handleBlur}
+                        autoComplete="new-password"
+                        className="pr-9 shadow-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      >
+                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      </button>
+                    </div>
+                  </FormField>
+                )}
+              </form.Field>
             </div>
 
-            <Button type="submit" className="w-full mt-2" disabled={isPending}>
+            <Button
+              type="submit"
+              className="w-full mt-2"
+              disabled={form.state.isSubmitting || isPending}
+            >
               {isPending && <Loader2 className="animate-spin" />}
               Crear organización
             </Button>

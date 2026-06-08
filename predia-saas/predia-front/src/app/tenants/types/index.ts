@@ -1,27 +1,10 @@
-export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'cancelled'
+import type { components } from '@predia/api-types'
 
-export interface Tenant {
-  id: string
-  name: string
-  slug: string
-  subscription_status: SubscriptionStatus
-  created_at: string
-  updated_at: string
-}
+export type Tenant = components['schemas']['TenantResponseDto']
+export type SubscriptionStatus = Tenant['subscription_status']
 
-export interface CreateTenantRequest {
-  name: string
-  slug: string
-  advisor_email?: string
-  advisor_password?: string
-  advisor_first_name?: string
-  advisor_last_name?: string
-}
-
-export interface UpdateTenantRequest {
-  name?: string
-  slug?: string
-}
+export type CreateTenantRequest = components['schemas']['RegisterDto']
+export type UpdateTenantRequest = components['schemas']['UpdateTenantDto']
 
 export interface PaginationParams {
   page?: number
@@ -30,12 +13,7 @@ export interface PaginationParams {
 
 export interface PaginatedResponse<T> {
   data: T[]
-  meta: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
-  }
+  meta: components['schemas']['PageMetaDto']
 }
 
 export const tenantKeys = {
