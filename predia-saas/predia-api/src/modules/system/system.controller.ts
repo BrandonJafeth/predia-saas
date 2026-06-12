@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, HttpCode, HttpStatus, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+import { SkipThrottle } from '@nestjs/throttler';
 import { AuditLog } from 'src/common/decorators/audit-log.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { PageOptionsDto } from 'src/common/dto/page-options.dto';
@@ -9,6 +10,7 @@ import { SystemService } from './system.service';
 
 @ApiTags('System')
 @ApiBearerAuth()
+@SkipThrottle()
 @Controller('system')
 export class SystemController {
   constructor(private readonly systemService: SystemService) {}

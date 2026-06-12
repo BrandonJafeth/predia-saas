@@ -5,28 +5,37 @@ import {
 } from '@nestjs/common';
 import { Prisma, Tenant } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { SystemPrismaService } from 'src/prisma/system-prisma.service';
+import { EmailService } from 'src/modules/email/email.service';
 import { PageOptionsDto } from '../../common/dto/page-options.dto';
 import { PageDto } from '../../common/dto/page.dto';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
 
 @Injectable()
 export class TenantsService {
-  constructor(private prisma: SystemPrismaService) {}
+  constructor(
+    private prisma: SystemPrismaService,
+    private email: EmailService,
+    private config: ConfigService,
+  ) {}
 
   async create(dto: CreateTenantDto) {
     const { advisor_email, advisor_password, advisor_first_name, advisor_last_name, ...tenantData } = dto;
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
+      const result = await this.prisma.$transaction(async (tx) => {
         const tenant = await tx.tenant.create({
           data: {
             ...tenantData,
             slug: dto.slug.toLowerCase().trim(),
           },
         });
+
+        let advisorEmail: string | undefined;
+        let advisorFirstName: string | undefined;
 
         if (advisor_email && advisor_password && advisor_first_name && advisor_last_name) {
           const password_hash = await bcrypt.hash(advisor_password, 12);
@@ -40,10 +49,24 @@ export class TenantsService {
               tenant_id: tenant.id,
             },
           });
+          advisorEmail = advisor_email;
+          advisorFirstName = advisor_first_name;
         }
 
-        return tenant;
+        return { tenant, advisorEmail, advisorFirstName };
       });
+
+      if (result.advisorEmail && result.advisorFirstName) {
+        const appUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:5173';
+        void this.email.sendWelcome(result.advisorEmail, {
+          firstName: result.advisorFirstName,
+          tenantName: result.tenant.name,
+          appUrl,
+          isAdminCreated: true,
+        });
+      }
+
+      return result.tenant;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

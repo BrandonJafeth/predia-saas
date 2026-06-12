@@ -12,3 +12,12 @@ export interface AuthUser {
   name: string
   role: string
 }
+
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  password: string
+}

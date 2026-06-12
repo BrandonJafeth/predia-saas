@@ -3,7 +3,7 @@ import { tokenStorage } from '@/shared/lib/tokens'
 import { authService } from '../services/auth.service'
 import { usersService } from '@/app/users/services/users.service'
 import { notify } from '@/shared/lib/notifications'
-import type { LoginRequest, LookupRequest, RegisterRequest } from '../types'
+import type { ForgotPasswordRequest, LoginRequest, LookupRequest, RegisterRequest, ResetPasswordRequest } from '../types'
 
 export const useLookupTenants = () => {
   return useMutation({
@@ -53,14 +53,28 @@ export const useLogout = () => {
   }
 }
 
+export const useForgotPassword = () => {
+  return useMutation({
+    mutationFn: (payload: ForgotPasswordRequest) => authService.forgotPassword(payload),
+  })
+}
+
+export const useResetPassword = () => {
+  return useMutation({
+    mutationFn: (payload: ResetPasswordRequest) => authService.resetPassword(payload),
+    onSuccess: () => {
+      notify.success({ title: 'Contraseña actualizada', description: 'Ya puedes iniciar sesión' })
+    },
+  })
+}
+
 export const useCurrentUser = () => {
-  const payload = tokenStorage.decodeAccessToken()
-  const userId = payload?.sub ?? ''
+  const hasToken = !!tokenStorage.decodeAccessToken()
 
   return useQuery({
-    queryKey: ['auth', 'me', userId],
-    queryFn: () => usersService.findOne(userId),
-    enabled: !!userId,
+    queryKey: ['auth', 'me'],
+    queryFn: () => usersService.findMe(),
+    enabled: hasToken,
     staleTime: 5 * 60 * 1000,
   })
 }

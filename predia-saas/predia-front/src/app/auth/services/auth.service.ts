@@ -1,5 +1,7 @@
 import { apiClient } from '@/shared/lib/api'
-import type { AuthResponse, LoginRequest, LookupRequest, RegisterRequest, TenantOption } from '../types'
+import type { AuthResponse, ForgotPasswordRequest, LoginRequest, LookupRequest, RegisterRequest, ResetPasswordRequest, TenantOption } from '../types'
+
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 export const authService = {
   async lookupTenants(payload: LookupRequest): Promise<TenantOption[]> {
@@ -28,5 +30,23 @@ export const authService = {
 
   async logout(): Promise<void> {
     await apiClient.POST('/auth/logout', {})
+  },
+
+  async forgotPassword(payload: ForgotPasswordRequest): Promise<void> {
+    const res = await fetch(`${BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) throw await res.json()
+  },
+
+  async resetPassword(payload: ResetPasswordRequest): Promise<void> {
+    const res = await fetch(`${BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) throw await res.json()
   },
 }

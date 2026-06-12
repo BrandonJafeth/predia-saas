@@ -8,6 +8,8 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -16,6 +18,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+import { SkipThrottle } from '@nestjs/throttler';
 import { CurrentTenant } from '../../common/decorators/current-tenant.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PageOf } from '../../common/dto/page.dto';
@@ -28,6 +31,7 @@ import { UsersService } from './users.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()
+@SkipThrottle()
 @Controller('api/v1/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -38,6 +42,12 @@ export class UsersController {
   @ApiCreatedResponse({ type: UserResponseDto })
   create(@Body() dto: CreateUserDto, @CurrentTenant() tenantId: string) {
     return this.usersService.create(dto, tenantId);
+  }
+
+  @Get('me')
+  @ApiOkResponse({ type: UserResponseDto })
+  getMe(@CurrentUser() user: JwtPayload, @CurrentTenant() tenantId: string) {
+    return this.usersService.findOne(user.sub, tenantId);
   }
 
   @Get()

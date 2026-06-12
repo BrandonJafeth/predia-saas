@@ -4,7 +4,8 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { tenantsService } from '../services/tenants.service'
-import { tenantKeys, type CreateTenantRequest, type PaginationParams, type UpdateTenantRequest } from '../types'
+import { tenantKeys, type PaginationParams, type UpdateTenantRequest } from '../types'
+import type { CreateTenantFormValues } from '../types/create-tenant.schema'
 import { notify, extractApiError } from '@/shared/lib/notifications'
 
 export const useTenants = (params?: PaginationParams) => {
@@ -26,7 +27,7 @@ export const useCreateTenant = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: CreateTenantRequest) => tenantsService.create(payload),
+    mutationFn: (payload: CreateTenantFormValues) => tenantsService.create(payload),
     onSuccess: () => {
       notify.success({ title: 'Organización creada' })
       queryClient.invalidateQueries({ queryKey: tenantKeys.lists() })

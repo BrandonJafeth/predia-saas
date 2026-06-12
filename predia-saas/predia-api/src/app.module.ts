@@ -14,6 +14,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
+import { EmailModule } from './modules/email/email.module';
 
 @Module({
   imports: [
@@ -29,17 +30,28 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
           .valid('development', 'production', 'test')
           .default('development'),
         CORS_ORIGIN: Joi.string().default('http://localhost:5173'),
+        RESEND_API_KEY: Joi.string().default(''),
+        EMAIL_FROM: Joi.string().email().default('noreply@predia.com'),
+        EMAIL_FROM_NAME: Joi.string().default('Predia'),
+        EMAIL_ENABLED: Joi.string().valid('true', 'false').default('true'),
+        APP_URL: Joi.string().default('http://localhost:5173'),
       }),
     }),
     ThrottlerModule.forRoot([
       {
         name: 'default',
-        ttl: 60_000,  // 1 minuto
-        limit: 60,    // 60 req/min para rutas normales
+        ttl: 60_000,
+        limit: 300,
+      },
+      {
+        name: 'auth-strict',
+        ttl: 15 * 60_000,
+        limit: 3,
       },
     ]),
     PrismaModule,
     HealthModule,
+    EmailModule,
     AuthModule,
     SystemModule,
     TenantsModule,

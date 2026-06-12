@@ -16,6 +16,15 @@ export const usersService = {
     return data as unknown as PaginatedResponse<User>
   },
 
+  async findMe(): Promise<User> {
+    const { data, error } = await apiClient.GET(
+      '/api/v1/users/me' as unknown as '/api/v1/users/{id}',
+      { params: { path: { id: 'me' } } },
+    )
+    if (error) throw error
+    return data
+  },
+
   async findOne(id: string): Promise<User> {
     const { data, error } = await apiClient.GET('/api/v1/users/{id}', {
       params: { path: { id } },

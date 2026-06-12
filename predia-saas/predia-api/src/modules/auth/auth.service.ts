@@ -1,17 +1,23 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SystemPrismaService } from 'src/prisma/system-prisma.service';
+import { EmailService } from 'src/modules/email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { LookupDto } from './dto/lookup.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 // Pre-computed hash used when the user doesn't exist so bcrypt.compare always
@@ -21,12 +27,19 @@ const DUMMY_HASH =
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private systemPrisma: SystemPrismaService,
     private jwtService: JwtService,
     private config: ConfigService,
+    private email: EmailService,
   ) {}
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
 
   async lookupTenants(dto: LookupDto) {
     const MIN_MS = 400;
@@ -74,11 +87,20 @@ export class AuthService {
         return { tenant, user };
       });
 
-      return this.generateTokens({
+      const tokens = this.generateTokens({
         sub: user.id,
         tenantId: tenant.id,
         role: user.role,
       });
+
+      const appUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:5173';
+      void this.email.sendWelcome(user.email, {
+        firstName: user.first_name,
+        tenantName: tenant.name,
+        appUrl,
+      });
+
+      return tokens;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -152,6 +174,89 @@ export class AuthService {
       sub: user.id,
       tenantId: user.tenant_id,
       role: user.role,
+    });
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto): Promise<void> {
+    const MIN_MS = 400;
+    const start = Date.now();
+
+    try {
+      const users = await this.systemPrisma.user.findMany({
+        where: { email: dto.email },
+        select: { id: true, email: true, first_name: true },
+      });
+
+      for (const user of users) {
+        // Invalidate all existing unused tokens for this user
+        await this.systemPrisma.passwordResetToken.deleteMany({
+          where: { user_id: user.id, used_at: null },
+        });
+
+        const plainToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = this.hashToken(plainToken);
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+        await this.systemPrisma.passwordResetToken.create({
+          data: { user_id: user.id, token_hash: tokenHash, expires_at: expiresAt },
+        });
+
+        const appUrl = this.config.get<string>('APP_URL') ?? 'http://localhost:5173';
+        void this.email.sendPasswordReset(user.email, {
+          firstName: user.first_name,
+          resetUrl: `${appUrl}/reset-password?token=${plainToken}`,
+          expiresInMinutes: 15,
+        });
+      }
+    } catch (err) {
+      // Log but don't expose — response must be identical whether email exists or not
+      this.logger.error(`forgotPassword error: ${(err as Error).message}`);
+    } finally {
+      const elapsed = Date.now() - start;
+      if (elapsed < MIN_MS) {
+        await new Promise((r) => setTimeout(r, MIN_MS - elapsed));
+      }
+    }
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    const tokenHash = this.hashToken(dto.token);
+
+    const record = await this.systemPrisma.passwordResetToken.findUnique({
+      where: { token_hash: tokenHash },
+      include: { user: { select: { id: true, email: true, first_name: true } } },
+    });
+
+    if (!record) {
+      throw new BadRequestException('Token inválido');
+    }
+    if (record.used_at) {
+      throw new BadRequestException('Este enlace ya fue utilizado. Solicita uno nuevo.');
+    }
+    if (record.expires_at < new Date()) {
+      throw new BadRequestException('El enlace expiró. Solicita uno nuevo.');
+    }
+
+    const password_hash = await bcrypt.hash(dto.password, 12);
+
+    await this.systemPrisma.$transaction([
+      this.systemPrisma.user.update({
+        where: { id: record.user_id },
+        data: { password_hash },
+      }),
+      this.systemPrisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: { used_at: new Date() },
+      }),
+      // Invalidate all other tokens for this user
+      this.systemPrisma.passwordResetToken.deleteMany({
+        where: { user_id: record.user_id, id: { not: record.id } },
+      }),
+    ]);
+
+    void this.email.sendPasswordChanged(record.user.email, {
+      firstName: record.user.first_name,
+      changedAt: new Date(),
     });
   }
 
