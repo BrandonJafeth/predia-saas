@@ -219,6 +219,19 @@ export class AuthService {
     }
   }
 
+  async validateResetToken(token: string): Promise<{ valid: true }> {
+    const tokenHash = this.hashToken(token);
+    const record = await this.systemPrisma.passwordResetToken.findUnique({
+      where: { token_hash: tokenHash },
+    });
+
+    if (!record) throw new BadRequestException('Token inválido');
+    if (record.used_at) throw new BadRequestException('Este enlace ya fue utilizado. Solicita uno nuevo.');
+    if (record.expires_at < new Date()) throw new BadRequestException('El enlace expiró. Solicita uno nuevo.');
+
+    return { valid: true };
+  }
+
   async resetPassword(dto: ResetPasswordDto): Promise<void> {
     const tokenHash = this.hashToken(dto.token);
 

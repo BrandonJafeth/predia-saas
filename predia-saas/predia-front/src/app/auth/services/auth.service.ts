@@ -49,4 +49,10 @@ export const authService = {
     })
     if (!res.ok) throw await res.json()
   },
+
+  async validateResetToken(token: string): Promise<{ valid: true }> {
+    const res = await fetch(`${BASE_URL}/auth/validate-reset-token?token=${encodeURIComponent(token)}`)
+    if (!res.ok) throw await res.json()
+    return res.json() as Promise<{ valid: true }>
+  },
 }

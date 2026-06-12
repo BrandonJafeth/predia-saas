@@ -68,6 +68,16 @@ export const useResetPassword = () => {
   })
 }
 
+export const useValidateResetToken = (token: string | undefined) => {
+  return useQuery({
+    queryKey: ['auth', 'validate-reset-token', token],
+    queryFn: () => authService.validateResetToken(token!),
+    enabled: !!token,
+    retry: false,
+    staleTime: Infinity,
+  })
+}
+
 export const useCurrentUser = () => {
   const hasToken = !!tokenStorage.decodeAccessToken()
 
