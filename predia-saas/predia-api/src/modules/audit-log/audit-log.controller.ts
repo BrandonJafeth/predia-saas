@@ -6,6 +6,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { CurrentTenant } from 'src/common/decorators/current-tenant.decorator';
 import { PageOf } from 'src/common/dto/page.dto';
@@ -16,6 +17,7 @@ import { AuditLogResponseDto } from './dto/audit-log-response.dto';
 
 @ApiTags('Audit Log')
 @ApiBearerAuth()
+@SkipThrottle()
 @Controller('api/v1/audit-log')
 export class AuditLogController {
   constructor(private readonly auditLogService: AuditLogService) {}

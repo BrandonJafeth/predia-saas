@@ -5,7 +5,10 @@ import { tokenStorage } from '@/shared/lib/tokens'
 import { refreshAccessToken } from '@/shared/lib/api'
 import { Toaster, TOASTER_OPTIONS } from '@/shared/lib/notifications'
 
+// Authenticated users get redirected away from these paths
 const AUTH_PATHS = ['/login', '/forgot-password']
+// Accessible to everyone — no redirect regardless of auth state
+const PUBLIC_PATHS = ['/reset-password']
 
 // Tracks whether we've already attempted session restoration this page load.
 // Prevents re-calling /auth/refresh on every navigation.
@@ -24,19 +27,20 @@ export const Route = createRootRoute({
 
     const token = tokenStorage.getAccessToken()
     const isAuthPath = AUTH_PATHS.includes(location.pathname)
+    const isPublicPath = PUBLIC_PATHS.includes(location.pathname)
 
     if (isAuthPath && token) {
       const role = tokenStorage.decodeAccessToken()?.role
       throw redirect({ to: role === 'super_admin' ? '/admin/tenants' : '/dashboard' })
     }
-    if (!isAuthPath && !token) {
+    if (!isAuthPath && !isPublicPath && !token) {
       throw redirect({ to: '/login' })
     }
   },
 
   component: () => {
     const { pathname } = useLocation()
-    const isAuthPage = AUTH_PATHS.includes(pathname)
+    const isAuthPage = AUTH_PATHS.includes(pathname) || PUBLIC_PATHS.includes(pathname)
 
     return (
       <>

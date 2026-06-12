@@ -16,6 +16,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+import { SkipThrottle } from '@nestjs/throttler';
 import { AuditLog } from '../../common/decorators/audit-log.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PageOptionsDto } from '../../common/dto/page-options.dto';
@@ -27,6 +28,7 @@ import { TenantsService } from './tenants.service';
 
 @ApiTags('Tenants')
 @ApiBearerAuth()
+@SkipThrottle()
 @Roles(UserRole.super_admin)
 @Controller('api/v1/tenants')
 export class TenantsController {

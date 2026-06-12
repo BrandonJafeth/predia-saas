@@ -1,11 +1,11 @@
 import { apiClient } from '@/shared/lib/api'
 import type {
-  CreateTenantRequest,
   PaginatedResponse,
   PaginationParams,
   Tenant,
   UpdateTenantRequest,
 } from '../types'
+import type { CreateTenantFormValues } from '../types/create-tenant.schema'
 
 export const tenantsService = {
   async findAll(params?: PaginationParams): Promise<PaginatedResponse<Tenant>> {
@@ -24,10 +24,19 @@ export const tenantsService = {
     return data as unknown as Tenant
   },
 
-  async create(payload: CreateTenantRequest): Promise<void> {
-    const { error } = await apiClient.POST('/auth/register', { body: payload })
+  async create(payload: CreateTenantFormValues): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (apiClient.POST as any)('/api/v1/tenants', {
+      body: {
+        name: payload.tenantName,
+        slug: payload.tenantSlug,
+        advisor_email: payload.email,
+        advisor_password: payload.password,
+        advisor_first_name: payload.firstName,
+        advisor_last_name: payload.lastName,
+      },
+    })
     if (error) throw error
-    // Discard returned JWT — super_admin session stays active
   },
 
   async update(id: string, payload: UpdateTenantRequest): Promise<Tenant> {
