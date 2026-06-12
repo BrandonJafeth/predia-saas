@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -81,6 +83,12 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(@Res({ passthrough: true }) res: express.Response): void {
     res.clearCookie(REFRESH_COOKIE, { path: COOKIE_OPTIONS.path });
+  }
+
+  @Get('validate-reset-token')
+  @ApiOkResponse({ description: 'Token válido y no expirado' })
+  validateResetToken(@Query('token') token: string): Promise<{ valid: true }> {
+    return this.authService.validateResetToken(token);
   }
 
   @Post('forgot-password')

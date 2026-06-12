@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, XCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Clock, Eye, EyeOff, Loader2, XCircle } from 'lucide-react'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
 import { Label } from '@/design-system/ui/label'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
-import { useResetPassword } from '@/app/auth/hooks'
+import { useResetPassword, useValidateResetToken } from '@/app/auth/hooks'
 
 interface PasswordRule {
   label: string
@@ -32,12 +32,13 @@ function ResetPasswordPage({ token }: Props) {
   const [touched, setTouched] = useState(false)
   const [success, setSuccess] = useState(false)
 
+  const { isLoading: validating, isError: tokenInvalid, error: tokenError } = useValidateResetToken(token)
   const { mutate: resetPassword, isPending, error } = useResetPassword()
 
   const allRulesMet = PASSWORD_RULES.every(r => r.test(password))
   const passwordsMatch = password === confirm
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
     setTouched(true)
     if (!token || !allRulesMet || !passwordsMatch) return
@@ -54,11 +55,53 @@ function ResetPasswordPage({ token }: Props) {
   }
 
   const errorMessage = error ? extractMessage(error) : null
-  const isExpiredOrUsed = errorMessage?.includes('expiró') || errorMessage?.includes('utilizado')
 
-  // Invalid / missing token
+  // Missing token
   if (!token) {
     return <TokenErrorLayout message="Enlace inválido o incompleto." />
+  }
+
+  // Validating token on mount
+  if (validating) {
+    return (
+      <AuthShell title="Verificando enlace" subtitle="Comprobando que tu enlace sea válido…">
+        <div className="flex justify-center py-4">
+          <Loader2 className="size-8 text-primary animate-spin" />
+        </div>
+      </AuthShell>
+    )
+  }
+
+  // Token expired / used / invalid (detected on load)
+  if (tokenInvalid) {
+    const msg = extractMessage(tokenError)
+    const isExpired = msg.includes('expiró')
+    return (
+      <AuthShell
+        title={isExpired ? 'Enlace expirado' : 'Enlace ya utilizado'}
+        subtitle={isExpired
+          ? 'Este enlace de restablecimiento ya no es válido.'
+          : 'Este enlace ya fue usado para cambiar una contraseña.'}
+      >
+        <div className="space-y-5">
+          <div className="flex justify-center">
+            <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              {isExpired
+                ? <Clock className="size-8 text-destructive" />
+                : <XCircle className="size-8 text-destructive" />}
+            </div>
+          </div>
+          <Text as="sm" className="text-muted-foreground text-center">
+            {isExpired
+              ? 'Los enlaces de restablecimiento son válidos por 15 minutos. Solicita uno nuevo para continuar.'
+              : 'Por seguridad, cada enlace solo puede usarse una vez. Solicita uno nuevo si necesitas cambiar tu contraseña.'}
+          </Text>
+          <Button asChild className="w-full">
+            <Link to="/forgot-password">Solicitar nuevo enlace</Link>
+          </Button>
+        </div>
+      </AuthShell>
+    )
   }
 
   // Success state
@@ -102,120 +145,101 @@ function ResetPasswordPage({ token }: Props) {
 
           {/* Form */}
           <div className="px-8 py-6">
-            {isExpiredOrUsed ? (
-              <div className="space-y-4">
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
+              {errorMessage && (
                 <div
                   role="alert"
-                  className="rounded-lg bg-destructive/8 border border-destructive/20 text-destructive px-3.5 py-3 text-sm space-y-1"
+                  className="rounded-lg bg-destructive/8 border border-destructive/20 text-destructive px-3.5 py-2.5 text-sm"
                 >
-                  <p className="font-semibold">
-                    {errorMessage?.includes('expiró') ? 'Enlace expirado' : 'Enlace ya utilizado'}
-                  </p>
-                  <p className="text-destructive/80">
-                    {errorMessage}
-                  </p>
+                  {errorMessage}
                 </div>
-                <Button asChild className="w-full" variant="outline">
-                  <Link to="/forgot-password">Solicitar nuevo enlace</Link>
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} noValidate className="space-y-5">
-                {errorMessage && !isExpiredOrUsed && (
-                  <div
-                    role="alert"
-                    className="rounded-lg bg-destructive/8 border border-destructive/20 text-destructive px-3.5 py-2.5 text-sm"
-                  >
-                    {errorMessage}
-                  </div>
-                )}
+              )}
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="password">Nueva contraseña</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      onBlur={() => setTouched(true)}
-                      autoComplete="new-password"
-                      autoFocus
-                      disabled={isPending}
-                      className="pr-9 shadow-none"
-                      aria-describedby="password-rules"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    >
-                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="confirm">Confirmar contraseña</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="password">Nueva contraseña</Label>
+                <div className="relative">
                   <Input
-                    id="confirm"
+                    id="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
-                    value={confirm}
-                    onChange={e => setConfirm(e.target.value)}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
                     onBlur={() => setTouched(true)}
                     autoComplete="new-password"
+                    autoFocus
                     disabled={isPending}
-                    className={`shadow-none ${touched && confirm && !passwordsMatch ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                    className="pr-9 shadow-none"
+                    aria-describedby="password-rules"
                   />
-                  {touched && confirm && !passwordsMatch && (
-                    <p className="text-xs text-destructive">Las contraseñas no coinciden</p>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
                 </div>
+              </div>
 
-                {/* Password strength rules */}
-                <div id="password-rules" className="rounded-lg bg-surface-soft border border-hairline px-4 py-3 space-y-1.5">
-                  {PASSWORD_RULES.map(rule => {
-                    const ok = rule.test(password)
-                    const showError = touched && !ok
-                    return (
-                      <div key={rule.label} className="flex items-center gap-2">
-                        {ok ? (
-                          <CheckCircle2 className="size-3.5 text-success shrink-0" />
-                        ) : showError ? (
-                          <XCircle className="size-3.5 text-destructive shrink-0" />
-                        ) : (
-                          <div className="size-3.5 rounded-full border border-muted-foreground/40 shrink-0" />
-                        )}
-                        <Text
-                          as="caption"
-                          className={
-                            ok
-                              ? 'text-success'
-                              : showError
-                              ? 'text-destructive'
-                              : 'text-muted-foreground'
-                          }
-                        >
-                          {rule.label}
-                        </Text>
-                      </div>
-                    )
-                  })}
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm">Confirmar contraseña</Label>
+                <Input
+                  id="confirm"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  onBlur={() => setTouched(true)}
+                  autoComplete="new-password"
+                  disabled={isPending}
+                  className={`shadow-none ${touched && confirm && !passwordsMatch ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+                />
+                {touched && confirm && !passwordsMatch && (
+                  <p className="text-xs text-destructive">Las contraseñas no coinciden</p>
+                )}
+              </div>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isPending || (touched && !allRulesMet)}
-                >
-                  {isPending && <Loader2 className="animate-spin" />}
-                  Cambiar contraseña
-                </Button>
-              </form>
-            )}
+              {/* Password strength rules */}
+              <div id="password-rules" className="rounded-lg bg-surface-soft border border-hairline px-4 py-3 space-y-1.5">
+                {PASSWORD_RULES.map(rule => {
+                  const ok = rule.test(password)
+                  const showError = touched && !ok
+                  return (
+                    <div key={rule.label} className="flex items-center gap-2">
+                      {ok ? (
+                        <CheckCircle2 className="size-3.5 text-success shrink-0" />
+                      ) : showError ? (
+                        <XCircle className="size-3.5 text-destructive shrink-0" />
+                      ) : (
+                        <div className="size-3.5 rounded-full border border-muted-foreground/40 shrink-0" />
+                      )}
+                      <Text
+                        as="caption"
+                        className={
+                          ok
+                            ? 'text-success'
+                            : showError
+                            ? 'text-destructive'
+                            : 'text-muted-foreground'
+                        }
+                      >
+                        {rule.label}
+                      </Text>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isPending || (touched && !allRulesMet)}
+              >
+                {isPending && <Loader2 className="animate-spin" />}
+                Cambiar contraseña
+              </Button>
+            </form>
           </div>
         </div>
 
@@ -237,7 +261,11 @@ function TokenErrorLayout({ message }: { message: string }) {
   return (
     <AuthShell title="Enlace inválido" subtitle={message}>
       <div className="space-y-4 text-center">
-        <XCircle className="size-10 text-destructive mx-auto" />
+        <div className="flex justify-center">
+          <div className="size-16 rounded-full bg-destructive/10 flex items-center justify-center">
+            <XCircle className="size-8 text-destructive" />
+          </div>
+        </div>
         <Button asChild className="w-full">
           <Link to="/forgot-password">Solicitar nuevo enlace</Link>
         </Button>
