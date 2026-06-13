@@ -1,6 +1,6 @@
 import {
   Injectable, NestInterceptor, ExecutionContext,
-  CallHandler,
+  CallHandler, Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable, tap } from 'rxjs';
@@ -16,6 +16,8 @@ interface AuditRequest {
 
 @Injectable()
 export class AuditLogInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditLogInterceptor.name);
+
   constructor(
     private reflector: Reflector,
     private auditLogService: AuditLogService,
@@ -34,7 +36,7 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap((responseData: Record<string, unknown> | null | undefined) => {
-        void this.auditLogService.log({
+        this.auditLogService.log({
           actor_id: user?.sub ?? 'system',
           actor_role: user?.role ?? 'system',
           action: metadata.action,
@@ -42,6 +44,8 @@ export class AuditLogInterceptor implements NestInterceptor {
           entity_id: responseData?.['id'] as string ?? request.params?.['id'] ?? 'unknown',
           payload: { after: (responseData ?? null) } as Prisma.InputJsonValue,
           tenant_id: user?.tenantId ?? null,
+        }).catch((err: unknown) => {
+          this.logger.error('Audit log failed', err);
         });
       }),
     );

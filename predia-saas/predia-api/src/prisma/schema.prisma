@@ -27,6 +27,24 @@ model Tenant {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   users User[]
+  site TenantSite?
+}
+
+model TenantSite {
+  id              String   @id @default(uuid())
+  tenant_id       String   @unique
+  custom_domain   String?
+  allowed_origins String?
+  logo_url        String?
+  primary_color   String?
+  secondary_color String?
+  font_family     String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenant_id], references: [id])
+  @@index([tenant_id])
+  @@map("tenant_sites")
 }
 
 
