@@ -15,6 +15,7 @@ import { TenantInterceptor } from './common/interceptors/tenant.interceptor';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { EmailModule } from './modules/email/email.module';
+import { TenantSitesModule } from './modules/tenant-sites/tenant-sites.module';
 
 @Module({
   imports: [
@@ -44,9 +45,12 @@ import { EmailModule } from './modules/email/email.module';
         limit: 300,
       },
       {
+        // Global fallback alto — no throttlea rutas normales.
+        // Los endpoints sensibles (forgot-password, reset-password) usan
+        // @Throttle({ 'auth-strict': { limit: 3 } }) que overridea esto.
         name: 'auth-strict',
-        ttl: 15 * 60_000,
-        limit: 3,
+        ttl: 60_000,
+        limit: 1000,
       },
     ]),
     PrismaModule,
@@ -57,6 +61,7 @@ import { EmailModule } from './modules/email/email.module';
     TenantsModule,
     UsersModule,
     AuditLogModule,
+    TenantSitesModule,
   ],
   providers: [
     {
