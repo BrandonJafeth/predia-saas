@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
@@ -17,6 +19,8 @@ const USER_SELECT = {
   tenant_id: true,
   email: true,
   role: true,
+  status: true,
+  suspended_at: true,
   first_name: true,
   last_name: true,
   created_at: true,
@@ -111,6 +115,38 @@ export class UsersService {
     await this.findOne(id, tenantId); // verifica que existe y pertenece al tenant
     return this.prisma.user.delete({
       where: { id },
+      select: USER_SELECT,
+    });
+  }
+
+  async suspend(id: string, tenantId: string, actorId: string) {
+    const user = await this.findOne(id, tenantId);
+
+    if (actorId === id) {
+      throw new ForbiddenException('No podés suspender tu propia cuenta');
+    }
+
+    if (user.status === UserStatus.suspended) {
+      throw new BadRequestException('El usuario ya está suspendido');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { status: UserStatus.suspended, suspended_at: new Date() },
+      select: USER_SELECT,
+    });
+  }
+
+  async activate(id: string, tenantId: string) {
+    const user = await this.findOne(id, tenantId);
+
+    if (user.status !== UserStatus.suspended) {
+      throw new BadRequestException('El usuario no está suspendido');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { status: UserStatus.active, suspended_at: null },
       select: USER_SELECT,
     });
   }
