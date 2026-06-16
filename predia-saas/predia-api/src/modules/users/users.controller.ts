@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -85,5 +86,28 @@ export class UsersController {
   @ApiNoContentResponse({ description: 'Usuario eliminado correctamente' })
   remove(@Param('id') id: string, @CurrentTenant() tenantId: string) {
     return this.usersService.remove(id, tenantId);
+  }
+
+  @Patch(':id/suspend')
+  @Roles(UserRole.admin)
+  @AuditLog({ action: 'SUSPEND', entity: 'user' })
+  @ApiOkResponse({ type: UserResponseDto })
+  suspend(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: JwtPayload,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.usersService.suspend(id, tenantId, actor.sub);
+  }
+
+  @Patch(':id/activate')
+  @Roles(UserRole.admin)
+  @AuditLog({ action: 'ACTIVATE', entity: 'user' })
+  @ApiOkResponse({ type: UserResponseDto })
+  activate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.usersService.activate(id, tenantId);
   }
 }

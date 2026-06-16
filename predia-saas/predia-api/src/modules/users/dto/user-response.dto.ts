@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { UserRole, UserStatus } from '@prisma/client';
 
 export class UserResponseDto {
   @ApiProperty({ example: 'cuid_abc123' })
@@ -19,6 +19,12 @@ export class UserResponseDto {
 
   @ApiProperty({ enum: UserRole, example: UserRole.agent })
   role!: UserRole;
+
+  @ApiProperty({ enum: UserStatus, example: UserStatus.active })
+  status!: UserStatus;
+
+  @ApiPropertyOptional({ example: null })
+  suspended_at!: Date | null;
 
   @ApiProperty({ example: '2024-01-15T10:30:00.000Z' })
   created_at!: Date;

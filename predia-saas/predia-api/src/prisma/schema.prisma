@@ -19,6 +19,13 @@ enum UserRole {
   agent
 }
 
+enum UserStatus {
+  active
+  suspended
+  invited
+  deactivated
+}
+
 model Tenant {
   id String @id @default(uuid())
   name String
@@ -54,6 +61,8 @@ tenant_id String
 email String
 password_hash String
 role UserRole @default(agent)
+status UserStatus @default(active)
+suspended_at DateTime?
 first_name String
 last_name String
 created_at DateTime @default(now())
