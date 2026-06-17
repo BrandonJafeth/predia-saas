@@ -19,6 +19,7 @@ const USER_SELECT = {
   first_name: true,
   last_name: true,
   role: true,
+  status: true,
   created_at: true,
   updated_at: true,
   tenant: { select: { id: true, name: true, slug: true } },

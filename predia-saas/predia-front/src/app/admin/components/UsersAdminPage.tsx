@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { createColumnHelper } from '@tanstack/react-table'
-import { Plus, Eye, EyeOff } from 'lucide-react'
+import { Plus, Eye, EyeOff, MoreHorizontal, Loader2 } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
@@ -10,7 +10,22 @@ import Text from '@/design-system/typography/text'
 import { FormSheet } from '@/design-system/ui/form-sheet'
 import { FormField } from '@/shared/components/form-field'
 import { DataTable } from '@/shared/components/data-table'
-import { useAllUsers, useCreateSuperAdmin } from '@/app/admin/hooks'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/design-system/ui/dropdown-menu'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/design-system/ui/sheet'
+import { useAllUsers, useCreateSuperAdmin, useSystemSuspendUser, useSystemActivateUser } from '@/app/admin/hooks'
 import { createSuperAdminSchema, type CreateSuperAdminFormValues } from '@/app/admin/types/create-super-admin.schema'
 import type { CreateSuperAdminRequest, UserWithTenant } from '@/app/admin/services/system.service'
 
@@ -28,53 +43,102 @@ const ROLE_VARIANT: Record<string, 'default' | 'emerald' | 'orange'> = {
   agent: 'orange',
 }
 
+type ConfirmAction = { user: UserWithTenant; action: 'suspend' | 'activate' }
+
 const colHelper = createColumnHelper<UserWithTenant>()
 
-const columns = [
-  colHelper.accessor((row) => `${row.first_name} ${row.last_name}`, {
-    id: 'name',
-    header: 'Nombre',
-    meta: { className: 'font-medium' },
-  }),
-  colHelper.accessor('email', {
-    header: 'Email',
-    meta: { className: 'text-muted-foreground' },
-  }),
-  colHelper.accessor('role', {
-    header: 'Rol',
-    cell: (info) => (
-      <Badge variant={ROLE_VARIANT[info.getValue()] ?? 'default'}>
-        {ROLE_LABEL[info.getValue()] ?? info.getValue()}
-      </Badge>
-    ),
-  }),
-  colHelper.display({
-    id: 'tenant',
-    header: 'Organización',
-    cell: (info) => (
-      <>
-        <span className="font-mono text-xs text-muted-foreground">
-          {info.row.original.tenant.slug}
-        </span>
-        <span className="ml-1 text-muted-foreground"> · {info.row.original.tenant.name}</span>
-      </>
-    ),
-  }),
-  colHelper.accessor('created_at', {
-    header: 'Creado',
-    cell: (info) => new Date(info.getValue()).toLocaleDateString('es-CR'),
-    meta: { className: 'text-muted-foreground' },
-  }),
-]
+function createColumns(onConfirm: (ca: ConfirmAction) => void) {
+  return [
+    colHelper.accessor((row) => `${row.first_name} ${row.last_name}`, {
+      id: 'name',
+      header: 'Nombre',
+      meta: { className: 'font-medium' },
+    }),
+    colHelper.accessor('email', {
+      header: 'Email',
+      meta: { className: 'text-muted-foreground' },
+    }),
+    colHelper.accessor('role', {
+      header: 'Rol',
+      cell: (info) => (
+        <Badge variant={ROLE_VARIANT[info.getValue()] ?? 'default'}>
+          {ROLE_LABEL[info.getValue()] ?? info.getValue()}
+        </Badge>
+      ),
+    }),
+    colHelper.accessor('status', {
+      header: 'Estado',
+      cell: (info) => {
+        const status = info.getValue()
+        const color = status === 'active' ? 'emerald' : status === 'suspended' ? 'orange' : 'default'
+        return <Badge variant={color}>{status === 'active' ? 'Activo' : status === 'suspended' ? 'Suspendido' : status}</Badge>
+      },
+    }),
+    colHelper.display({
+      id: 'tenant',
+      header: 'Organización',
+      cell: (info) => (
+        <>
+          <span className="font-mono text-xs text-muted-foreground">
+            {info.row.original.tenant.slug}
+          </span>
+          <span className="ml-1 text-muted-foreground"> · {info.row.original.tenant.name}</span>
+        </>
+      ),
+    }),
+    colHelper.accessor('created_at', {
+      header: 'Creado',
+      cell: (info) => new Date(info.getValue()).toLocaleDateString('es-CR'),
+      meta: { className: 'text-muted-foreground' },
+    }),
+    colHelper.display({
+      id: 'actions',
+      header: () => null,
+      cell: (info) => {
+        const user = info.row.original
+        const isSuspended = user.status === 'suspended'
+        const isActive = user.status === 'active'
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal />
+                <span className="sr-only">Acciones</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {(isActive || isSuspended) && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className={isActive ? 'text-destructive focus:text-destructive' : undefined}
+                    onSelect={() =>
+                      onConfirm({ user, action: isSuspended ? 'activate' : 'suspend' })
+                    }
+                  >
+                    {isSuspended ? 'Activar' : 'Suspender'}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      },
+    }),
+  ]
+}
 
 function UsersAdminPage() {
   const [open, setOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
 
   const { data, isLoading, error: fetchError } = useAllUsers({ page, limit })
   const { mutate: createSuperAdmin, isPending } = useCreateSuperAdmin()
+  const { mutate: suspendUser, isPending: isSuspending } = useSystemSuspendUser()
+  const { mutate: activateUser, isPending: isActivating } = useSystemActivateUser()
 
   const form = useForm({
     defaultValues: {
@@ -99,7 +163,19 @@ function UsersAdminPage() {
     form.handleSubmit()
   }
 
+  function handleConfirm() {
+    if (!confirmAction) return
+    if (confirmAction.action === 'suspend') {
+      suspendUser(confirmAction.user.id, { onSuccess: () => setConfirmAction(null) })
+    } else {
+      activateUser(confirmAction.user.id, { onSuccess: () => setConfirmAction(null) })
+    }
+  }
+
+  const columns = createColumns(setConfirmAction)
   const users = data?.data ?? []
+  const isSuspendAction = confirmAction?.action === 'suspend'
+  const confirmUser = confirmAction?.user
 
   return (
     <div className="p-6 max-w-5xl mx-auto w-full space-y-6">
@@ -180,6 +256,35 @@ function UsersAdminPage() {
           )}
         </form.Field>
       </FormSheet>
+
+      {/* Confirmar suspender / activar */}
+      <Sheet open={!!confirmAction} onOpenChange={(v) => { if (!v) setConfirmAction(null) }}>
+        <SheetContent side="right" className="sm:max-w-sm flex flex-col gap-6">
+          <SheetHeader>
+            <SheetTitle>
+              {isSuspendAction ? 'Suspender usuario' : 'Activar usuario'}
+            </SheetTitle>
+            <SheetDescription>
+              {isSuspendAction
+                ? `¿Suspender a ${confirmUser?.first_name} ${confirmUser?.last_name}? El usuario perderá acceso inmediatamente.`
+                : `¿Activar a ${confirmUser?.first_name} ${confirmUser?.last_name}? El usuario recuperará acceso a la plataforma.`}
+            </SheetDescription>
+          </SheetHeader>
+          <SheetFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant={isSuspendAction ? 'destructive' : 'default'}
+              onClick={handleConfirm}
+              disabled={isSuspending || isActivating}
+            >
+              {(isSuspending || isActivating) && <Loader2 className="size-4 animate-spin" />}
+              {isSuspendAction ? 'Suspender' : 'Activar'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
         <div className="px-6 py-4 border-b border-hairline">
