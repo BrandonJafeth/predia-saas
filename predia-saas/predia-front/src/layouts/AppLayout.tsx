@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import { SidebarProvider, useSidebar } from '@/design-system/ui/sidebar'
 import { Sheet, SheetContent, SheetTitle } from '@/design-system/ui/sheet'
+import { Skeleton } from '@/design-system/ui/skeleton'
 import AppNavbar from '@/layouts/AppNavbar'
 import AppSidebar from '@/layouts/AppSidebar'
-import { Skeleton } from '@/design-system/ui/skeleton'
 
 function MobileSidebar() {
   const { openMobile, setOpenMobile } = useSidebar()

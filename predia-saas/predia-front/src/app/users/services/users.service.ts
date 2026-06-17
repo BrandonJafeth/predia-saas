@@ -52,6 +52,24 @@ export const usersService = {
   },
 
 
+  async suspend(id: string): Promise<User> {
+    const { data, error } = await apiClient.PATCH(
+      '/api/v1/users/{id}/suspend' as unknown as '/api/v1/users/{id}',
+      { params: { path: { id } } },
+    )
+    if (error) throw error
+    return data
+  },
+
+  async activate(id: string): Promise<User> {
+    const { data, error } = await apiClient.PATCH(
+      '/api/v1/users/{id}/activate' as unknown as '/api/v1/users/{id}',
+      { params: { path: { id } } },
+    )
+    if (error) throw error
+    return data
+  },
+
   async remove(id: string): Promise<void> {
     const { error } = await apiClient.DELETE('/api/v1/users/{id}', {
       params: { path: { id } },

@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, UserRole } from '@prisma/client';
+import { Prisma, UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -146,6 +146,10 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    if (user.status === UserStatus.suspended) {
+      throw new UnauthorizedException('Tu cuenta está suspendida. Contacta a tu administrador.');
+    }
+
     return this.generateTokens({
       sub: user.id,
       tenantId: tenant.id,
@@ -166,9 +170,12 @@ export class AuthService {
     // Fetch fresh user data — picks up role changes since last login
     const user = await this.systemPrisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, role: true, tenant_id: true },
+      select: { id: true, role: true, tenant_id: true, status: true },
     });
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
+    if (user.status === UserStatus.suspended) {
+      throw new UnauthorizedException('Tu cuenta está suspendida. Contacta a tu administrador.');
+    }
 
     return this.generateTokens({
       sub: user.id,

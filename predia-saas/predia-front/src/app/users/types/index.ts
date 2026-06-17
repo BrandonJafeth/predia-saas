@@ -3,7 +3,10 @@ import type { components } from '@predia/api-types'
 export type UserRole = 'super_admin' | 'admin' | 'agent'
 
 // Tipos de response derivados del schema OpenAPI generado
-export type User = components['schemas']['UserResponseDto']
+export type User = components['schemas']['UserResponseDto'] & {
+  status: 'active' | 'suspended' | 'invited' | 'deactivated'
+  suspended_at: string | null
+}
 export type PaginatedUsers = components['schemas']['PageOfDto']
 
 // Tipos de request derivados del schema OpenAPI generado

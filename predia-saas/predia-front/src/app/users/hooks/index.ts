@@ -69,3 +69,33 @@ export const useDeleteUser = () => {
     },
   })
 }
+
+export const useSuspendUser = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => usersService.suspend(id),
+    onSuccess: (_, id) => {
+      notify.success({ title: 'Usuario suspendido' })
+      queryClient.invalidateQueries({ queryKey: userKeys.detail(id) })
+      queryClient.invalidateQueries({ queryKey: userKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al suspender usuario', description: extractApiError(err) })
+    },
+  })
+}
+
+export const useActivateUser = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => usersService.activate(id),
+    onSuccess: (_, id) => {
+      notify.success({ title: 'Usuario activado' })
+      queryClient.invalidateQueries({ queryKey: userKeys.detail(id) })
+      queryClient.invalidateQueries({ queryKey: userKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al activar usuario', description: extractApiError(err) })
+    },
+  })
+}
