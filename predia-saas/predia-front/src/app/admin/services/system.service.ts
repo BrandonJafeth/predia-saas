@@ -6,6 +6,7 @@ export interface UserWithTenant {
   first_name: string
   last_name: string
   role: 'super_admin' | 'admin' | 'agent'
+  status: 'active' | 'suspended' | 'invited' | 'deactivated'
   created_at: string
   updated_at: string
   tenant: { id: string; name: string; slug: string }
@@ -80,6 +81,16 @@ async function systemPost<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function systemPatch<T>(path: string): Promise<T> {
+  const res = await fetch(`${baseUrl()}${path}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: authHeaders(),
+  })
+  if (!res.ok) throw await res.json()
+  return res.json() as Promise<T>
+}
+
 export const systemService = {
   findAllUsers(params?: SystemUserParams): Promise<PaginatedSystemUsers> {
     return systemGet<PaginatedSystemUsers>('/system/users', params as Record<string, unknown>)
@@ -89,5 +100,11 @@ export const systemService = {
   },
   createSuperAdmin(payload: CreateSuperAdminRequest): Promise<CreatedSuperAdmin> {
     return systemPost<CreatedSuperAdmin>('/system/superadmins', payload)
+  },
+  suspend(id: string): Promise<UserWithTenant> {
+    return systemPatch<UserWithTenant>(`/api/v1/users/${id}/suspend`)
+  },
+  activate(id: string): Promise<UserWithTenant> {
+    return systemPatch<UserWithTenant>(`/api/v1/users/${id}/activate`)
   },
 }

@@ -89,7 +89,7 @@ export class UsersController {
   }
 
   @Patch(':id/suspend')
-  @Roles(UserRole.admin)
+  @Roles(UserRole.admin, UserRole.super_admin)
   @AuditLog({ action: 'SUSPEND', entity: 'user' })
   @ApiOkResponse({ type: UserResponseDto })
   suspend(
@@ -101,7 +101,7 @@ export class UsersController {
   }
 
   @Patch(':id/activate')
-  @Roles(UserRole.admin)
+  @Roles(UserRole.admin, UserRole.super_admin)
   @AuditLog({ action: 'ACTIVATE', entity: 'user' })
   @ApiOkResponse({ type: UserResponseDto })
   activate(

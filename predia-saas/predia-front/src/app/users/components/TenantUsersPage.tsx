@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { createColumnHelper } from '@tanstack/react-table'
-import { Plus, Eye, EyeOff } from 'lucide-react'
+import { Plus, Eye, EyeOff, MoreHorizontal, Loader2 } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
@@ -12,14 +12,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/design-system/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/design-system/ui/dropdown-menu'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/design-system/ui/sheet'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
 import { FormSheet } from '@/design-system/ui/form-sheet'
 import { FormField } from '@/shared/components/form-field'
 import { DataTable } from '@/shared/components/data-table'
-import { useUsers, useCreateUser } from '@/app/users/hooks'
+import { cn } from '@/shared/lib/utils'
+import {
+  useUsers,
+  useCreateUser,
+  useUpdateUser,
+  useSuspendUser,
+  useActivateUser,
+} from '@/app/users/hooks'
 import { createUserSchema, type CreateUserFormValues } from '@/app/users/types/create-user.schema'
-import type { CreateUserRequest, User } from '@/app/users/types'
+import type { CreateUserRequest, UpdateUserRequest, User } from '@/app/users/types'
 
 const DEFAULT_LIMIT = 20
 
@@ -33,41 +55,221 @@ const ROLE_VARIANT: Record<string, 'emerald' | 'orange'> = {
   agent: 'orange',
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  active: 'Activo',
+  suspended: 'Suspendido',
+  invited: 'Invitado',
+  deactivated: 'Desactivado',
+}
+
+const STATUS_VARIANT: Record<string, 'emerald' | 'orange' | 'violet' | 'pink' | 'default'> = {
+  active: 'emerald',
+  suspended: 'orange',
+  invited: 'violet',
+  deactivated: 'default',
+}
+
+type ConfirmAction = { user: User; action: 'suspend' | 'activate' }
+
+// --- EditUserSheet ---
+
+interface EditUserSheetProps {
+  open: boolean
+  user: User | null
+  onOpenChange: (open: boolean) => void
+  isSubmitting: boolean
+  onEdit: (id: string, values: { first_name: string; last_name: string; role: 'admin' | 'agent' }) => void
+}
+
+function EditUserSheet({ open, user, onOpenChange, isSubmitting, onEdit }: EditUserSheetProps) {
+  const form = useForm({
+    defaultValues: {
+      first_name: user?.first_name ?? '',
+      last_name: user?.last_name ?? '',
+      role: (user?.role ?? 'agent') as 'admin' | 'agent',
+    },
+    onSubmit: ({ value }) => {
+      if (!user) return
+      onEdit(user.id, value)
+    },
+  })
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    e.stopPropagation()
+    form.handleSubmit()
+  }
+
+  return (
+    <FormSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Editar usuario"
+      description="Modifica los datos del usuario."
+      onSubmit={handleSubmit}
+      isSubmitting={isSubmitting}
+      submitLabel="Guardar cambios"
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form.Field name="first_name">
+          {(field) => (
+            <FormField field={field} label="Nombre">
+              <Input
+                id="edit_first_name"
+                placeholder="Juan"
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                autoComplete="off"
+              />
+            </FormField>
+          )}
+        </form.Field>
+        <form.Field name="last_name">
+          {(field) => (
+            <FormField field={field} label="Apellido">
+              <Input
+                id="edit_last_name"
+                placeholder="Pérez"
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+                autoComplete="off"
+              />
+            </FormField>
+          )}
+        </form.Field>
+      </div>
+      <form.Field name="role">
+        {(field) => (
+          <FormField field={field} label="Rol">
+            <Select
+              value={field.state.value}
+              onValueChange={(v: 'admin' | 'agent') => field.handleChange(v)}
+              onOpenChange={(isOpen) => { if (!isOpen) field.handleBlur() }}
+            >
+              <SelectTrigger id="edit_role">
+                <SelectValue placeholder="Selecciona un rol" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="agent">Agente</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormField>
+        )}
+      </form.Field>
+    </FormSheet>
+  )
+}
+
+// --- Columns factory ---
+
 const colHelper = createColumnHelper<User>()
 
-const columns = [
-  colHelper.accessor((row) => `${row.first_name} ${row.last_name}`, {
-    id: 'name',
-    header: 'Nombre',
-    meta: { className: 'font-medium' },
-  }),
-  colHelper.accessor('email', {
-    header: 'Email',
-    meta: { className: 'text-muted-foreground' },
-  }),
-  colHelper.accessor('role', {
-    header: 'Rol',
-    cell: (info) => (
-      <Badge variant={ROLE_VARIANT[info.getValue()] ?? 'default'}>
-        {ROLE_LABEL[info.getValue()] ?? info.getValue()}
-      </Badge>
-    ),
-  }),
-  colHelper.accessor('created_at', {
-    header: 'Creado',
-    cell: (info) => new Date(info.getValue()).toLocaleDateString('es-CR'),
-    meta: { className: 'text-muted-foreground' },
-  }),
-]
+function createColumns(
+  onEdit: (user: User) => void,
+  onConfirm: (action: ConfirmAction) => void,
+) {
+  return [
+    colHelper.accessor((row: User) => `${row.first_name} ${row.last_name}`, {
+      id: 'name',
+      header: 'Nombre',
+      cell: (info) => (
+        <span className={cn('font-medium', info.row.original.status === 'suspended' && 'opacity-50')}>
+          {info.getValue()}
+        </span>
+      ),
+    }),
+    colHelper.accessor('email', {
+      header: 'Email',
+      cell: (info) => (
+        <span className={cn('text-muted-foreground', info.row.original.status === 'suspended' && 'opacity-50')}>
+          {info.getValue()}
+        </span>
+      ),
+    }),
+    colHelper.accessor('role', {
+      header: 'Rol',
+      cell: (info) => (
+        <Badge variant={ROLE_VARIANT[info.getValue()] ?? 'default'}>
+          {ROLE_LABEL[info.getValue()] ?? info.getValue()}
+        </Badge>
+      ),
+    }),
+    colHelper.accessor('status', {
+      header: 'Estado',
+      cell: (info) => {
+        const status = info.getValue()
+        return (
+          <Badge variant={STATUS_VARIANT[status] ?? 'default'}>
+            {STATUS_LABEL[status] ?? status}
+          </Badge>
+        )
+      },
+    }),
+    colHelper.accessor('created_at', {
+      header: 'Creado',
+      cell: (info) => new Date(info.getValue()).toLocaleDateString('es-CR'),
+      meta: { className: 'text-muted-foreground' },
+    }),
+    colHelper.display({
+      id: 'actions',
+      header: () => null,
+      cell: (info) => {
+        const user = info.row.original
+        const isSuspended = user.status === 'suspended'
+        const isActive = user.status === 'active'
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal />
+                <span className="sr-only">Acciones</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => onEdit(user)}>
+                Editar
+              </DropdownMenuItem>
+              {(isActive || isSuspended) && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className={isActive ? 'text-destructive focus:text-destructive' : undefined}
+                    onSelect={() =>
+                      onConfirm({ user, action: isSuspended ? 'activate' : 'suspend' })
+                    }
+                  >
+                    {isSuspended ? 'Activar' : 'Suspender'}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )
+      },
+    }),
+  ]
+}
+
+// --- TenantUsersPage ---
 
 function TenantUsersPage() {
   const [open, setOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [page, setPage] = useState(1)
   const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  const [editUser, setEditUser] = useState<User | null>(null)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
 
   const { data, isLoading, error: fetchError } = useUsers({ page, limit })
-  const { mutate: createUser, isPending } = useCreateUser()
+  const { mutate: createUser, isPending: isCreating } = useCreateUser()
+  const { mutate: updateUser, isPending: isUpdating } = useUpdateUser()
+  const { mutate: suspendUser, isPending: isSuspending } = useSuspendUser()
+  const { mutate: activateUser, isPending: isActivating } = useActivateUser()
+
+  const columns = createColumns(setEditUser, setConfirmAction)
 
   const form = useForm({
     defaultValues: {
@@ -93,7 +295,18 @@ function TenantUsersPage() {
     form.handleSubmit()
   }
 
+  function handleConfirm() {
+    if (!confirmAction) return
+    if (confirmAction.action === 'suspend') {
+      suspendUser(confirmAction.user.id, { onSuccess: () => setConfirmAction(null) })
+    } else {
+      activateUser(confirmAction.user.id, { onSuccess: () => setConfirmAction(null) })
+    }
+  }
+
   const users: User[] = data?.data ?? []
+  const isSuspendAction = confirmAction?.action === 'suspend'
+  const confirmUser = confirmAction?.user
 
   return (
     <div className="p-6 max-w-5xl mx-auto w-full space-y-6">
@@ -110,6 +323,7 @@ function TenantUsersPage() {
         </Button>
       </div>
 
+      {/* Crear usuario */}
       <FormSheet
         open={open}
         onOpenChange={(v) => {
@@ -119,7 +333,7 @@ function TenantUsersPage() {
         title="Nuevo usuario"
         description="Asigna rol de administrador o agente."
         onSubmit={handleFormSubmit}
-        isSubmitting={isPending}
+        isSubmitting={isCreating}
         submitLabel="Crear usuario"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -153,7 +367,7 @@ function TenantUsersPage() {
               <Select
                 value={field.state.value}
                 onValueChange={(v: 'admin' | 'agent') => field.handleChange(v)}
-                onOpenChange={(open) => { if (!open) field.handleBlur() }}
+                onOpenChange={(isOpen) => { if (!isOpen) field.handleBlur() }}
               >
                 <SelectTrigger id="role">
                   <SelectValue placeholder="Selecciona un rol" />
@@ -194,6 +408,50 @@ function TenantUsersPage() {
           )}
         </form.Field>
       </FormSheet>
+
+      {/* Editar usuario — remount con key para reiniciar el form cuando cambia el usuario */}
+      <EditUserSheet
+        key={editUser?.id ?? 'no-edit'}
+        open={!!editUser}
+        user={editUser}
+        onOpenChange={(v) => { if (!v) setEditUser(null) }}
+        isSubmitting={isUpdating}
+        onEdit={(id, values) =>
+          updateUser(
+            { id, ...values } as UpdateUserRequest & { id: string },
+            { onSuccess: () => setEditUser(null) },
+          )
+        }
+      />
+
+      {/* Confirmar suspender / activar */}
+      <Sheet open={!!confirmAction} onOpenChange={(v) => { if (!v) setConfirmAction(null) }}>
+        <SheetContent side="right" className="sm:max-w-sm flex flex-col gap-6">
+          <SheetHeader>
+            <SheetTitle>
+              {isSuspendAction ? 'Suspender usuario' : 'Activar usuario'}
+            </SheetTitle>
+            <SheetDescription>
+              {isSuspendAction
+                ? `¿Suspender a ${confirmUser?.first_name} ${confirmUser?.last_name}? El usuario perderá acceso inmediatamente.`
+                : `¿Activar a ${confirmUser?.first_name} ${confirmUser?.last_name}? El usuario recuperará acceso a la plataforma.`}
+            </SheetDescription>
+          </SheetHeader>
+          <SheetFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant={isSuspendAction ? 'destructive' : 'default'}
+              onClick={handleConfirm}
+              disabled={isSuspending || isActivating}
+            >
+              {(isSuspending || isActivating) && <Loader2 className="size-4 animate-spin" />}
+              {isSuspendAction ? 'Suspender' : 'Activar'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
         <div className="px-6 py-4 border-b border-hairline">

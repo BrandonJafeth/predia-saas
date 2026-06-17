@@ -47,6 +47,34 @@ export const useTenantAuditLog = (params?: QueryAuditLogParams) => {
   })
 }
 
+export const useSystemSuspendUser = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => systemService.suspend(id),
+    onSuccess: () => {
+      notify.success({ title: 'Usuario suspendido' })
+      queryClient.invalidateQueries({ queryKey: systemKeys.users() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al suspender usuario', description: extractApiError(err) })
+    },
+  })
+}
+
+export const useSystemActivateUser = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => systemService.activate(id),
+    onSuccess: () => {
+      notify.success({ title: 'Usuario activado' })
+      queryClient.invalidateQueries({ queryKey: systemKeys.users() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al activar usuario', description: extractApiError(err) })
+    },
+  })
+}
+
 export const useCreateSuperAdmin = () => {
   const queryClient = useQueryClient()
   return useMutation({

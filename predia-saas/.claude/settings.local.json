@@ -4,7 +4,9 @@
       "Bash(node_modules/.bin/prisma migrate *)",
       "Bash(node_modules/.bin/prisma generate *)",
       "Bash(npx tsc *)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm build *)"
     ]
   }
 }
