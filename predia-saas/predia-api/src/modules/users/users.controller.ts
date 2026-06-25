@@ -97,7 +97,7 @@ export class UsersController {
     @CurrentUser() actor: JwtPayload,
     @CurrentTenant() tenantId: string,
   ) {
-    return this.usersService.suspend(id, tenantId, actor.sub);
+    return this.usersService.suspend(id, tenantId, actor.sub, actor.role);
   }
 
   @Patch(':id/activate')
@@ -106,8 +106,9 @@ export class UsersController {
   @ApiOkResponse({ type: UserResponseDto })
   activate(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() actor: JwtPayload,
     @CurrentTenant() tenantId: string,
   ) {
-    return this.usersService.activate(id, tenantId);
+    return this.usersService.activate(id, tenantId, actor.role);
   }
 }

@@ -5,9 +5,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, UserStatus } from '@prisma/client';
+import { Prisma, UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { SystemPrismaService } from 'src/prisma/system-prisma.service';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
 import { PageOptionsDto } from '../../common/dto/page-options.dto';
 import { PageDto } from '../../common/dto/page.dto';
@@ -29,7 +30,10 @@ const USER_SELECT = {
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private systemPrisma: SystemPrismaService,
+  ) {}
 
   async create(dto: CreateUserDto, tenantId: string) {
     const password_hash = await bcrypt.hash(dto.password, 12);
@@ -91,6 +95,15 @@ export class UsersService {
     return user;
   }
 
+  private async findOneSystem(id: string) {
+    const user = await this.systemPrisma.user.findUnique({
+      where: { id },
+      select: USER_SELECT,
+    });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+    return user;
+  }
+
   async update(id: string, dto: UpdateUserDto, tenantId: string) {
     await this.findOne(id, tenantId); // verifica que existe y pertenece al tenant
 
@@ -119,8 +132,16 @@ export class UsersService {
     });
   }
 
-  async suspend(id: string, tenantId: string, actorId: string) {
-    const user = await this.findOne(id, tenantId);
+  async suspend(
+    id: string,
+    tenantId: string,
+    actorId: string,
+    actorRole: UserRole,
+  ) {
+    const isSuperAdmin = actorRole === UserRole.super_admin;
+    const user = isSuperAdmin
+      ? await this.findOneSystem(id)
+      : await this.findOne(id, tenantId);
 
     if (actorId === id) {
       throw new ForbiddenException('No podés suspender tu propia cuenta');
@@ -130,21 +151,26 @@ export class UsersService {
       throw new BadRequestException('El usuario ya está suspendido');
     }
 
-    return this.prisma.user.update({
+    const db = isSuperAdmin ? this.systemPrisma : this.prisma;
+    return db.user.update({
       where: { id },
       data: { status: UserStatus.suspended, suspended_at: new Date() },
       select: USER_SELECT,
     });
   }
 
-  async activate(id: string, tenantId: string) {
-    const user = await this.findOne(id, tenantId);
+  async activate(id: string, tenantId: string, actorRole: UserRole) {
+    const isSuperAdmin = actorRole === UserRole.super_admin;
+    const user = isSuperAdmin
+      ? await this.findOneSystem(id)
+      : await this.findOne(id, tenantId);
 
     if (user.status !== UserStatus.suspended) {
       throw new BadRequestException('El usuario no está suspendido');
     }
 
-    return this.prisma.user.update({
+    const db = isSuperAdmin ? this.systemPrisma : this.prisma;
+    return db.user.update({
       where: { id },
       data: { status: UserStatus.active, suspended_at: null },
       select: USER_SELECT,
