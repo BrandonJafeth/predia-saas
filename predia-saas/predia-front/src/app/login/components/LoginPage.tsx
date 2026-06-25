@@ -52,7 +52,7 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   const { mutate: lookup, isPending: isLooking, error: lookupError, reset: resetLookup } = useLookupTenants()
-  const { mutate: login, isPending: isLoggingIn, error: loginError } = useLogin()
+  const { mutate: login, isPending: isLoggingIn, error: loginError, reset: resetLogin } = useLogin()
 
   function handleEmailSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -189,7 +189,7 @@ function LoginPage() {
                         <button
                           key={t.id}
                           type="button"
-                          onClick={() => setSelectedTenant(t)}
+                          onClick={() => { setSelectedTenant(t); resetLogin() }}
                           className={[
                             'w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all',
                             selectedTenant?.id === t.id
@@ -238,7 +238,7 @@ function LoginPage() {
                       type={showPassword ? 'text' : 'password'}
                       placeholder="••••••••"
                       value={password}
-                      onChange={e => setPassword(e.target.value)}
+                      onChange={e => { setPassword(e.target.value); resetLogin() }}
                       required
                       autoComplete="current-password"
                       autoFocus

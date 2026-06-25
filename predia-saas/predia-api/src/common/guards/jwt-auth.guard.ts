@@ -43,7 +43,7 @@ export class JwtAuthGuard implements CanActivate {
       });
 
       if (!user || user.status === UserStatus.suspended) {
-        throw new UnauthorizedException('Tu cuenta está suspendida');
+        throw new UnauthorizedException('Token inválido o expirado');
       }
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;

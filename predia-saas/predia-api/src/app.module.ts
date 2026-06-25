@@ -17,6 +17,8 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { EmailModule } from './modules/email/email.module';
 import { TenantSitesModule } from './modules/tenant-sites/tenant-sites.module';
+import { LocationsModule } from './modules/locations/locations.module';
+import { CategoriesModule } from './modules/categories/categories.module';
 
 @Module({
   imports: [
@@ -64,6 +66,8 @@ import { TenantSitesModule } from './modules/tenant-sites/tenant-sites.module';
     UsersModule,
     AuditLogModule,
     TenantSitesModule,
+    LocationsModule,
+    CategoriesModule,
   ],
   providers: [
     {

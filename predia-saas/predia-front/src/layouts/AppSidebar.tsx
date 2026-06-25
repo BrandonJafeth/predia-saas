@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   UsersRound,
   ClipboardList,
+  Tags,
 } from 'lucide-react'
 import { tokenStorage } from '@/shared/lib/tokens'
 
@@ -47,6 +48,7 @@ const tenantSecondaryItems = [
 const systemAdminItems = [
   { title: 'Organizaciones', url: '/admin/tenants', icon: ShieldCheck },
   { title: 'Usuarios', url: '/admin/users', icon: UsersRound },
+  { title: 'Categorías', url: '/admin/categories', icon: Tags },
   { title: 'Audit Log', url: '/admin/audit-log', icon: ClipboardList },
 ]
 

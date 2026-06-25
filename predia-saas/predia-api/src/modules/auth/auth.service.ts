@@ -46,7 +46,7 @@ export class AuthService {
     const start = Date.now();
 
     const users = await this.systemPrisma.user.findMany({
-      where: { email: dto.email },
+      where: { email: dto.email, status: { not: UserStatus.suspended } },
       select: { tenant: { select: { id: true, name: true } } },
     });
 
@@ -142,12 +142,8 @@ export class AuthService {
       await new Promise((r) => setTimeout(r, MIN_MS - elapsed));
     }
 
-    if (!tenant || !user || !passwordValid) {
+    if (!tenant || !user || !passwordValid || user.status === UserStatus.suspended) {
       throw new UnauthorizedException('Credenciales inválidas');
-    }
-
-    if (user.status === UserStatus.suspended) {
-      throw new UnauthorizedException('Tu cuenta está suspendida. Contacta a tu administrador.');
     }
 
     return this.generateTokens({
@@ -172,9 +168,8 @@ export class AuthService {
       where: { id: payload.sub },
       select: { id: true, role: true, tenant_id: true, status: true },
     });
-    if (!user) throw new UnauthorizedException('Usuario no encontrado');
-    if (user.status === UserStatus.suspended) {
-      throw new UnauthorizedException('Tu cuenta está suspendida. Contacta a tu administrador.');
+    if (!user || user.status === UserStatus.suspended) {
+      throw new UnauthorizedException('Sesión inválida');
     }
 
     return this.generateTokens({
