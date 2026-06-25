@@ -27,6 +27,7 @@ node_modules/.bin/prisma studio                      # GUI to browse DB
 Scripts:
 ```bash
 npx ts-node src/scripts/seed-superadmin.ts    # seed initial super_admin
+npx ts-node src/scripts/seed-locations.ts     # seed CR provinces/cantons/districts (idempotent)
 npx ts-node src/scripts/generate-openapi.ts   # export OpenAPI JSON
 ```
 
@@ -72,14 +73,20 @@ src/
 │   │   └── dto/
 │   │       ├── create-tenant.dto.ts
 │   │       └── update-tenant.dto.ts
-│   └── users/                     # CRUD /api/v1/users — tenant-scoped
-│       ├── users.controller.ts    # Uses @CurrentTenant() to scope all operations
-│       ├── users.service.ts
-│       ├── users.module.ts
+│   ├── users/                     # CRUD /api/v1/users — tenant-scoped
+│   │   ├── users.controller.ts    # suspend/activate use SystemPrismaService when super_admin
+│   │   ├── users.service.ts
+│   │   ├── users.module.ts        # imports SystemPrismaModule
+│   │   └── dto/
+│   │       ├── create-user.dto.ts
+│   │       ├── update-user.dto.ts
+│   │       └── user-response.dto.ts
+│   └── locations/                 # GET /api/v1/locations — catalog data (no RLS)
+│       ├── locations.controller.ts
+│       ├── locations.service.ts
+│       ├── locations.module.ts
 │       └── dto/
-│           ├── create-user.dto.ts
-│           ├── update-user.dto.ts
-│           └── user-response.dto.ts
+│           └── location-response.dto.ts
 ├── common/
 │   ├── als/
 │   │   └── tenant.store.ts        # AsyncLocalStorage<{ tenantId }> — singleton exported as `tenantStore`
@@ -101,6 +108,7 @@ src/
 │   └── swagger.ts                 # buildSwaggerConfig() — Swagger/OpenAPI setup
 └── scripts/
     ├── seed-superadmin.ts
+    ├── seed-locations.ts      # CR provinces/cantons/districts from ubicaciones.paginasweb.cr
     └── generate-openapi.ts
 
 prisma.config.ts         # Prisma CLI config (schema path, migrations path, DATABASE_URL for CLI)
@@ -150,7 +158,13 @@ All routes protected by `JwtAuthGuard` by default. Opt out with `@Public()`.
 
 `RolesGuard` runs after `JwtAuthGuard`. No `@Roles()` = any authenticated user passes. Add `@Roles(UserRole.admin)` to restrict.
 
-`UserRole` enum (from Prisma): `super_admin | admin | agent | client`
+`UserRole` enum (from Prisma): `super_admin | admin | agent`
+
+`UserStatus` enum (from Prisma): `active | suspended | invited | deactivated`
+- Suspended users are blocked at every layer: lookup, login, refresh, and per-request guard check.
+- Auth errors always return generic messages — never reveal whether an account exists or its status.
+- `PATCH /api/v1/users/:id/suspend` and `PATCH /api/v1/users/:id/activate` require `admin` or `super_admin`.
+- When caller is `super_admin`, these endpoints use `SystemPrismaService` (bypasses RLS) to operate on users of any tenant.
 
 ## Pagination pattern
 
@@ -231,6 +245,8 @@ Cualquier endpoint que **cree, modifique o elimine** un recurso persistente.
 | `UsersController` | `POST /api/v1/users` | `CREATE` | `user` |
 | `UsersController` | `PATCH /api/v1/users/:id` | `UPDATE` | `user` |
 | `UsersController` | `DELETE /api/v1/users/:id` | `DELETE` | `user` |
+| `UsersController` | `PATCH /api/v1/users/:id/suspend` | `SUSPEND` | `user` |
+| `UsersController` | `PATCH /api/v1/users/:id/activate` | `ACTIVATE` | `user` |
 | `TenantsController` | `POST /api/v1/tenants` | `CREATE` | `tenant` |
 | `TenantsController` | `PATCH /api/v1/tenants/:id` | `UPDATE` | `tenant` |
 | `TenantsController` | `DELETE /api/v1/tenants/:id` | `DELETE` | `tenant` |
@@ -270,6 +286,22 @@ Cuando agregues `properties`, `leads`, `api_keys`, etc.:
 El interceptor extrae el `entity_id` de `responseData.id` o `request.params.id`.
 - Si el handler devuelve el objeto creado/actualizado con `.id` → funciona automáticamente
 - Si el handler devuelve `void` o un objeto sin `.id` → el `entity_id` queda como `'unknown'`; en ese caso auditar directamente llamando `auditLogService.log()` desde el service
+
+## Catalog / reference data (no tenant scope)
+
+Tables `locations` and `categories` are global reference data — **no `tenant_id`, no RLS**.
+Any role can read them; writes are super_admin only (or via seed scripts).
+
+### Location hierarchy (Costa Rica)
+- `LocationType` enum: `province | canton | district`
+- Postal code pattern stored in `code`: `PCCDD` (5 digits) — province `P0000`, canton `PCC00`, district `PCCDD`
+- 573 records seeded: 7 provinces, 82 cantons, 484 districts
+- Source: `https://ubicaciones.paginasweb.cr` — seed is idempotent (`upsert` by `code`)
+- Self-referencing FK: `parent_id → Location.id`
+
+### Category
+- `attribute_schema: Json` — JSONB column storing the JSON Schema for property attributes per category
+- `slug` is unique — use as stable identifier across environments
 
 ## Swagger
 

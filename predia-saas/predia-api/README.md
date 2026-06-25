@@ -49,7 +49,8 @@ node_modules/.bin/prisma migrate deploy
 # PowerShell — usar Get-Content en lugar de <
 Get-Content ..\infra\postgres\post-migrate.sql | docker exec -i predia_postgres psql -U postgres -d predia
 
-# 6. Crear superadmin
+# 6. Seed: datos de referencia + superadmin
+npx ts-node src/scripts/seed-locations.ts                           # provincias/cantones/distritos CR
 npx ts-node src/scripts/seed-superadmin.ts admin@predia.com MiPassword123!
 
 # 7. Levantar el servidor
@@ -165,6 +166,7 @@ node_modules/.bin/prisma studio                        # GUI de base de datos
 
 # Scripts
 npx ts-node src/scripts/seed-superadmin.ts <email> <password>
+npx ts-node src/scripts/seed-locations.ts        # 573 ubicaciones CR (idempotente)
 npx ts-node src/scripts/generate-openapi.ts
 
 # Docker
@@ -205,11 +207,23 @@ Response:
 
 | Rol | Acceso |
 |---|---|
-| `super_admin` | `/system/*` y `/api/v1/tenants/*` |
+| `super_admin` | `/system/*`, `/api/v1/tenants/*`, suspend/activate en cualquier tenant |
 | `admin` | CRUD usuarios y configuración de su tenant |
 | `agent` | Lectura de recursos de su tenant |
 
 Todos los endpoints requieren JWT. Usar `@Public()` para rutas públicas.
+
+## Estados de cuenta (`UserStatus`)
+
+| Estado | Descripción |
+|---|---|
+| `active` | Normal |
+| `suspended` | Bloqueado — no puede hacer login, ni usar tokens existentes |
+| `invited` | Invitación pendiente de aceptar |
+| `deactivated` | Desactivado permanentemente |
+
+Usuarios suspendidos son bloqueados en cada capa: lookup de org, login, refresh y por request.
+Los errores de auth devuelven **mensajes genéricos siempre** — nunca revelan si un correo existe o el estado de la cuenta.
 
 ---
 
@@ -228,6 +242,8 @@ Todos los endpoints requieren JWT. Usar `@Public()` para rutas públicas.
 | `POST /api/v1/users` | admin | Crear usuario |
 | `PATCH /api/v1/users/:id` | admin | Actualizar usuario |
 | `DELETE /api/v1/users/:id` | admin | Eliminar usuario |
+| `PATCH /api/v1/users/:id/suspend` | admin, super_admin | Suspender usuario |
+| `PATCH /api/v1/users/:id/activate` | admin, super_admin | Reactivar usuario suspendido |
 | `GET /api/v1/tenant-sites` | admin, agent | Configuración del sitio del tenant |
 | `POST /api/v1/tenant-sites` | admin | Crear configuración del sitio |
 | `PATCH /api/v1/tenant-sites` | admin | Actualizar configuración del sitio |
@@ -235,6 +251,28 @@ Todos los endpoints requieren JWT. Usar `@Public()` para rutas públicas.
 | `GET /api/v1/audit-log` | admin | Ver log de auditoría del tenant |
 
 Swagger completo en `http://localhost:3000/docs`.
+
+---
+
+## Datos de catálogo (sin tenant scope)
+
+Tablas globales sin `tenant_id` ni RLS — datos de referencia compartidos entre todos los tenants.
+
+### Ubicaciones de Costa Rica (`locations`)
+
+| Tipo | Cantidad | Ejemplo |
+|---|---|---|
+| Provincia | 7 | San José (`10000`) |
+| Cantón | 82 | Central, San José (`10100`) |
+| Distrito | 484 | Carmen (`10101`) |
+
+Código postal formato `PCCDD` (5 dígitos). Jerarquía por `parent_id`.
+Seed idempotente: `npx ts-node src/scripts/seed-locations.ts`
+
+### Categorías (`categories`)
+
+Campo `attribute_schema` (JSONB) — almacena el JSON Schema de atributos por categoría de propiedad.
+`slug` único — identificador estable entre ambientes.
 
 ---
 
@@ -258,9 +296,10 @@ predia-saas/
         │   ├── auth/               # Login, registro, refresh, reset-password
         │   ├── system/             # Operaciones superadmin (cross-tenant)
         │   ├── tenants/            # CRUD tenants
-        │   ├── users/              # CRUD usuarios por tenant
+        │   ├── users/              # CRUD usuarios por tenant + suspend/activate
         │   ├── tenant-sites/       # Configuración del sitio por tenant
         │   ├── audit-log/          # Log de auditoría
+        │   ├── locations/          # Provincias/cantones/distritos CR (catálogo global)
         │   └── email/              # Servicio de emails (Resend)
         └── common/
             ├── als/                # AsyncLocalStorage — contexto de tenant

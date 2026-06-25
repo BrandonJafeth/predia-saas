@@ -6,6 +6,12 @@ datasource db {
   provider = "postgresql"
 }
 
+enum LocationType {
+  province
+  canton
+  district
+}
+
 enum SubscriptionStatus {
   trial
   active
@@ -83,6 +89,31 @@ model PasswordResetToken {
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   @@index([user_id])
   @@map("password_reset_tokens")
+}
+
+model Location {
+  id         String       @id @default(uuid())
+  name       String
+  code       String       @unique
+  type       LocationType
+  parent_id  String?
+  created_at DateTime     @default(now())
+  parent     Location?    @relation("LocationHierarchy", fields: [parent_id], references: [id])
+  children   Location[]   @relation("LocationHierarchy")
+  @@index([type])
+  @@index([parent_id])
+  @@map("locations")
+}
+
+model Category {
+  id               String   @id @default(uuid())
+  name             String
+  slug             String   @unique
+  description      String?
+  attribute_schema Json
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  @@map("categories")
 }
 
 model AuditLog{
