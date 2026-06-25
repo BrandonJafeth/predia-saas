@@ -1,20 +1,66 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { SystemPrismaService } from '../../prisma/system-prisma.service';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Injectable()
 export class CategoriesService {
-  constructor(private systemPrisma: SystemPrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
   findAll() {
-    return this.systemPrisma.category.findMany({
+    return this.prisma.category.findMany({
       orderBy: { name: 'asc' },
     });
   }
 
   async findBySlug(slug: string) {
-    const category = await this.systemPrisma.category.findUnique({
-      where: { slug },
+    const category = await this.prisma.category.findUnique({ where: { slug } });
+    if (!category) throw new NotFoundException('Categoría no encontrada');
+    return category;
+  }
+
+  async create(dto: CreateCategoryDto) {
+    const existing = await this.prisma.category.findUnique({ where: { slug: dto.slug } });
+    if (existing) throw new ConflictException(`El slug "${dto.slug}" ya está en uso`);
+    return this.prisma.category.create({
+      data: {
+        name: dto.name,
+        slug: dto.slug,
+        description: dto.description,
+        attribute_schema: dto.attribute_schema as Prisma.InputJsonValue,
+      },
     });
+  }
+
+  async update(id: string, dto: UpdateCategoryDto) {
+    await this.findById(id);
+    if (dto.slug) {
+      const conflict = await this.prisma.category.findFirst({
+        where: { slug: dto.slug, NOT: { id } },
+      });
+      if (conflict) throw new ConflictException(`El slug "${dto.slug}" ya está en uso`);
+    }
+    return this.prisma.category.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.slug !== undefined && { slug: dto.slug }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.attribute_schema !== undefined && {
+          attribute_schema: dto.attribute_schema as Prisma.InputJsonValue,
+        }),
+      },
+    });
+  }
+
+  async remove(id: string) {
+    await this.findById(id);
+    return this.prisma.category.delete({ where: { id } });
+  }
+
+  private async findById(id: string) {
+    const category = await this.prisma.category.findUnique({ where: { id } });
     if (!category) throw new NotFoundException('Categoría no encontrada');
     return category;
   }

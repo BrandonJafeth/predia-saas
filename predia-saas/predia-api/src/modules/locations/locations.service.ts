@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { LocationType, Prisma } from '@prisma/client';
-import { SystemPrismaService } from '../../prisma/system-prisma.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { LocationNode } from './dto/location-response.dto';
 
 const LOCATION_SELECT = {
@@ -14,10 +14,10 @@ const LOCATION_SELECT = {
 
 @Injectable()
 export class LocationsService {
-  constructor(private systemPrisma: SystemPrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
   findProvinces() {
-    return this.systemPrisma.location.findMany({
+    return this.prisma.location.findMany({
       where: { type: LocationType.province },
       select: LOCATION_SELECT,
       orderBy: { code: 'asc' },
@@ -25,7 +25,7 @@ export class LocationsService {
   }
 
   async findChildren(id: string) {
-    const parent = await this.systemPrisma.location.findUnique({
+    const parent = await this.prisma.location.findUnique({
       where: { id },
       select: { type: true },
     });
@@ -35,7 +35,7 @@ export class LocationsService {
       throw new BadRequestException('Los distritos no tienen ubicaciones hijas');
     }
 
-    return this.systemPrisma.location.findMany({
+    return this.prisma.location.findMany({
       where: { parent_id: id },
       select: LOCATION_SELECT,
       orderBy: { code: 'asc' },
@@ -43,7 +43,7 @@ export class LocationsService {
   }
 
   async getTree(): Promise<LocationNode[]> {
-    const all = await this.systemPrisma.location.findMany({
+    const all = await this.prisma.location.findMany({
       select: LOCATION_SELECT,
       orderBy: { code: 'asc' },
     });

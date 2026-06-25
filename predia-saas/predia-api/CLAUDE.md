@@ -28,6 +28,7 @@ Scripts:
 ```bash
 npx ts-node src/scripts/seed-superadmin.ts    # seed initial super_admin
 npx ts-node src/scripts/seed-locations.ts     # seed CR provinces/cantons/districts (idempotent)
+npx ts-node src/scripts/seed-categories.ts    # seed initial categories (idempotent, upsert by slug)
 npx ts-node src/scripts/generate-openapi.ts   # export OpenAPI JSON
 ```
 
