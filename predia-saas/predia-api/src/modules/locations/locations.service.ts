@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { LocationType, Prisma } from '@prisma/client';
-import { SystemPrismaService } from 'src/prisma/system-prisma.service';
+import { SystemPrismaService } from '../../prisma/system-prisma.service';
 import { LocationNode } from './dto/location-response.dto';
 
 const LOCATION_SELECT = {

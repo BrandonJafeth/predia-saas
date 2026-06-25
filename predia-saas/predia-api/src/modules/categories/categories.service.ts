@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { SystemPrismaService } from 'src/prisma/system-prisma.service';
+import { SystemPrismaService } from '../../prisma/system-prisma.service';
 
 @Injectable()
 export class CategoriesService {
