@@ -17,9 +17,8 @@ export const categoriesService = {
   },
 
   async create(payload: CreateCategoryRequest): Promise<Category> {
-    const { data, error } = await apiClient.POST('/api/v1/categories', {
-      body: payload as Parameters<typeof apiClient.POST<'/api/v1/categories'>>[1]['body'],
-    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await apiClient.POST('/api/v1/categories', { body: payload as any })
     if (error) throw error
     return data as unknown as Category
   },
@@ -27,7 +26,8 @@ export const categoriesService = {
   async update(id: string, payload: UpdateCategoryRequest): Promise<Category> {
     const { data, error } = await apiClient.PATCH('/api/v1/categories/{id}', {
       params: { path: { id } },
-      body: payload as Parameters<typeof apiClient.PATCH<'/api/v1/categories/{id}'>>[1]['body'],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      body: payload as any,
     })
     if (error) throw error
     return data as unknown as Category

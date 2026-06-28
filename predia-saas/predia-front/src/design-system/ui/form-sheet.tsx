@@ -8,8 +8,6 @@ import {
   SheetDescription,
 } from '@/design-system/ui/sheet'
 import { Button } from '@/design-system/ui/button'
-import Heading from '@/design-system/typography/heading'
-import Text from '@/design-system/typography/text'
 
 interface FormSheetProps {
   open: boolean
@@ -41,16 +39,12 @@ function FormSheet({
         className="w-full sm:max-w-lg p-0 flex flex-col gap-0"
       >
         <SheetHeader className="shrink-0 px-6 pt-6 pb-4 pr-10">
-          <SheetTitle asChild>
-            <Heading as="md">{title}</Heading>
+          <SheetTitle className="text-[18px] font-body font-semibold leading-[1.4]">
+            {title}
           </SheetTitle>
-          {description && (
-            <SheetDescription asChild>
-              <Text as="sm" className="text-muted-foreground">
-                {description}
-              </Text>
-            </SheetDescription>
-          )}
+          <SheetDescription className="text-[14px] font-body font-normal leading-[1.5] text-muted-foreground">
+            {description ?? ''}
+          </SheetDescription>
         </SheetHeader>
 
         <form

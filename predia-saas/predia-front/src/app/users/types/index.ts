@@ -2,12 +2,22 @@ import type { components } from '@predia/api-types'
 
 export type UserRole = 'super_admin' | 'admin' | 'agent'
 
-// Tipos de response derivados del schema OpenAPI generado
-export type User = components['schemas']['UserResponseDto'] & {
+// Defined manually — openapi-typescript infers nullable string fields as
+// Record<string,never> which breaks intersections. Schema is used only for
+// request types where inference is accurate.
+export interface User {
+  id: string
+  tenant_id: string
+  email: string
+  first_name: string
+  last_name: string
+  role: 'super_admin' | 'admin' | 'agent'
   status: 'active' | 'suspended' | 'invited' | 'deactivated'
   suspended_at: string | null
+  created_at: string
+  updated_at: string
 }
-export type PaginatedUsers = components['schemas']['PageOfDto']
+export type PaginatedUsers = components['schemas']['PageOfUserResponseDto']
 
 // Tipos de request derivados del schema OpenAPI generado
 export type CreateUserRequest = components['schemas']['CreateUserDto']

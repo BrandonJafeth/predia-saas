@@ -19,6 +19,7 @@ import { EmailModule } from './modules/email/email.module';
 import { TenantSitesModule } from './modules/tenant-sites/tenant-sites.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { PropertiesModule } from './modules/properties/properties.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
     TenantSitesModule,
     LocationsModule,
     CategoriesModule,
+    PropertiesModule,
   ],
   providers: [
     {
