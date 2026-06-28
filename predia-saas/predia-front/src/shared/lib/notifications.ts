@@ -32,8 +32,9 @@ export function extractApiError(err: unknown): string {
   if (err instanceof Error) return err.message
   if (typeof err === 'object') {
     const o = err as Record<string, unknown>
-    if (typeof o.error === 'string') return o.error
+    if (Array.isArray(o.message)) return (o.message as string[]).join('. ')
     if (typeof o.message === 'string') return o.message
+    if (typeof o.error === 'string') return o.error
     if (typeof o.error === 'object' && o.error !== null) {
       const nested = o.error as Record<string, unknown>
       if (typeof nested.message === 'string') return nested.message

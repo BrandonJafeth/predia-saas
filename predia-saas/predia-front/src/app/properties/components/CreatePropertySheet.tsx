@@ -29,7 +29,7 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
       title: '',
       description: '',
       price: '',
-      operation_type: '' as '' | 'sale' | 'rent' | 'lease',
+      operation_type: '' as string,
       currency: 'CRC' as 'CRC' | 'USD',
       category_id: '',
       subtype: '',
@@ -39,7 +39,22 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
     },
     validators: { onSubmit: createPropertySchema },
     onSubmit: ({ value }) => {
-      createProperty(value as unknown as CreatePropertyRequest, {
+      // TanStack Form passes raw form state (strings), not Zod-transformed output.
+      // Build a typed payload manually so the backend receives the correct types.
+      const payload: CreatePropertyRequest = {
+        title: value.title,
+        price: Number(value.price),
+        operation_type: value.operation_type as 'sale' | 'rent' | 'lease',
+        currency: value.currency,
+        category_id: value.category_id,
+        ...(value.description ? { description: value.description } : {}),
+        ...(value.subtype ? { subtype: value.subtype } : {}),
+        ...(value.lot_area_m2 ? { lot_area_m2: Number(value.lot_area_m2) } : {}),
+        ...(value.built_area_m2 ? { built_area_m2: Number(value.built_area_m2) } : {}),
+        ...(value.address ? { address: value.address } : {}),
+        is_published: false,
+      }
+      createProperty(payload, {
         onSuccess: () => {
           onOpenChange(false)
           form.reset()
@@ -48,7 +63,7 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
     },
   })
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: { preventDefault(): void; stopPropagation(): void }) {
     e.preventDefault()
     e.stopPropagation()
     form.handleSubmit()
