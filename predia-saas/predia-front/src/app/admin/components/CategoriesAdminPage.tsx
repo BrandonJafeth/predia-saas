@@ -483,7 +483,7 @@ function CategoriesAdminPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto w-full space-y-6">
+    <div className="max-w-5xl mx-auto w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Heading as="lg">Categorías</Heading>

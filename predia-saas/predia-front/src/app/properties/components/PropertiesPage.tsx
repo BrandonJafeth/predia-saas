@@ -102,7 +102,7 @@ function PropertiesPage() {
   const { data, isLoading, error } = useProperties()
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto w-full space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Display as="sm">Propiedades</Display>

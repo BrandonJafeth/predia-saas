@@ -2,33 +2,32 @@
 @plugin "tailwindcss-animate";
 
 @theme {
-  /* ── Cal.com color tokens ── */
+  /* ── Predia Design System — Color Tokens ── */
   --color-canvas: #ffffff;
-  --color-surface-soft: #f8f9fa;
-  --color-surface-card: #f5f5f5;
-  --color-surface-strong: #e5e7eb;
-  --color-surface-dark: #101010;
-  --color-surface-dark-elevated: #1a1a1a;
-  --color-hairline: #e5e7eb;
-  --color-hairline-soft: #f3f4f6;
-  --color-primary: #111111;
-  --color-primary-active: #242424;
-  --color-body: #374151;
-  --color-muted: #6b7280;
-  --color-muted-soft: #898989;
+  --color-surface-soft: #F7F7F8;
+  --color-surface-card: #ECEEF1;
+  --color-surface-strong: #D6DCE5;
+  --color-surface-dark: #1C2028;
+  --color-surface-dark-elevated: #343A40;
+  --color-hairline: #D6DCE5;
+  --color-hairline-soft: #E8ECF2;
+  --color-primary: #1C2028;
+  --color-primary-active: #343A40;
+  --color-body: #343A40;
+  --color-muted-soft: #9CA3AF;
   --color-on-primary: #ffffff;
   --color-on-dark: #ffffff;
-  --color-on-dark-soft: #a1a1aa;
-  --color-brand-accent: #3b82f6;
+  --color-on-dark-soft: #9CA3AF;
+  --color-brand-accent: #6B7280;
 
-  /* badge colors */
-  --color-badge-orange: #fb923c;
-  --color-badge-orange-strong: #e64b0b;
+  /* badge / status colors */
+  --color-badge-orange: #f97316;
+  --color-badge-orange-strong: #c2410c;
   --color-badge-pink: #ec4899;
   --color-badge-pink-strong: #be185d;
   --color-badge-violet: #8b5cf6;
   --color-badge-violet-strong: #6d28d9;
-  --color-badge-emerald: #34d399;
+  --color-badge-emerald: #10b981;
   --color-badge-emerald-strong: #047857;
 
   /* semantic */
@@ -37,121 +36,112 @@
   --color-error: #ef4444;
 
   /* ink aliases */
-  --color-ink: #111111;
-  --color-ink-body: #374151;
-  --color-ink-muted: #6b7280;
-  --color-ink-soft: #898989;
+  --color-ink: #1C2028;
+  --color-ink-body: #343A40;
+  --color-ink-muted: #6B7280;
+  --color-ink-soft: #9CA3AF;
 
-  /* ── shadcn/ui color tokens (for utility classes) ── */
-  --color-background: #ffffff;
-  --color-foreground: #111111;
+  /* ── shadcn/ui color tokens ── */
+  --color-background: #F7F7F8;
+  --color-foreground: #1C2028;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #f5f5f5;
-  --color-secondary-foreground: #111111;
-  --color-muted: #f5f5f5;
-  --color-muted-foreground: #6b7280;
-  --color-accent: #f5f5f5;
-  --color-accent-foreground: #111111;
+  --color-secondary: #ECEEF1;
+  --color-secondary-foreground: #1C2028;
+  --color-muted: #ECEEF1;
+  --color-muted-foreground: #6B7280;
+  --color-accent: #ECEEF1;
+  --color-accent-foreground: #1C2028;
   --color-card: #ffffff;
-  --color-card-foreground: #111111;
+  --color-card-foreground: #1C2028;
   --color-popover: #ffffff;
-  --color-popover-foreground: #111111;
-  --color-border: #e5e7eb;
-  --color-input: #e5e7eb;
-  --color-ring: #111111;
+  --color-popover-foreground: #1C2028;
+  --color-border: #D6DCE5;
+  --color-input: #D6DCE5;
+  --color-ring: #343A40;
   --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
 
   /* sidebar tokens */
   --color-sidebar: #ffffff;
-  --color-sidebar-foreground: #111111;
-  --color-sidebar-primary: #111111;
+  --color-sidebar-foreground: #1C2028;
+  --color-sidebar-primary: #1C2028;
   --color-sidebar-primary-foreground: #ffffff;
-  --color-sidebar-accent: #f8f9fa;
-  --color-sidebar-accent-foreground: #111111;
-  --color-sidebar-border: #e5e7eb;
-  --color-sidebar-ring: #111111;
+  --color-sidebar-accent: #F7F7F8;
+  --color-sidebar-accent-foreground: #1C2028;
+  --color-sidebar-border: #D6DCE5;
+  --color-sidebar-ring: #343A40;
 
-  /* ── Typography families ── */
+  /* ── Typography ── */
   --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
   --font-body: Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-poppins: "Poppins", ui-sans-serif, system-ui, sans-serif;
   --font-martel: "Martel", ui-serif, serif;
 
-  /* ── Font-size tokens ── */
   --text-caption: 13px;
 
-  /* ── Spacing (base 4px) ── */
-  /* Custom spacing tokens were removed to restore default Tailwind spacing scale */
-
-  /* ── Radius ── */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* ── Radius — professional, not too round ── */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
   --radius-pill: 9999px;
   --radius-full: 9999px;
 
-  /* ── Shadows ── */
-  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-raised: 0 4px 12px rgba(0, 0, 0, 0.08);
+  /* ── Shadows — very subtle ── */
+  --shadow-soft: 0 1px 2px rgba(15, 17, 21, 0.05);
+  --shadow-raised: 0 2px 8px rgba(15, 17, 21, 0.06), 0 1px 3px rgba(15, 17, 21, 0.04);
 }
 
-/* ── sileo state colors → design system tokens (oklch) ── */
+/* ── State colors ── */
 :root {
-  /* success = brand emerald #10b981 */
   --sileo-state-success: oklch(0.696 0.168 162.5);
-  /* error = brand red #ef4444 */
   --sileo-state-error: oklch(0.628 0.199 25.4);
-  /* warning = brand amber #f59e0b */
   --sileo-state-warning: oklch(0.795 0.154 80.7);
-  /* info = brand blue #3b82f6 */
   --sileo-state-info: oklch(0.621 0.172 252.5);
-  /* action = brand violet #8b5cf6 */
   --sileo-state-action: oklch(0.605 0.195 279.0);
 }
 
-/* ── shadcn/ui CSS variables (mapped to Cal.com tokens) ── */
+/* ── shadcn/ui CSS variables ── */
 :root {
-  --background: #ffffff;
-  --foreground: #111111;
+  --background: #F7F7F8;
+  --foreground: #1C2028;
 
-  --primary: #111111;
+  --primary: #1C2028;
   --primary-foreground: #ffffff;
 
-  --secondary: #f5f5f5;
-  --secondary-foreground: #111111;
+  --secondary: #ECEEF1;
+  --secondary-foreground: #1C2028;
 
-  --muted: #f5f5f5;
-  --muted-foreground: #6b7280;
+  --muted: #ECEEF1;
+  --muted-foreground: #6B7280;
 
-  --accent: #f5f5f5;
-  --accent-foreground: #111111;
+  --accent: #ECEEF1;
+  --accent-foreground: #1C2028;
 
   --card: #ffffff;
-  --card-foreground: #111111;
+  --card-foreground: #1C2028;
 
   --popover: #ffffff;
-  --popover-foreground: #111111;
+  --popover-foreground: #1C2028;
 
-  --border: #e5e7eb;
-  --input: #e5e7eb;
-  --ring: #111111;
+  --border: #D6DCE5;
+  --input: #D6DCE5;
+  --ring: #343A40;
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
   --radius: 0.5rem;
 
   --sidebar: #ffffff;
-  --sidebar-foreground: #111111;
-  --sidebar-primary: #111111;
+  --sidebar-foreground: #1C2028;
+  --sidebar-primary: #1C2028;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f8f9fa;
-  --sidebar-accent-foreground: #111111;
-  --sidebar-border: #e5e7eb;
-  --sidebar-ring: #111111;
+  --sidebar-accent: #F7F7F8;
+  --sidebar-accent-foreground: #1C2028;
+  --sidebar-border: #D6DCE5;
+  --sidebar-ring: #343A40;
 }
 
 @layer base {
@@ -174,24 +164,51 @@
 }
 
 @utility focus-ring {
-  @apply outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background;
 }
 
-/* Login page blob animation */
-@keyframes blob-drift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(24px, -32px) scale(1.06); }
-  66% { transform: translate(-18px, 18px) scale(0.94); }
+/* ── Page transition animations ── */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-@utility animate-blob {
-  animation: blob-drift 11s ease-in-out infinite;
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-@utility animation-delay-2000 {
-  animation-delay: 2s;
+@keyframes welcome-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
-@utility animation-delay-4000 {
-  animation-delay: 4s;
+@keyframes welcome-out {
+  from { opacity: 1; }
+  to   { opacity: 0; transform: scale(1.02); }
+}
+
+@keyframes dot-pulse {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.8); }
+  40%           { opacity: 1;    transform: scale(1); }
+}
+
+@utility animate-page-enter {
+  animation: page-enter 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility animate-fade-in {
+  animation: fade-in 250ms ease both;
+}
+
+@utility animate-welcome-in {
+  animation: welcome-in 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@utility animate-welcome-out {
+  animation: welcome-out 280ms ease-in forwards;
+}
+
+@utility animate-dot-pulse {
+  animation: dot-pulse 1.4s ease-in-out infinite both;
 }

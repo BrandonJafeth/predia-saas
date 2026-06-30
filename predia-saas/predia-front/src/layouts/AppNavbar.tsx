@@ -10,8 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/design-system/ui/dropdown-menu'
 import { Button } from '@/design-system/ui/button'
-import { Separator } from '@/design-system/ui/separator'
-import { Bell, LogOut, User, PanelLeftClose, PanelLeft } from 'lucide-react'
+import { Bell, LogOut, User, Menu } from 'lucide-react'
 import { useLogout, useCurrentUser } from '@/app/auth/hooks'
 
 function getInitials(firstName: string, lastName: string): string {
@@ -19,8 +18,7 @@ function getInitials(firstName: string, lastName: string): string {
 }
 
 function AppNavbar() {
-  const { toggleSidebar, state } = useSidebar()
-  const collapsed = state === 'collapsed'
+  const { toggleSidebar } = useSidebar()
   const navigate = useNavigate()
   const logout = useLogout()
   const { data: currentUser } = useCurrentUser()
@@ -45,11 +43,9 @@ function AppNavbar() {
         onClick={toggleSidebar}
         className="h-8 w-8 shrink-0 text-muted-foreground hover:text-ink"
       >
-        {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        <Menu className="h-4 w-4" />
         <span className="sr-only">Toggle sidebar</span>
       </Button>
-
-      <Separator orientation="vertical" className="h-6" />
 
       <div className="ml-auto flex items-center gap-2">
         <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-ink">

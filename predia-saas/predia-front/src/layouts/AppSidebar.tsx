@@ -2,7 +2,6 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { useSidebar } from '@/design-system/ui/sidebar'
 import {
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -19,8 +18,6 @@ import {
   BarChart3,
   Settings,
   HelpCircle,
-  PanelLeftClose,
-  PanelLeft,
   ShieldCheck,
   UsersRound,
   ClipboardList,
@@ -57,17 +54,19 @@ type NavItem = { title: string; url: string; icon: React.ElementType }
 function NavGroup({
   label,
   items,
-  collapsed,
   activePath,
 }: {
-  label: string
+  label?: string
   items: NavItem[]
-  collapsed: boolean
   activePath: string
 }) {
   return (
     <SidebarGroup>
-      {!collapsed && <SidebarGroupLabel className="font-body">{label}</SidebarGroupLabel>}
+      {label && (
+        <SidebarGroupLabel className="font-body text-sidebar-foreground/40 uppercase text-[10px] tracking-widest px-3">
+          {label}
+        </SidebarGroupLabel>
+      )}
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => {
@@ -75,15 +74,10 @@ function NavGroup({
               activePath === item.url || activePath.startsWith(item.url + '/')
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive}
-                  tooltip={collapsed ? item.title : undefined}
-                  className={collapsed ? 'justify-center px-0' : ''}
-                >
+                <SidebarMenuButton asChild isActive={isActive}>
                   <Link to={item.url}>
                     <item.icon />
-                    {!collapsed && <span>{item.title}</span>}
+                    <span>{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -96,38 +90,28 @@ function NavGroup({
 }
 
 function AppSidebar() {
-  const { state, toggleSidebar, isMobile } = useSidebar()
+  const { isMobile } = useSidebar()
   const { location } = useRouterState()
-  const collapsed = !isMobile && state === 'collapsed'
   const role = tokenStorage.decodeAccessToken()?.role
   const isSuperAdmin = role === 'super_admin'
   const isAdmin = role === 'admin'
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <SidebarHeader className="h-16 shrink-0 justify-center border-b border-sidebar-border px-3">
-        {collapsed ? (
-          <div className="flex justify-center">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary">
-              <span className="text-sm font-bold text-primary-foreground font-display">P</span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary">
-              <span className="text-sm font-bold text-primary-foreground font-display">P</span>
-            </div>
-            <span className="text-sm font-display font-semibold tracking-[-0.3px]">Predia CRM</span>
-          </div>
-        )}
+      <SidebarHeader className="h-16 shrink-0 border-b border-sidebar-border">
+        <div className="flex h-full items-center justify-center px-4">
+          {isMobile ? (
+            <img src="/isotipoClaro.png" alt="Predia" className="h-8 w-8 object-contain" />
+          ) : (
+            <img src="/logotipoClaro.png" alt="Predia" className="h-8 object-contain" />
+          )}
+        </div>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-1 py-3">
         {isSuperAdmin ? (
           <NavGroup
-            label="Administración"
             items={systemAdminItems}
-            collapsed={collapsed}
             activePath={location.pathname}
           />
         ) : (
@@ -135,48 +119,27 @@ function AppSidebar() {
             <NavGroup
               label="Principal"
               items={tenantItems}
-              collapsed={collapsed}
               activePath={location.pathname}
             />
             {isAdmin && (
               <>
-                <SidebarSeparator />
+                <SidebarSeparator className="bg-sidebar-border/50 my-1" />
                 <NavGroup
                   label="Equipo"
                   items={tenantTeamItems}
-                  collapsed={collapsed}
                   activePath={location.pathname}
                 />
               </>
             )}
-            <SidebarSeparator />
+            <SidebarSeparator className="bg-sidebar-border/50 my-1" />
             <NavGroup
               label="Sistema"
               items={tenantSecondaryItems}
-              collapsed={collapsed}
               activePath={location.pathname}
             />
           </>
         )}
       </SidebarContent>
-
-      {!isMobile && (
-        <SidebarFooter className="border-t border-sidebar-border p-2">
-          <button
-            onClick={toggleSidebar}
-            className="flex w-full items-center justify-center gap-2 rounded-md px-2 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors focus-ring"
-          >
-            {collapsed ? (
-              <PanelLeft className="h-4 w-4 shrink-0" />
-            ) : (
-              <>
-                <PanelLeftClose className="h-4 w-4 shrink-0" />
-                <span className="text-xs font-body">Colapsar</span>
-              </>
-            )}
-          </button>
-        </SidebarFooter>
-      )}
     </div>
   )
 }

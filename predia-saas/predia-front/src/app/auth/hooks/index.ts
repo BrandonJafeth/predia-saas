@@ -19,7 +19,6 @@ export const useLogin = () => {
     onSuccess: (data) => {
       tokenStorage.setTokens(data.accessToken)
       queryClient.invalidateQueries({ queryKey: ['auth'] })
-      notify.success({ title: 'Sesión iniciada', description: 'Bienvenido al CRM' })
     },
   })
 }

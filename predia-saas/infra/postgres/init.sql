@@ -64,9 +64,9 @@ BEGIN
     ) INTO has_col;
 
     IF has_col THEN
-      EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', obj.objid::regclass);
+      EXECUTE format('ALTER TABLE %s ENABLE ROW LEVEL SECURITY', obj.objid::regclass);
       EXECUTE format(
-        $q$CREATE POLICY tenant_isolation ON %I
+        $q$CREATE POLICY tenant_isolation ON %s
           USING (tenant_id = current_setting('app.current_tenant_id', true))$q$,
         obj.objid::regclass
       );

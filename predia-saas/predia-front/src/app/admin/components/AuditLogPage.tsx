@@ -235,7 +235,7 @@ function AuditLogPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto w-full space-y-6">
+    <div className="max-w-6xl mx-auto w-full space-y-6">
       <div>
         <Heading as="lg">Registro de auditoría</Heading>
         <Text as="sm" className="text-muted-foreground mt-1">

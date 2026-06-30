@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useLocation } from '@tanstack/react-router'
 import { SidebarProvider, useSidebar } from '@/design-system/ui/sidebar'
 import { Sheet, SheetContent, SheetTitle } from '@/design-system/ui/sheet'
 import { Skeleton } from '@/design-system/ui/skeleton'
@@ -19,16 +20,17 @@ function MobileSidebar() {
 
 function LayoutContent({ children }: { children: ReactNode }) {
   const { state, isMobile } = useSidebar()
-  const sidebarWidth = state === 'expanded' ? '16rem' : '3rem'
+  const { pathname } = useLocation()
+  const sidebarWidth = state === 'expanded' ? '16rem' : '0px'
 
   return (
     <div className="min-h-screen w-full">
-      {/* Desktop fixed sidebar */}
+      {/* Desktop fixed sidebar — slides in/out completely */}
       <div
-        className="fixed left-0 top-0 z-30 hidden h-screen md:block"
+        className="fixed left-0 top-0 z-30 hidden h-screen overflow-hidden md:block transition-[width] duration-200 ease-in-out"
         style={{ width: sidebarWidth }}
       >
-        <div className="h-full border-r border-sidebar-border bg-sidebar">
+        <div className="h-full w-64 border-r border-sidebar-border bg-sidebar">
           <AppSidebar />
         </div>
       </div>
@@ -41,7 +43,7 @@ function LayoutContent({ children }: { children: ReactNode }) {
         style={{ marginLeft: isMobile ? 0 : sidebarWidth }}
       >
         <AppNavbar />
-        <div className="flex-1 p-4 md:p-6">{children}</div>
+        <div key={pathname} className="flex-1 p-4 md:p-6 animate-page-enter">{children}</div>
       </main>
     </div>
   )

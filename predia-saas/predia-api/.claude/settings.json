@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/kathe/OneDrive/Documentos/OneOut/predia-saas/predia-saas/**)",
+      "Bash(docker compose *)",
+      "Bash(docker stop *)",
+      "Bash(docker rm *)",
+      "Bash(docker volume *)",
+      "Bash(docker run *)",
+      "Bash(docker exec *)",
+      "Bash(node_modules/.bin/prisma migrate *)",
+      "Bash(npx ts-node *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\infra\\postgres"
+    ]
+  }
+}

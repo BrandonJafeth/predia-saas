@@ -1,5 +1,4 @@
 import { createRootRoute, Outlet, redirect, useLocation } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import AppLayout from '@/layouts/AppLayout'
 import { tokenStorage } from '@/shared/lib/tokens'
 import { refreshAccessToken } from '@/shared/lib/api'
@@ -45,14 +44,15 @@ export const Route = createRootRoute({
     return (
       <>
         {isAuthPage ? (
-          <Outlet />
+          <div key={pathname} className="animate-fade-in">
+            <Outlet />
+          </div>
         ) : (
           <AppLayout>
             <Outlet />
           </AppLayout>
         )}
         <Toaster position="top-right" options={TOASTER_OPTIONS} />
-        {import.meta.env.DEV && <TanStackRouterDevtools />}
       </>
     )
   },
