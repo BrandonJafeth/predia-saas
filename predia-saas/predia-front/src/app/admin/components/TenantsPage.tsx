@@ -11,11 +11,12 @@ import Text from '@/design-system/typography/text'
 import { FormSheet } from '@/design-system/ui/form-sheet'
 import { FormField } from '@/shared/components/form-field'
 import { DataTable } from '@/shared/components/data-table'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import { useTenants, useCreateTenant } from '@/app/tenants/hooks'
 import { createTenantSchema, type CreateTenantFormValues } from '@/app/tenants/types/create-tenant.schema'
 import type { SubscriptionStatus, Tenant } from '@/app/tenants/types'
 
-const DEFAULT_LIMIT = 20
+const DEFAULT_LIMIT = 15
 
 function slugify(value: string): string {
   return value
@@ -67,7 +68,7 @@ const columns = [
   colHelper.display({
     id: 'actions',
     header: '',
-    meta: { headerClassName: 'px-6 py-3', className: 'text-right' },
+    meta: { headerClassName: 'px-6 py-4', className: 'text-right' },
     cell: (info) => (
       <Link
         to="/admin/tenants/$id"
@@ -84,7 +85,7 @@ const columns = [
 function TenantsPage() {
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  const limit = DEFAULT_LIMIT
 
   const { mutate: createTenant, isPending } = useCreateTenant()
   const { data: tenantsData, isLoading: loadingTenants } = useTenants({ page, limit })
@@ -102,7 +103,14 @@ function TenantsPage() {
       onSubmit: createTenantSchema,
     },
     onSubmit: ({ value }: { value: CreateTenantFormValues }) => {
-      createTenant(value, {
+      createTenant({
+        ...value,
+        tenantName: value.tenantName.trim(),
+        tenantSlug: value.tenantSlug.trim(),
+        email: value.email.trim(),
+        firstName: value.firstName.trim(),
+        lastName: value.lastName.trim(),
+      }, {
         onSuccess: () => { setOpen(false); form.reset() },
       })
     },
@@ -124,7 +132,7 @@ function TenantsPage() {
   const tenants: Tenant[] = tenantsData?.data ?? []
 
   return (
-    <div className="max-w-5xl mx-auto w-full space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Heading as="lg">Organizaciones</Heading>
@@ -152,16 +160,16 @@ function TenantsPage() {
       >
         <form.Field name="tenantName">
           {(field) => (
-            <FormField field={field} label="Nombre de la inmobiliaria">
-              <Input id="tenantName" placeholder="Ej. Inmobiliaria Norte" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+            <FormField field={field} label="Nombre de la inmobiliaria" hint="Ejemplo: Inmobiliaria Norte.">
+              <Input id="tenantName" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
             </FormField>
           )}
         </form.Field>
 
         <form.Field name="tenantSlug">
           {(field) => (
-            <FormField field={field} label="Identificador único">
-              <Input id="tenantSlug" placeholder="inmobiliaria-norte" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+            <FormField field={field} label="Identificador único" hint="Usá minúsculas, números y guiones. Ejemplo: inmobiliaria-norte.">
+              <Input id="tenantSlug" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
             </FormField>
           )}
         </form.Field>
@@ -174,50 +182,39 @@ function TenantsPage() {
 
         <form.Field name="firstName">
           {(field) => (
-            <FormField field={field} label="Nombre">
-              <Input id="firstName" placeholder="Ej. Carlos" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="given-name" />
+            <FormField field={field} label="Nombre" hint="Ejemplo: Carlos.">
+              <Input id="firstName" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="given-name" />
             </FormField>
           )}
         </form.Field>
 
         <form.Field name="lastName">
           {(field) => (
-            <FormField field={field} label="Apellido">
-              <Input id="lastName" placeholder="Ej. Mendoza" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="family-name" />
+            <FormField field={field} label="Apellido" hint="Ejemplo: Mendoza.">
+              <Input id="lastName" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="family-name" />
             </FormField>
           )}
         </form.Field>
 
         <form.Field name="email">
           {(field) => (
-            <FormField field={field} label="Correo electrónico">
-              <Input id="email" type="email" placeholder="asesor@inmobiliaria.com" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="email" />
+            <FormField field={field} label="Correo electrónico" hint="Ejemplo: asesor@inmobiliaria.com.">
+              <Input id="email" type="email" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="email" />
             </FormField>
           )}
         </form.Field>
 
         <form.Field name="password">
           {(field) => (
-            <FormField field={field} label="Contraseña">
-              <Input id="password" type="password" placeholder="Mínimo 8 caracteres" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="new-password" />
+            <FormField field={field} label="Contraseña" hint="Mínimo 8 caracteres.">
+              <Input id="password" type="password" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="new-password" />
             </FormField>
           )}
         </form.Field>
       </FormSheet>
 
       {/* Tenants list */}
-      <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
-        <div className="px-6 py-4 border-b border-hairline">
-          <Text as="md" className="font-semibold">
-            Tenants registrados
-            {tenantsData && (
-              <span className="ml-2 text-muted-foreground font-normal text-sm">
-                ({tenantsData.meta?.itemCount ?? tenants.length})
-              </span>
-            )}
-          </Text>
-        </div>
-
+      <div className="overflow-hidden rounded-xl border border-hairline bg-canvas shadow-soft">
         <DataTable
           columns={columns}
           data={tenants}
@@ -230,16 +227,18 @@ function TenantsPage() {
               </Button>
             </div>
           }
-          pagination={tenantsData?.meta ? {
-            page,
-            pageCount: tenantsData.meta.pageCount,
-            itemCount: tenantsData.meta.itemCount,
-            limit,
-            onPageChange: setPage,
-            onLimitChange: (l) => { setLimit(l); setPage(1) },
-          } : undefined}
         />
       </div>
+
+      {tenantsData?.meta && (
+        <PaginationControls
+          page={page}
+          pageCount={tenantsData.meta.pageCount}
+          itemCount={tenantsData.meta.itemCount}
+          limit={limit}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   )
 }

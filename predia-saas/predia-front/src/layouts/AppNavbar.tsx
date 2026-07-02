@@ -13,10 +13,6 @@ import { Button } from '@/design-system/ui/button'
 import { Bell, LogOut, User, Menu } from 'lucide-react'
 import { useLogout, useCurrentUser } from '@/app/auth/hooks'
 
-function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-}
-
 function AppNavbar() {
   const { toggleSidebar } = useSidebar()
   const navigate = useNavigate()
@@ -26,9 +22,6 @@ function AppNavbar() {
   const displayName = currentUser
     ? `${currentUser.first_name} ${currentUser.last_name}`
     : '—'
-  const initials = currentUser
-    ? getInitials(currentUser.first_name, currentUser.last_name)
-    : '?'
 
   async function handleLogout() {
     await logout()
@@ -57,8 +50,8 @@ function AppNavbar() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-9 gap-2 px-2 text-muted-foreground hover:text-ink">
               <Avatar className="h-7 w-7">
-                <AvatarFallback className="text-xs bg-surface-strong text-ink">
-                  {initials}
+                <AvatarFallback className="bg-[#F7F7F8] text-ink">
+                  <User className="h-4 w-4" aria-hidden="true" />
                 </AvatarFallback>
               </Avatar>
               <span className="hidden md:inline text-sm font-body font-medium">
@@ -73,11 +66,6 @@ function AppNavbar() {
                 <span className="text-xs font-normal text-muted-foreground truncate" title={currentUser?.email}>
                   {currentUser?.email ?? '—'}
                 </span>
-                {currentUser?.role && (
-                  <span className="text-xs font-normal text-muted-foreground capitalize">
-                    {currentUser.role.replace('_', ' ')}
-                  </span>
-                )}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

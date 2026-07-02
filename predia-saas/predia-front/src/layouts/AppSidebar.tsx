@@ -9,7 +9,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from '@/design-system/ui/sidebar'
 import {
   Home,
@@ -22,6 +21,8 @@ import {
   UsersRound,
   ClipboardList,
   Tags,
+  ChevronLeft,
+  LayoutDashboard,
 } from 'lucide-react'
 import { tokenStorage } from '@/shared/lib/tokens'
 
@@ -43,6 +44,7 @@ const tenantSecondaryItems = [
 ]
 
 const systemAdminItems = [
+  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Organizaciones', url: '/admin/tenants', icon: ShieldCheck },
   { title: 'Usuarios', url: '/admin/users', icon: UsersRound },
   { title: 'Categorías', url: '/admin/categories', icon: Tags },
@@ -90,7 +92,7 @@ function NavGroup({
 }
 
 function AppSidebar() {
-  const { isMobile } = useSidebar()
+  const { isMobile, toggleSidebar } = useSidebar()
   const { location } = useRouterState()
   const role = tokenStorage.decodeAccessToken()?.role
   const isSuperAdmin = role === 'super_admin'
@@ -99,12 +101,9 @@ function AppSidebar() {
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <SidebarHeader className="h-16 shrink-0 border-b border-sidebar-border">
-        <div className="flex h-full items-center justify-center px-4">
-          {isMobile ? (
-            <img src="/isotipoClaro.png" alt="Predia" className="h-8 w-8 object-contain" />
-          ) : (
-            <img src="/logotipoClaro.png" alt="Predia" className="h-8 object-contain" />
-          )}
+        <div className="flex h-full items-center gap-3 px-3">
+          <img src="/isotipoClaro.png" alt="Predia" className="h-8 w-8 shrink-0 object-contain" />
+          <span className="font-poppins text-[18px] font-normal leading-none tracking-[-0.02em] text-ink">Predia</span>
         </div>
       </SidebarHeader>
 
@@ -122,16 +121,12 @@ function AppSidebar() {
               activePath={location.pathname}
             />
             {isAdmin && (
-              <>
-                <SidebarSeparator className="bg-sidebar-border/50 my-1" />
-                <NavGroup
-                  label="Equipo"
-                  items={tenantTeamItems}
-                  activePath={location.pathname}
-                />
-              </>
+              <NavGroup
+                label="Equipo"
+                items={tenantTeamItems}
+                activePath={location.pathname}
+              />
             )}
-            <SidebarSeparator className="bg-sidebar-border/50 my-1" />
             <NavGroup
               label="Sistema"
               items={tenantSecondaryItems}
@@ -140,6 +135,17 @@ function AppSidebar() {
           </>
         )}
       </SidebarContent>
+
+      {/* Close button */}
+      <div className="shrink-0 border-t border-sidebar-border p-4">
+        <button
+          onClick={toggleSidebar}
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-on-primary shadow-raised hover:bg-primary-active transition-colors"
+          aria-label="Cerrar menú"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+      </div>
     </div>
   )
 }

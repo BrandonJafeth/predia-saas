@@ -193,22 +193,21 @@ function LoginPage() {
           </div>
 
           {/* Form */}
-          <div className="px-8 py-6">
+          <div className="px-8 py-8">
 
             {/* Step 1 — Email */}
             {step === 'email' && (
-              <form onSubmit={handleEmailSubmit} noValidate className="space-y-4">
+              <form onSubmit={handleEmailSubmit} noValidate className="space-y-6">
                 {lookupErrorMsg && <AlertBanner message={lookupErrorMsg} />}
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-sm font-medium text-ink-body">
+                <div className="flex flex-col">
+                  <Label htmlFor="email" className="text-sm font-medium text-ink-body mb-3">
                     Correo electrónico
                   </Label>
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="tu@correo.com"
                     value={email}
                     onChange={e => {
                       setEmail(e.target.value)
@@ -218,6 +217,9 @@ function LoginPage() {
                     autoComplete="email"
                     autoFocus
                   />
+                  <p className="mt-1.5 text-[13px] text-ink-muted">
+                    Ejemplo: tu@correo.com.
+                  </p>
                 </div>
 
                 {noTenantsFound && (
@@ -228,15 +230,16 @@ function LoginPage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2">
                   <Switch
                     id="remember"
                     checked={rememberMe}
                     onCheckedChange={setRememberMe}
+                    className="scale-[0.85] origin-left"
                   />
                   <Label
                     htmlFor="remember"
-                    className="text-sm text-ink-muted font-normal cursor-pointer select-none"
+                    className="text-caption text-ink-muted font-normal cursor-pointer select-none"
                   >
                     Recordarme
                   </Label>
@@ -308,7 +311,6 @@ function LoginPage() {
                       id="password"
                       name="password"
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
                       value={password}
                       onChange={e => { setPassword(e.target.value); resetLogin() }}
                       required

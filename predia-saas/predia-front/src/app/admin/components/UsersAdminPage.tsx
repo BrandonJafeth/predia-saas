@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { createColumnHelper } from '@tanstack/react-table'
-import { Plus, Eye, EyeOff, MoreHorizontal, Loader2 } from 'lucide-react'
+import { Plus, Eye, EyeOff, MoreHorizontal, Ban, CircleCheck } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
@@ -10,26 +10,19 @@ import Text from '@/design-system/typography/text'
 import { FormSheet } from '@/design-system/ui/form-sheet'
 import { FormField } from '@/shared/components/form-field'
 import { DataTable } from '@/shared/components/data-table'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
+import { UserStatusConfirmDialog } from '@/shared/components/user-status-confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/design-system/ui/dropdown-menu'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/design-system/ui/sheet'
 import { useAllUsers, useCreateSuperAdmin, useSystemSuspendUser, useSystemActivateUser } from '@/app/admin/hooks'
 import { createSuperAdminSchema, type CreateSuperAdminFormValues } from '@/app/admin/types/create-super-admin.schema'
 import type { CreateSuperAdminRequest, UserWithTenant } from '@/app/admin/services/system.service'
 
-const DEFAULT_LIMIT = 20
+const DEFAULT_LIMIT = 15
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Superadmin',
@@ -108,17 +101,15 @@ function createColumns(onConfirm: (ca: ConfirmAction) => void) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {(isActive || isSuspended) && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className={isActive ? 'text-destructive focus:text-destructive' : undefined}
-                    onSelect={() =>
-                      onConfirm({ user, action: isSuspended ? 'activate' : 'suspend' })
-                    }
-                  >
-                    {isSuspended ? 'Activar' : 'Suspender'}
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem
+                  className={isActive ? 'text-destructive focus:text-destructive' : undefined}
+                  onSelect={() =>
+                    onConfirm({ user, action: isSuspended ? 'activate' : 'suspend' })
+                  }
+                >
+                  {isSuspended ? <CircleCheck /> : <Ban />}
+                  <span>{isSuspended ? 'Activar' : 'Suspender'}</span>
+                </DropdownMenuItem>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -132,7 +123,7 @@ function UsersAdminPage() {
   const [open, setOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  const limit = DEFAULT_LIMIT
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
 
   const { data, isLoading, error: fetchError } = useAllUsers({ page, limit })
@@ -151,7 +142,12 @@ function UsersAdminPage() {
       onSubmit: createSuperAdminSchema,
     },
     onSubmit: ({ value }: { value: CreateSuperAdminFormValues }) => {
-      createSuperAdmin(value as CreateSuperAdminRequest, {
+      createSuperAdmin({
+        ...value,
+        email: value.email.trim(),
+        first_name: value.first_name.trim(),
+        last_name: value.last_name.trim(),
+      } as CreateSuperAdminRequest, {
         onSuccess: () => { setOpen(false); form.reset() },
       })
     },
@@ -178,7 +174,7 @@ function UsersAdminPage() {
   const confirmUser = confirmAction?.user
 
   return (
-    <div className="max-w-5xl mx-auto w-full space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Heading as="lg">Usuarios del sistema</Heading>
@@ -207,15 +203,15 @@ function UsersAdminPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <form.Field name="first_name">
             {(field) => (
-              <FormField field={field} label="Nombre">
-                <Input id="first_name" placeholder="Juan" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+              <FormField field={field} label="Nombre" hint="Ejemplo: Juan.">
+                <Input id="first_name" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
               </FormField>
             )}
           </form.Field>
           <form.Field name="last_name">
             {(field) => (
-              <FormField field={field} label="Apellido">
-                <Input id="last_name" placeholder="Pérez" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+              <FormField field={field} label="Apellido" hint="Ejemplo: Pérez.">
+                <Input id="last_name" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
               </FormField>
             )}
           </form.Field>
@@ -223,20 +219,19 @@ function UsersAdminPage() {
 
         <form.Field name="email">
           {(field) => (
-            <FormField field={field} label="Correo electrónico">
-              <Input id="email" type="email" placeholder="admin@predia.com" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+            <FormField field={field} label="Correo electrónico" hint="Ejemplo: admin@predia.com.">
+              <Input id="email" type="email" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
             </FormField>
           )}
         </form.Field>
 
         <form.Field name="password">
           {(field) => (
-            <FormField field={field} label="Contraseña">
+            <FormField field={field} label="Contraseña" hint="Mínimo 12 caracteres.">
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Mínimo 12 caracteres"
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
@@ -257,62 +252,34 @@ function UsersAdminPage() {
         </form.Field>
       </FormSheet>
 
-      {/* Confirmar suspender / activar */}
-      <Sheet open={!!confirmAction} onOpenChange={(v) => { if (!v) setConfirmAction(null) }}>
-        <SheetContent side="right" className="sm:max-w-sm flex flex-col gap-6">
-          <SheetHeader>
-            <SheetTitle>
-              {isSuspendAction ? 'Suspender usuario' : 'Activar usuario'}
-            </SheetTitle>
-            <SheetDescription>
-              {isSuspendAction
-                ? `¿Suspender a ${confirmUser?.first_name} ${confirmUser?.last_name}? El usuario perderá acceso inmediatamente.`
-                : `¿Activar a ${confirmUser?.first_name} ${confirmUser?.last_name}? El usuario recuperará acceso a la plataforma.`}
-            </SheetDescription>
-          </SheetHeader>
-          <SheetFooter>
-            <Button variant="outline" onClick={() => setConfirmAction(null)}>
-              Cancelar
-            </Button>
-            <Button
-              variant={isSuspendAction ? 'destructive' : 'default'}
-              onClick={handleConfirm}
-              disabled={isSuspending || isActivating}
-            >
-              {(isSuspending || isActivating) && <Loader2 className="size-4 animate-spin" />}
-              {isSuspendAction ? 'Suspender' : 'Activar'}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <UserStatusConfirmDialog
+        open={!!confirmAction}
+        action={isSuspendAction ? 'suspend' : 'activate'}
+        userName={confirmUser ? `${confirmUser.first_name} ${confirmUser.last_name}` : 'este usuario'}
+        isPending={isSuspending || isActivating}
+        onOpenChange={(open) => { if (!open) setConfirmAction(null) }}
+        onConfirm={handleConfirm}
+      />
 
-      <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
-        <div className="px-6 py-4 border-b border-hairline">
-          <Text as="md" className="font-semibold">
-            Usuarios
-            {data && (
-              <span className="ml-2 text-muted-foreground font-normal text-sm">
-                ({data.meta?.itemCount ?? users.length})
-              </span>
-            )}
-          </Text>
-        </div>
+      <div className="overflow-hidden rounded-xl border border-hairline bg-canvas shadow-soft">
         <DataTable
           columns={columns}
           data={users}
           isLoading={isLoading}
           error={!!fetchError}
           emptyMessage="No hay usuarios registrados."
-          pagination={data?.meta ? {
-            page,
-            pageCount: data.meta.pageCount,
-            itemCount: data.meta.itemCount,
-            limit,
-            onPageChange: setPage,
-            onLimitChange: (l) => { setLimit(l); setPage(1) },
-          } : undefined}
         />
       </div>
+
+      {data?.meta && (
+        <PaginationControls
+          page={page}
+          pageCount={data.meta.pageCount}
+          itemCount={data.meta.itemCount}
+          limit={limit}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   )
 }

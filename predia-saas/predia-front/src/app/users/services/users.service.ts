@@ -9,7 +9,8 @@ import type {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LoosePatch = (...args: any[]) => Promise<{ data: unknown; error: unknown }>
-const loosePatch = apiClient.PATCH as unknown as LoosePatch
+// Lazy accessor — avoids accessing apiClient at module-load time (TDZ risk)
+const loosePatch: LoosePatch = (...args) => (apiClient.PATCH as unknown as LoosePatch)(...args)
 
 export const usersService = {
   async findAll(params?: PaginationParams): Promise<PaginatedResponse<User>> {

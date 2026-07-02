@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/ui/car
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Skeleton } from '@/design-system/ui/skeleton'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import { Plus, MapPin } from 'lucide-react'
 import { useProperties } from '../hooks'
 import { CreatePropertySheet } from './CreatePropertySheet'
@@ -99,10 +100,12 @@ function PropertyCard({ property: p }: { property: Property }) {
 
 function PropertiesPage() {
   const [createOpen, setCreateOpen] = useState(false)
-  const { data, isLoading, error } = useProperties()
+  const [page, setPage] = useState(1)
+  const limit = 15
+  const { data, isLoading, error } = useProperties({ page, limit })
 
   return (
-    <div className="max-w-6xl mx-auto w-full space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Display as="sm">Propiedades</Display>
@@ -143,6 +146,16 @@ function PropertiesPage() {
             Nueva propiedad
           </Button>
         </div>
+      )}
+
+      {data?.meta && (
+        <PaginationControls
+          page={page}
+          pageCount={data.meta.pageCount}
+          itemCount={data.meta.itemCount}
+          limit={limit}
+          onPageChange={setPage}
+        />
       )}
     </div>
   )

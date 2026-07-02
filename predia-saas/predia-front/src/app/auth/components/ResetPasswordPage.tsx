@@ -161,7 +161,6 @@ function ResetPasswordPage({ token }: Props) {
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     onBlur={() => setTouched(true)}
@@ -187,7 +186,6 @@ function ResetPasswordPage({ token }: Props) {
                 <Input
                   id="confirm"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
                   value={confirm}
                   onChange={e => setConfirm(e.target.value)}
                   onBlur={() => setTouched(true)}

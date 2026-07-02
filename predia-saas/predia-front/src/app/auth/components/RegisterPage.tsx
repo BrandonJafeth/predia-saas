@@ -42,7 +42,14 @@ function RegisterPage() {
       onSubmit: registerSchema,
     },
     onSubmit: ({ value }: { value: RegisterFormValues }) => {
-      register(value as RegisterRequest, {
+      register({
+        ...value,
+        tenantName: value.tenantName.trim(),
+        tenantSlug: value.tenantSlug.trim(),
+        firstName: value.firstName.trim(),
+        lastName: value.lastName.trim(),
+        email: value.email.trim(),
+      } as RegisterRequest, {
         onSuccess: () => void navigate({ to: '/dashboard' }),
       })
     },
@@ -91,10 +98,9 @@ function RegisterPage() {
 
               <form.Field name="tenantName">
                 {(field) => (
-                  <FormField field={field} label="Nombre de la inmobiliaria">
+                  <FormField field={field} label="Nombre de la inmobiliaria" hint="Ejemplo: Inmobiliaria Norte.">
                     <Input
                       id="tenantName"
-                      placeholder="Inmobiliaria Norte"
                       value={field.state.value}
                       onChange={(e) => {
                         field.handleChange(e.target.value)
@@ -125,7 +131,6 @@ function RegisterPage() {
                       </Label>
                       <Input
                         id="tenantSlug"
-                        placeholder="inmobiliaria-norte"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                         onBlur={field.handleBlur}
@@ -139,7 +144,7 @@ function RegisterPage() {
                         </p>
                       ) : (
                         <Text as="caption" className="text-muted-foreground">
-                          Solo minúsculas, números y guiones
+                          Usá minúsculas, números y guiones. Ejemplo: inmobiliaria-norte.
                         </Text>
                       )}
                     </div>
@@ -159,10 +164,9 @@ function RegisterPage() {
               <div className="grid grid-cols-2 gap-3">
                 <form.Field name="firstName">
                   {(field) => (
-                    <FormField field={field} label="Nombre">
+                    <FormField field={field} label="Nombre" hint="Ejemplo: Juan.">
                       <Input
                         id="firstName"
-                        placeholder="Juan"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                         onBlur={field.handleBlur}
@@ -175,10 +179,9 @@ function RegisterPage() {
 
                 <form.Field name="lastName">
                   {(field) => (
-                    <FormField field={field} label="Apellido">
+                    <FormField field={field} label="Apellido" hint="Ejemplo: Pérez.">
                       <Input
                         id="lastName"
-                        placeholder="Pérez"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                         onBlur={field.handleBlur}
@@ -192,11 +195,10 @@ function RegisterPage() {
 
               <form.Field name="email">
                 {(field) => (
-                  <FormField field={field} label="Correo electrónico">
+                  <FormField field={field} label="Correo electrónico" hint="Ejemplo: admin@correo.com.">
                     <Input
                       id="email"
                       type="email"
-                      placeholder="admin@correo.com"
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
@@ -209,12 +211,11 @@ function RegisterPage() {
 
               <form.Field name="password">
                 {(field) => (
-                  <FormField field={field} label="Contraseña">
+                  <FormField field={field} label="Contraseña" hint="Mínimo 8 caracteres.">
                     <div className="relative">
                       <Input
                         id="password"
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
                         value={field.state.value}
                         onChange={(e) => field.handleChange(e.target.value)}
                         onBlur={field.handleBlur}

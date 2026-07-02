@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { createColumnHelper } from '@tanstack/react-table'
-import { Plus, Eye, EyeOff, MoreHorizontal, Loader2 } from 'lucide-react'
+import { Plus, Eye, EyeOff, MoreHorizontal, PencilLine, Ban, CircleCheck } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
@@ -19,19 +19,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/design-system/ui/dropdown-menu'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/design-system/ui/sheet'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
 import { FormSheet } from '@/design-system/ui/form-sheet'
 import { FormField } from '@/shared/components/form-field'
 import { DataTable } from '@/shared/components/data-table'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
+import { UserStatusConfirmDialog } from '@/shared/components/user-status-confirm-dialog'
 import { cn } from '@/shared/lib/utils'
 import {
   useUsers,
@@ -43,7 +37,12 @@ import {
 import { createUserSchema, type CreateUserFormValues } from '@/app/users/types/create-user.schema'
 import type { CreateUserRequest, UpdateUserRequest, User } from '@/app/users/types'
 
-const DEFAULT_LIMIT = 20
+const DEFAULT_LIMIT = 15
+const editUserSchema = createUserSchema.pick({
+  first_name: true,
+  last_name: true,
+  role: true,
+})
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin',
@@ -88,9 +87,14 @@ function EditUserSheet({ open, user, onOpenChange, isSubmitting, onEdit }: EditU
       last_name: user?.last_name ?? '',
       role: (user?.role ?? 'agent') as 'admin' | 'agent',
     },
+    validators: { onSubmit: editUserSchema },
     onSubmit: ({ value }) => {
       if (!user) return
-      onEdit(user.id, value)
+      onEdit(user.id, {
+        ...value,
+        first_name: value.first_name.trim(),
+        last_name: value.last_name.trim(),
+      })
     },
   })
 
@@ -113,10 +117,9 @@ function EditUserSheet({ open, user, onOpenChange, isSubmitting, onEdit }: EditU
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <form.Field name="first_name">
           {(field) => (
-            <FormField field={field} label="Nombre">
+            <FormField field={field} label="Nombre" hint="Ejemplo: Juan.">
               <Input
                 id="edit_first_name"
-                placeholder="Juan"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
@@ -127,10 +130,9 @@ function EditUserSheet({ open, user, onOpenChange, isSubmitting, onEdit }: EditU
         </form.Field>
         <form.Field name="last_name">
           {(field) => (
-            <FormField field={field} label="Apellido">
+            <FormField field={field} label="Apellido" hint="Ejemplo: Pérez.">
               <Input
                 id="edit_last_name"
-                placeholder="Pérez"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
@@ -230,7 +232,8 @@ function createColumns(
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => onEdit(user)}>
-                Editar
+                <PencilLine />
+                <span>Editar</span>
               </DropdownMenuItem>
               {(isActive || isSuspended) && (
                 <>
@@ -241,7 +244,8 @@ function createColumns(
                       onConfirm({ user, action: isSuspended ? 'activate' : 'suspend' })
                     }
                   >
-                    {isSuspended ? 'Activar' : 'Suspender'}
+                    {isSuspended ? <CircleCheck /> : <Ban />}
+                    <span>{isSuspended ? 'Activar' : 'Suspender'}</span>
                   </DropdownMenuItem>
                 </>
               )}
@@ -259,7 +263,7 @@ function TenantUsersPage() {
   const [open, setOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  const limit = DEFAULT_LIMIT
   const [editUser, setEditUser] = useState<User | null>(null)
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
 
@@ -283,7 +287,12 @@ function TenantUsersPage() {
       onSubmit: createUserSchema,
     },
     onSubmit: ({ value }: { value: CreateUserFormValues }) => {
-      createUser(value as CreateUserRequest, {
+      createUser({
+        ...value,
+        email: value.email.trim(),
+        first_name: value.first_name.trim(),
+        last_name: value.last_name.trim(),
+      } as CreateUserRequest, {
         onSuccess: () => { setOpen(false); form.reset() },
       })
     },
@@ -309,7 +318,7 @@ function TenantUsersPage() {
   const confirmUser = confirmAction?.user
 
   return (
-    <div className="max-w-5xl mx-auto w-full space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Heading as="lg">Usuarios</Heading>
@@ -339,15 +348,15 @@ function TenantUsersPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <form.Field name="first_name">
             {(field) => (
-              <FormField field={field} label="Nombre">
-                <Input id="first_name" placeholder="Juan" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+              <FormField field={field} label="Nombre" hint="Ejemplo: Juan.">
+                <Input id="first_name" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
               </FormField>
             )}
           </form.Field>
           <form.Field name="last_name">
             {(field) => (
-              <FormField field={field} label="Apellido">
-                <Input id="last_name" placeholder="Pérez" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+              <FormField field={field} label="Apellido" hint="Ejemplo: Pérez.">
+                <Input id="last_name" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
               </FormField>
             )}
           </form.Field>
@@ -355,8 +364,8 @@ function TenantUsersPage() {
 
         <form.Field name="email">
           {(field) => (
-            <FormField field={field} label="Correo electrónico">
-              <Input id="email" type="email" placeholder="usuario@correo.com" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
+            <FormField field={field} label="Correo electrónico" hint="Ejemplo: usuario@correo.com.">
+              <Input id="email" type="email" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
             </FormField>
           )}
         </form.Field>
@@ -383,12 +392,11 @@ function TenantUsersPage() {
 
         <form.Field name="password">
           {(field) => (
-            <FormField field={field} label="Contraseña">
+            <FormField field={field} label="Contraseña" hint="Mínimo 8 caracteres.">
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Mínimo 8 caracteres"
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
@@ -424,62 +432,34 @@ function TenantUsersPage() {
         }
       />
 
-      {/* Confirmar suspender / activar */}
-      <Sheet open={!!confirmAction} onOpenChange={(v) => { if (!v) setConfirmAction(null) }}>
-        <SheetContent side="right" className="sm:max-w-sm flex flex-col gap-6">
-          <SheetHeader>
-            <SheetTitle>
-              {isSuspendAction ? 'Suspender usuario' : 'Activar usuario'}
-            </SheetTitle>
-            <SheetDescription>
-              {isSuspendAction
-                ? `¿Suspender a ${confirmUser?.first_name} ${confirmUser?.last_name}? El usuario perderá acceso inmediatamente.`
-                : `¿Activar a ${confirmUser?.first_name} ${confirmUser?.last_name}? El usuario recuperará acceso a la plataforma.`}
-            </SheetDescription>
-          </SheetHeader>
-          <SheetFooter>
-            <Button variant="outline" onClick={() => setConfirmAction(null)}>
-              Cancelar
-            </Button>
-            <Button
-              variant={isSuspendAction ? 'destructive' : 'default'}
-              onClick={handleConfirm}
-              disabled={isSuspending || isActivating}
-            >
-              {(isSuspending || isActivating) && <Loader2 className="size-4 animate-spin" />}
-              {isSuspendAction ? 'Suspender' : 'Activar'}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
+      <UserStatusConfirmDialog
+        open={!!confirmAction}
+        action={isSuspendAction ? 'suspend' : 'activate'}
+        userName={confirmUser ? `${confirmUser.first_name} ${confirmUser.last_name}` : 'este usuario'}
+        isPending={isSuspending || isActivating}
+        onOpenChange={(open) => { if (!open) setConfirmAction(null) }}
+        onConfirm={handleConfirm}
+      />
 
-      <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
-        <div className="px-6 py-4 border-b border-hairline">
-          <Text as="md" className="font-semibold">
-            Miembros
-            {data && (
-              <span className="ml-2 text-muted-foreground font-normal text-sm">
-                ({data.meta?.itemCount ?? users.length})
-              </span>
-            )}
-          </Text>
-        </div>
+      <div className="overflow-hidden rounded-xl border border-hairline bg-canvas shadow-soft">
         <DataTable
           columns={columns}
           data={users}
           isLoading={isLoading}
           error={!!fetchError}
           emptyMessage="No hay usuarios en esta organización."
-          pagination={data?.meta ? {
-            page,
-            pageCount: data.meta.pageCount,
-            itemCount: data.meta.itemCount,
-            limit,
-            onPageChange: setPage,
-            onLimitChange: (l) => { setLimit(l); setPage(1) },
-          } : undefined}
         />
       </div>
+
+      {data?.meta && (
+        <PaginationControls
+          page={page}
+          pageCount={data.meta.pageCount}
+          itemCount={data.meta.itemCount}
+          limit={limit}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   )
 }

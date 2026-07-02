@@ -55,17 +55,22 @@ function FormSheet({
             {children}
           </div>
 
-          <div className="shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 border-t border-hairline px-6 py-4 animate-in fade-in duration-500 delay-200 fill-mode-both">
+          <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:justify-end border-t border-hairline px-6 py-4 animate-in fade-in duration-500 delay-200 fill-mode-both">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="min-w-32"
+            >
+              {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+              {submitLabel}
+            </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
+              className="min-w-32"
             >
               {cancelLabel}
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-              {submitLabel}
             </Button>
           </div>
         </form>

@@ -6,11 +6,12 @@ import { Badge } from '@/design-system/ui/badge'
 import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
 import { DataTable } from '@/shared/components/data-table'
+import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import { useTenant } from '@/app/tenants/hooks'
 import { useUsersByTenant } from '@/app/admin/hooks'
 import type { UserWithTenant } from '@/app/admin/services/system.service'
 
-const DEFAULT_LIMIT = 20
+const DEFAULT_LIMIT = 15
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Superadmin',
@@ -53,14 +54,14 @@ const columns = [
 
 function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  const limit = DEFAULT_LIMIT
   const { data: tenant, isLoading: loadingTenant } = useTenant(tenantId)
   const { data, isLoading: loadingUsers, error } = useUsersByTenant(tenantId, { page, limit })
 
   const users = data?.data ?? []
 
   return (
-    <div className="max-w-5xl mx-auto w-full space-y-6">
+    <div className="space-y-6">
       <div>
         <Link
           to="/admin/tenants"
@@ -82,34 +83,25 @@ function TenantDetailPage({ tenantId }: { tenantId: string }) {
         </div>
       </div>
 
-      <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
-        <div className="px-6 py-4 border-b border-hairline">
-          <Text as="md" className="font-semibold">
-            Usuarios
-            {data && (
-              <span className="ml-2 text-muted-foreground font-normal text-sm">
-                ({data.meta?.itemCount ?? users.length})
-              </span>
-            )}
-          </Text>
-        </div>
-
+      <div className="overflow-hidden rounded-xl border border-hairline bg-canvas shadow-soft">
         <DataTable
           columns={columns}
           data={users}
           isLoading={loadingUsers}
           error={!!error}
           emptyMessage="Esta organización no tiene usuarios aún."
-          pagination={data?.meta ? {
-            page,
-            pageCount: data.meta.pageCount,
-            itemCount: data.meta.itemCount,
-            limit,
-            onPageChange: setPage,
-            onLimitChange: (l) => { setLimit(l); setPage(1) },
-          } : undefined}
         />
       </div>
+
+      {data?.meta && (
+        <PaginationControls
+          page={page}
+          pageCount={data.meta.pageCount}
+          itemCount={data.meta.itemCount}
+          limit={limit}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   )
 }

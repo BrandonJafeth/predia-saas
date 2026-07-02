@@ -1,6 +1,5 @@
 import { createApiClient } from '@predia/api-types'
 import { tokenStorage } from './tokens'
-import { router } from '@/router'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
@@ -49,6 +48,8 @@ apiClient.use({
     const newToken = await refreshAccessToken()
     if (!newToken) {
       tokenStorage.clearTokens()
+      // Lazy import breaks the circular dependency: api → router → services → api
+      const { router } = await import('@/router')
       void router.navigate({ to: '/login', replace: true })
       return response
     }

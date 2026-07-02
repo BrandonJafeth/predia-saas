@@ -42,16 +42,16 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
       // TanStack Form passes raw form state (strings), not Zod-transformed output.
       // Build a typed payload manually so the backend receives the correct types.
       const payload: CreatePropertyRequest = {
-        title: value.title,
+        title: value.title.trim(),
         price: Number(value.price),
         operation_type: value.operation_type as 'sale' | 'rent' | 'lease',
         currency: value.currency,
         category_id: value.category_id,
-        ...(value.description ? { description: value.description } : {}),
-        ...(value.subtype ? { subtype: value.subtype } : {}),
+        ...(value.description.trim() ? { description: value.description.trim() } : {}),
+        ...(value.subtype.trim() ? { subtype: value.subtype.trim() } : {}),
         ...(value.lot_area_m2 ? { lot_area_m2: Number(value.lot_area_m2) } : {}),
         ...(value.built_area_m2 ? { built_area_m2: Number(value.built_area_m2) } : {}),
-        ...(value.address ? { address: value.address } : {}),
+        ...(value.address.trim() ? { address: value.address.trim() } : {}),
         is_published: false,
       }
       createProperty(payload, {
@@ -87,10 +87,9 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
       {/* Título */}
       <form.Field name="title">
         {(field) => (
-          <FormField field={field} label="Título" required>
+          <FormField field={field} label="Título" hint="Ejemplo: Casa en condominio La Colina.">
             <Input
               id="title"
-              placeholder="Ej: Casa en condominio La Colina"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -104,7 +103,7 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <form.Field name="operation_type">
           {(field) => (
-            <FormField field={field} label="Operación" required>
+            <FormField field={field} label="Operación">
               <Select
                 value={field.state.value}
                 onValueChange={(v: 'sale' | 'rent' | 'lease') =>
@@ -129,7 +128,7 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
 
         <form.Field name="category_id">
           {(field) => (
-            <FormField field={field} label="Categoría" required>
+            <FormField field={field} label="Categoría">
               <Select
                 value={field.state.value}
                 onValueChange={(v) => field.handleChange(v)}
@@ -159,13 +158,12 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
         <div className="col-span-2">
           <form.Field name="price">
             {(field) => (
-              <FormField field={field} label="Precio" required>
+              <FormField field={field} label="Precio" hint="Ingresá solo números. Ejemplo: 125000000.">
                 <Input
                   id="price"
                   type="number"
                   min={0}
                   step="any"
-                  placeholder="0"
                   value={field.state.value}
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
@@ -198,10 +196,9 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
       {/* Subtipo */}
       <form.Field name="subtype">
         {(field) => (
-          <FormField field={field} label="Subtipo">
+          <FormField field={field} label="Subtipo" optional hint="Ejemplo: Casa, apartamento o local.">
             <Input
               id="subtype"
-              placeholder="Ej: Casa, Apartamento, Local..."
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -215,13 +212,12 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <form.Field name="lot_area_m2">
           {(field) => (
-            <FormField field={field} label="Área lote (m²)">
+            <FormField field={field} label="Área lote (m²)" optional hint="Ingresá solo números. Ejemplo: 350.">
               <Input
                 id="lot_area_m2"
                 type="number"
                 min={0}
                 step="any"
-                placeholder="0"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
@@ -232,13 +228,12 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
 
         <form.Field name="built_area_m2">
           {(field) => (
-            <FormField field={field} label="Área construida (m²)">
+            <FormField field={field} label="Área construida (m²)" optional hint="Ingresá solo números. Ejemplo: 180.">
               <Input
                 id="built_area_m2"
                 type="number"
                 min={0}
                 step="any"
-                placeholder="0"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 onBlur={field.handleBlur}
@@ -251,10 +246,9 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
       {/* Dirección */}
       <form.Field name="address">
         {(field) => (
-          <FormField field={field} label="Dirección">
+          <FormField field={field} label="Dirección" optional hint="Ejemplo: 200 m norte del parque central.">
             <Input
               id="address"
-              placeholder="Ej: 200m norte del parque central"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -267,10 +261,9 @@ function CreatePropertySheet({ open, onOpenChange }: CreatePropertySheetProps) {
       {/* Descripción */}
       <form.Field name="description">
         {(field) => (
-          <FormField field={field} label="Descripción">
+          <FormField field={field} label="Descripción" optional hint="Agregá detalles relevantes de la propiedad.">
             <Textarea
               id="description"
-              placeholder="Describe la propiedad..."
               rows={4}
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}

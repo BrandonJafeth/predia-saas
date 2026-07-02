@@ -12,9 +12,10 @@ import type {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LooseFetch = (...args: any[]) => Promise<{ data: unknown; error: unknown }>
 
-const get = apiClient.GET as unknown as LooseFetch
-const patch = apiClient.PATCH as unknown as LooseFetch
-const del = apiClient.DELETE as unknown as LooseFetch
+// Lazy accessors — avoids accessing apiClient at module-load time (TDZ risk)
+const get: LooseFetch = (...args) => (apiClient.GET as unknown as LooseFetch)(...args)
+const patch: LooseFetch = (...args) => (apiClient.PATCH as unknown as LooseFetch)(...args)
+const del: LooseFetch = (...args) => (apiClient.DELETE as unknown as LooseFetch)(...args)
 
 export const propertiesService = {
   async findAll(filters?: PropertyFilters): Promise<PaginatedResponse<Property>> {

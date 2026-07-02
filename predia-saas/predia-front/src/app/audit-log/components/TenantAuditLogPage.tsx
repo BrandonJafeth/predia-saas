@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import { Loader2, ChevronDown, ChevronRight } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
-import { Input } from '@/design-system/ui/input'
+import { DatePicker } from '@/design-system/ui/date-picker'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import {
   Select,
@@ -16,7 +16,7 @@ import Text from '@/design-system/typography/text'
 import { useTenantAuditLog } from '@/app/admin/hooks'
 import type { AuditAction, AuditActorRole, AuditEntity, AuditLogEntry } from '@/app/admin/services/audit-log.service'
 
-const DEFAULT_LIMIT = 20
+const DEFAULT_LIMIT = 15
 
 const ACTION_VARIANT: Record<AuditAction, 'default' | 'emerald' | 'violet' | 'pink' | 'orange'> = {
   CREATE: 'emerald',
@@ -177,20 +177,22 @@ function PayloadPanel({ payload }: PayloadPanelProps) {
 
 function TenantAuditLogPage() {
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(DEFAULT_LIMIT)
+  const limit = DEFAULT_LIMIT
   const [entityFilter, setEntityFilter] = useState<FilterEntity>('all')
   const [actionFilter, setActionFilter] = useState<FilterAction>('all')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [from, setFrom] = useState<Date | undefined>(undefined)
+  const [to, setTo] = useState<Date | undefined>(undefined)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const toISO = (d: Date) => d.toISOString().split('T')[0]
 
   const params = {
     page,
     limit,
     ...(entityFilter !== 'all' ? { entity: entityFilter } : {}),
     ...(actionFilter !== 'all' ? { action: actionFilter } : {}),
-    ...(from ? { from } : {}),
-    ...(to ? { to } : {}),
+    ...(from ? { from: toISO(from) } : {}),
+    ...(to ? { to: toISO(to) } : {}),
   }
 
   const { data, isLoading, error: fetchError } = useTenantAuditLog(params)
@@ -208,21 +210,21 @@ function TenantAuditLogPage() {
     setPage(1)
   }
 
-  function handleFromChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setFrom(e.target.value)
+  function handleFromChange(date: Date | undefined) {
+    setFrom(date)
     setPage(1)
   }
 
-  function handleToChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setTo(e.target.value)
+  function handleToChange(date: Date | undefined) {
+    setTo(date)
     setPage(1)
   }
 
   function clearFilters() {
     setEntityFilter('all')
     setActionFilter('all')
-    setFrom('')
-    setTo('')
+    setFrom(undefined)
+    setTo(undefined)
     setPage(1)
   }
 
@@ -231,7 +233,7 @@ function TenantAuditLogPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto w-full space-y-6">
+    <div className="space-y-6">
       <div>
         <Heading as="lg">Registro de auditoría</Heading>
         <Text as="sm" className="text-muted-foreground mt-1">
@@ -283,14 +285,14 @@ function TenantAuditLogPage() {
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Desde
           </label>
-          <Input type="date" value={from} onChange={handleFromChange} className="w-40" />
+          <DatePicker value={from} onChange={handleFromChange} placeholder="Desde" />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Hasta
           </label>
-          <Input type="date" value={to} onChange={handleToChange} className="w-40" />
+          <DatePicker value={to} onChange={handleToChange} placeholder="Hasta" />
         </div>
 
         {hasActiveFilters && (
@@ -301,18 +303,7 @@ function TenantAuditLogPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-canvas rounded-2xl border border-hairline shadow-raised overflow-hidden">
-        <div className="px-6 py-4 border-b border-hairline">
-          <Text as="md" className="font-semibold">
-            Eventos
-            {data && (
-              <span className="ml-2 text-muted-foreground font-normal text-sm">
-                ({data.meta?.itemCount ?? entries.length})
-              </span>
-            )}
-          </Text>
-        </div>
-
+      <div className="overflow-hidden rounded-xl border border-hairline bg-canvas shadow-soft">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -338,12 +329,12 @@ function TenantAuditLogPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-hairline bg-surface-soft/40">
-                  <th className="px-4 py-3 w-8" />
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Fecha</th>
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Actor</th>
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Acción</th>
-                  <th className="text-left px-6 py-3 font-medium text-muted-foreground">Entidad</th>
+                <tr className="border-b border-hairline bg-[#F7F7F8]">
+                  <th className="px-4 py-4 w-8" />
+                  <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actor</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Acción</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Entidad</th>
                 </tr>
               </thead>
               <tbody>
@@ -355,9 +346,9 @@ function TenantAuditLogPage() {
                     <Fragment key={entry.id}>
                       <tr
                         onClick={() => toggleExpand(entry.id)}
-                        className={`cursor-pointer hover:bg-surface-soft/30 transition-colors ${!isLast || isExpanded ? 'border-b border-hairline' : ''}`}
+                        className={`cursor-pointer transition-colors hover:bg-[#F7F7F8]/70 ${!isLast || isExpanded ? 'border-b border-hairline' : ''}`}
                       >
-                        <td className="pl-4 py-4 text-muted-foreground">
+                        <td className="pl-4 py-5 text-muted-foreground">
                           {isExpanded ? (
                             <ChevronDown className="size-4" />
                           ) : (
@@ -365,7 +356,7 @@ function TenantAuditLogPage() {
                           )}
                         </td>
 
-                        <td className="px-6 py-4 text-muted-foreground tabular-nums whitespace-nowrap">
+                        <td className="px-6 py-5 text-muted-foreground tabular-nums whitespace-nowrap">
                           <span className="block">
                             {new Date(entry.created_at).toLocaleDateString('es-CR')}
                           </span>
@@ -377,7 +368,7 @@ function TenantAuditLogPage() {
                           </span>
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-5">
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">
@@ -399,13 +390,13 @@ function TenantAuditLogPage() {
                           </div>
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-5">
                           <Badge variant={ACTION_VARIANT[entry.action] ?? 'default'}>
                             {ACTION_LABEL[entry.action] ?? entry.action}
                           </Badge>
                         </td>
 
-                        <td className="px-6 py-4">
+                        <td className="px-6 py-5">
                           <span className="font-medium">
                             {ENTITY_LABEL[entry.entity] ?? entry.entity}
                           </span>
@@ -430,17 +421,17 @@ function TenantAuditLogPage() {
           </div>
         )}
 
-        {data?.meta && (
-          <PaginationControls
-            page={page}
-            pageCount={data.meta.pageCount}
-            itemCount={data.meta.itemCount}
-            limit={limit}
-            onPageChange={setPage}
-            onLimitChange={(l) => { setLimit(l); setPage(1) }}
-          />
-        )}
       </div>
+
+      {data?.meta && (
+        <PaginationControls
+          page={page}
+          pageCount={data.meta.pageCount}
+          itemCount={data.meta.itemCount}
+          limit={limit}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   )
 }

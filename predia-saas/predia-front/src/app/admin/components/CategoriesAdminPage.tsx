@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
+import { z } from 'zod'
 import { Tags, ChevronRight, Plus, Pencil, Trash2, GripVertical, X } from 'lucide-react'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
@@ -22,6 +23,16 @@ import {
   useDeleteCategory,
 } from '@/app/categories/hooks'
 import type { Category, JSONSchema, JSONSchemaProperty } from '@/app/categories/types'
+
+const categoryMetaSchema = z.object({
+  name: z.string().trim().min(1, 'El nombre es requerido'),
+  slug: z
+    .string()
+    .trim()
+    .min(1, 'El slug es requerido')
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Solo minúsculas, números y guiones'),
+  description: z.string().trim().max(500, 'Máximo 500 caracteres'),
+})
 
 // ─── Field builder types ──────────────────────────────────────────────────────
 
@@ -144,18 +155,22 @@ function FieldRow({ field, onChange, onRemove }: {
             <Input
               value={field.key}
               onChange={e => onChange({ ...field, key: slugifyKey(e.target.value) })}
-              placeholder="ej. tipo_propiedad"
               className="font-mono text-xs h-8"
             />
+            <Text as="caption" className="mt-1 block text-muted-foreground">
+              Ejemplo: tipo_propiedad.
+            </Text>
           </div>
           <div className="col-span-2 sm:col-span-1">
             <label className="text-xs text-muted-foreground mb-1 block">Etiqueta</label>
             <Input
               value={field.title}
               onChange={e => onChange({ ...field, title: e.target.value })}
-              placeholder="Tipo de propiedad"
               className="text-xs h-8"
             />
+            <Text as="caption" className="mt-1 block text-muted-foreground">
+              Ejemplo: Tipo de propiedad.
+            </Text>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Tipo</label>
@@ -201,18 +216,22 @@ function FieldRow({ field, onChange, onRemove }: {
             <Input
               value={optionsRaw}
               onChange={e => { setOptionsRaw(e.target.value); applyOptions(e.target.value, optionLabelsRaw) }}
-              placeholder="casa, apartamento, lote"
               className="text-xs h-8"
             />
+            <Text as="caption" className="mt-1 block text-muted-foreground">
+              Ejemplo: casa, apartamento, lote.
+            </Text>
           </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Labels (coma)</label>
             <Input
               value={optionLabelsRaw}
               onChange={e => { setOptionLabelsRaw(e.target.value); applyOptions(optionsRaw, e.target.value) }}
-              placeholder="Casa, Apartamento, Lote"
               className="text-xs h-8"
             />
+            <Text as="caption" className="mt-1 block text-muted-foreground">
+              Ejemplo: Casa, Apartamento, Lote.
+            </Text>
           </div>
         </div>
       )}
@@ -378,8 +397,14 @@ function CategoryForm({ open, onOpenChange, editing }: {
       slug: editing?.slug ?? '',
       description: editing?.description ?? '',
     } satisfies MetaValues,
+    validators: { onSubmit: categoryMetaSchema },
     onSubmit: ({ value }: { value: MetaValues }) => {
-      const payload = { name: value.name, slug: value.slug, description: value.description || undefined, attribute_schema: schema }
+      const payload = {
+        name: value.name.trim(),
+        slug: value.slug.trim(),
+        description: value.description.trim() || undefined,
+        attribute_schema: schema,
+      }
       if (editing) {
         update({ id: editing.id, ...payload }, { onSuccess: () => { onOpenChange(false) } })
       } else {
@@ -414,10 +439,9 @@ function CategoryForm({ open, onOpenChange, editing }: {
     >
       <form.Field name="name">
         {(field) => (
-          <FormField field={field} label="Nombre" required>
+          <FormField field={field} label="Nombre" hint="Ejemplo: Bienes Raíces.">
             <Input
               id="name"
-              placeholder="Ej. Bienes Raíces"
               value={field.state.value}
               onChange={(e) => {
                 field.handleChange(e.target.value)
@@ -431,10 +455,9 @@ function CategoryForm({ open, onOpenChange, editing }: {
 
       <form.Field name="slug">
         {(field) => (
-          <FormField field={field} label="Slug" required>
+          <FormField field={field} label="Slug" hint="Usá minúsculas, números y guiones. Ejemplo: bienes-raices.">
             <Input
               id="slug"
-              placeholder="bienes-raices"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -446,10 +469,9 @@ function CategoryForm({ open, onOpenChange, editing }: {
 
       <form.Field name="description">
         {(field) => (
-          <FormField field={field} label="Descripción">
+          <FormField field={field} label="Descripción" optional hint="Resumen breve de la categoría.">
             <Input
               id="description"
-              placeholder="Opcional"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               onBlur={field.handleBlur}
@@ -483,7 +505,7 @@ function CategoriesAdminPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto w-full space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Heading as="lg">Categorías</Heading>

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { useLocation } from '@tanstack/react-router'
 import { SidebarProvider, useSidebar } from '@/design-system/ui/sidebar'
 import { Sheet, SheetContent, SheetTitle } from '@/design-system/ui/sheet'
@@ -6,8 +6,35 @@ import { Skeleton } from '@/design-system/ui/skeleton'
 import AppNavbar from '@/layouts/AppNavbar'
 import AppSidebar from '@/layouts/AppSidebar'
 
+const SIDEBAR_W = '16rem'
+
+// ── Desktop: fixed sidebar that pushes content ────────────────────────────────
+function DesktopSidebar() {
+  const { state } = useSidebar()
+  const isOpen = state === 'expanded'
+
+  return (
+    <div
+      className={[
+        'fixed left-0 top-0 z-30 hidden h-screen w-64 border-r border-sidebar-border bg-sidebar shadow-sm md:block',
+        'transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+        isOpen ? 'translate-x-0' : '-translate-x-full',
+      ].join(' ')}
+    >
+      <AppSidebar />
+    </div>
+  )
+}
+
+// ── Mobile: overlay sheet (unchanged) ────────────────────────────────────────
 function MobileSidebar() {
   const { openMobile, setOpenMobile } = useSidebar()
+
+  useEffect(() => {
+    document.body.style.overflow = openMobile ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [openMobile])
+
   return (
     <Sheet open={openMobile} onOpenChange={setOpenMobile}>
       <SheetContent side="left" className="w-72 p-0 [&>button]:hidden">
@@ -18,32 +45,27 @@ function MobileSidebar() {
   )
 }
 
+// ── Layout ────────────────────────────────────────────────────────────────────
 function LayoutContent({ children }: { children: ReactNode }) {
   const { state, isMobile } = useSidebar()
   const { pathname } = useLocation()
-  const sidebarWidth = state === 'expanded' ? '16rem' : '0px'
+  const isOpen = state === 'expanded'
 
   return (
     <div className="min-h-screen w-full">
-      {/* Desktop fixed sidebar — slides in/out completely */}
-      <div
-        className="fixed left-0 top-0 z-30 hidden h-screen overflow-hidden md:block transition-[width] duration-200 ease-in-out"
-        style={{ width: sidebarWidth }}
-      >
-        <div className="h-full w-64 border-r border-sidebar-border bg-sidebar">
-          <AppSidebar />
-        </div>
-      </div>
-
+      <DesktopSidebar />
       <MobileSidebar />
 
-      {/* inline style only on desktop — avoids inline-style overriding max-md:ml-0 */}
       <main
-        className="flex min-h-screen flex-col transition-[margin] duration-200 ease-linear"
-        style={{ marginLeft: isMobile ? 0 : sidebarWidth }}
+        className="flex min-h-screen flex-col transition-[margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{ marginLeft: isMobile ? 0 : isOpen ? SIDEBAR_W : 0 }}
       >
         <AppNavbar />
-        <div key={pathname} className="flex-1 p-4 md:p-6 animate-page-enter">{children}</div>
+        <div key={pathname} className="flex-1 p-6 md:p-8 animate-page-enter">
+          <div className="mx-auto w-full max-w-6xl">
+            {children}
+          </div>
+        </div>
       </main>
     </div>
   )
