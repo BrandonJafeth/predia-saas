@@ -10,7 +10,16 @@
       "Bash(find \"c:\\\\Users\\\\kathe\\\\OneDrive\\\\Documentos\\\\OneOut\\\\predia-saas\" -iname \"react-day-picker\" -type d 2>/dev/null)",
       "Bash(find c:/Users/kathe/OneDrive/Documentos/OneOut/predia-saas/predia-saas/node_modules/.pnpm/react-day-picker@10.0.1_@types+react@19.2.16_react@19.2.7/node_modules/react-day-picker/dist -iname *.d.ts)",
       "Bash(xargs grep -l \"classNames\")",
-      "Bash(find c:/Users/kathe/OneDrive/Documentos/OneOut/predia-saas/predia-saas/node_modules/.pnpm/react-day-picker@10.0.1_@types+react@19.2.16_react@19.2.7/node_modules/react-day-picker -iname UI.*)"
+      "Bash(find c:/Users/kathe/OneDrive/Documentos/OneOut/predia-saas/predia-saas/node_modules/.pnpm/react-day-picker@10.0.1_@types+react@19.2.16_react@19.2.7/node_modules/react-day-picker -iname UI.*)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(find \"c:/Users/kathe/OneDrive/Documentos/OneOut/predia-saas\" -maxdepth 4 -iname \"SKILL.md\" 2>/dev/null; echo \"---\"; ls -la \"c:/Users/kathe/OneDrive/Documentos/OneOut/predia-saas/predia-saas/predia-front/.claude\" 2>/dev/null)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(curl -s \"http://localhost:5173/src/app/admin/components/CategoriesAdminPage.tsx\")",
+      "Bash(curl -s \"http://localhost:5173/src/design-system/ui/badge.tsx\")"
     ]
   }
 }

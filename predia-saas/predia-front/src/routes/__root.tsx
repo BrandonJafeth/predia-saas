@@ -10,6 +10,27 @@ const PUBLIC_PATHS = ['/reset-password']
 
 let sessionRestored = false
 
+// Full-screen loading shown while beforeLoad resolves (session restoration).
+// This prevents the login card from flashing on protected routes.
+function RootPending() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4 animate-welcome-in">
+        <img src="/isotipoClaro.png" alt="Predia" className="h-14 w-14 object-contain" />
+        <div className="flex gap-2">
+          {[0, 1, 2].map(i => (
+            <span
+              key={i}
+              className="h-1.5 w-1.5 rounded-full bg-ink-muted/40 animate-dot-pulse"
+              style={{ animationDelay: `${i * 200}ms` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function RootComponent() {
   const { pathname } = useLocation()
   const isAuthPage = AUTH_PATHS.includes(pathname) || PUBLIC_PATHS.includes(pathname)
@@ -52,6 +73,11 @@ export const Route = createRootRoute({
     }
   },
 
+  // Show immediately (0ms delay) so the pending screen covers the entire
+  // duration of the async beforeLoad — no login card flash.
+  pendingMs: 0,
+  pendingMinMs: 0,
+  pendingComponent: RootPending,
   component: RootComponent,
   notFoundComponent: NotFoundPage,
 })

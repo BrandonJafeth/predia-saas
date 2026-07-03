@@ -21,8 +21,9 @@ const DEFAULT_LIMIT = 15
 function slugify(value: string): string {
   return value
     .toLowerCase()
+    .replace(/ñ/g, 'n')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 }
@@ -166,13 +167,7 @@ function TenantsPage() {
           )}
         </form.Field>
 
-        <form.Field name="tenantSlug">
-          {(field) => (
-            <FormField field={field} label="Identificador único" hint="Usá minúsculas, números y guiones. Ejemplo: inmobiliaria-norte.">
-              <Input id="tenantSlug" value={field.state.value} onChange={(e) => field.handleChange(e.target.value)} onBlur={field.handleBlur} autoComplete="off" />
-            </FormField>
-          )}
-        </form.Field>
+
 
         <hr className="border-hairline" />
 

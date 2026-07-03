@@ -16,8 +16,9 @@ import type { RegisterRequest } from '@/app/auth/types'
 function slugify(value: string): string {
   return value
     .toLowerCase()
+    .replace(/ñ/g, 'n')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 }
@@ -111,45 +112,6 @@ function RegisterPage() {
                     />
                   </FormField>
                 )}
-              </form.Field>
-
-              <form.Field name="tenantSlug">
-                {(field) => {
-                  const errors = field.state.meta.isTouched ? field.state.meta.errors : []
-                  const errorMsg = errors.length > 0
-                    ? (typeof errors[0] === 'string'
-                        ? errors[0]
-                        : (errors[0] as { message?: string } | undefined)?.message)
-                    : undefined
-                  return (
-                    <div className="space-y-1.5">
-                      <Label htmlFor="tenantSlug">
-                        Identificador
-                        <span className="ml-1.5 text-xs text-muted-foreground font-normal">
-                          (auto-generado)
-                        </span>
-                      </Label>
-                      <Input
-                        id="tenantSlug"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        onBlur={field.handleBlur}
-                        className="shadow-none"
-                        aria-invalid={!!errorMsg}
-                        aria-describedby={errorMsg ? 'tenantSlug-error' : undefined}
-                      />
-                      {errorMsg ? (
-                        <p id="tenantSlug-error" role="alert" className="text-[13px] font-body font-medium leading-[1.4] text-destructive">
-                          {errorMsg}
-                        </p>
-                      ) : (
-                        <Text as="caption" className="text-muted-foreground">
-                          Usá minúsculas, números y guiones. Ejemplo: inmobiliaria-norte.
-                        </Text>
-                      )}
-                    </div>
-                  )
-                }}
               </form.Field>
             </div>
 
