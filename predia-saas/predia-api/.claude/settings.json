@@ -9,10 +9,39 @@
       "Bash(docker run *)",
       "Bash(docker exec *)",
       "Bash(node_modules/.bin/prisma migrate *)",
-      "Bash(npx ts-node *)"
+      "Bash(npx ts-node *)",
+      "Bash(pnpm run *)",
+      "Bash(pnpm generate:api)",
+      "Bash(pnpm add *)",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(curl -s http://localhost:3000/health)",
+      "Bash(curl -s -m 3 http://localhost:3000/health)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(curl -s -m 3 -o /dev/null -w \"http_status=%{http_code}\\\\n\" http://localhost:3000/health)",
+      "Bash(curl -s -m 2 http://localhost:3000/health)",
+      "Bash(curl -s -m 2 -o /dev/null http://localhost:5173)",
+      "Bash(node -e ' *)",
+      "Bash(powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess\")",
+      "Bash(powershell -NoProfile -Command \"Get-Process -Id 11996 | Select-Object Id, ProcessName, StartTime\")",
+      "Bash(powershell -NoProfile -Command \"Stop-Process -Id 11996 -Force\")",
+      "Bash(powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique\")",
+      "Bash(powershell -NoProfile -Command \"Stop-Process -Id 11144 -Force -ErrorAction SilentlyContinue\")",
+      "Bash(echo \"port check exit: $?\")",
+      "Bash(node_modules/.bin/nest start *)",
+      "Bash(powershell -NoProfile -Command ' *)"
     ],
     "additionalDirectories": [
-      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\infra\\postgres"
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\infra\\postgres",
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\design-system\\ui",
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\shared\\types",
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\shared\\components",
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\types",
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\services",
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\hooks",
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\components",
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\routes"
     ]
   }
 }
