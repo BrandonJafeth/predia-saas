@@ -23,7 +23,8 @@ describe('CreatePropertyDto', () => {
   });
 
   it('rechaza payload sin title', async () => {
-    const { title: _, ...rest } = validBase;
+    const rest: Partial<typeof validBase> = { ...validBase };
+    delete rest.title;
     const errors = await validateDto(rest);
     expect(errors.some((e) => e.property === 'title')).toBe(true);
   });

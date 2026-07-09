@@ -146,6 +146,11 @@ CREATE POLICY tenant_isolation ON audit_log
   FOR SELECT
   USING (tenant_id = current_setting('app.current_tenant_id', true));
 
+-- ─── lead_activities — append-only ───────────────────────────────────────────
+-- El historial de actividades no se edita ni se borra desde la app.
+
+REVOKE UPDATE, DELETE ON lead_activities FROM predia_app;
+
 -- Nota: "User" tiene RLS en la migración 20260605220000_rls_tenant_isolation.
 -- tenant_sites y demás tablas con tenant_id reciben RLS del trigger automáticamente.
 

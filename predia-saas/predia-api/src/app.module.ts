@@ -20,6 +20,7 @@ import { TenantSitesModule } from './modules/tenant-sites/tenant-sites.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { PropertiesModule } from './modules/properties/properties.module';
+import { LeadsModule } from './modules/leads/leads.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { PropertiesModule } from './modules/properties/properties.module';
     LocationsModule,
     CategoriesModule,
     PropertiesModule,
+    LeadsModule,
   ],
   providers: [
     {

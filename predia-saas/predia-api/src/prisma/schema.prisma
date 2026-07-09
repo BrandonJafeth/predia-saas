@@ -51,16 +51,45 @@ enum CurrencyCode {
   USD
 }
 
+enum LeadSource {
+  web
+  referral
+  walk_in
+  social
+  other
+}
+
+enum LeadStatus {
+  new
+  contacted
+  qualified
+  proposal
+  negotiation
+  won
+  lost
+  archived
+}
+
+enum LeadActivityType {
+  call
+  email
+  meeting
+  note
+  status_change
+}
+
 model Tenant {
-  id String @id @default(uuid())
-  name String
-  slug String @unique
+  id                  String             @id @default(uuid())
+  name                String
+  slug                String             @unique
   subscription_status SubscriptionStatus @default(trial)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  users      User[]
-  site       TenantSite?
-  properties Property[]
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+  users               User[]
+  site                TenantSite?
+  properties          Property[]
+  leads               Lead[]
+  lead_activities     LeadActivity[]
 }
 
 model TenantSite {
@@ -76,28 +105,31 @@ model TenantSite {
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
   tenant          Tenant   @relation(fields: [tenant_id], references: [id])
+
   @@index([tenant_id])
   @@map("tenant_sites")
 }
 
+model User {
+  id                      String               @id @default(uuid())
+  tenant_id               String
+  email                   String
+  password_hash           String
+  role                    UserRole             @default(agent)
+  status                  UserStatus           @default(active)
+  suspended_at            DateTime?
+  first_name              String
+  last_name               String
+  created_at              DateTime             @default(now())
+  updated_at              DateTime             @updatedAt
+  tenant                  Tenant               @relation(fields: [tenant_id], references: [id])
+  password_reset_tokens   PasswordResetToken[]
+  properties              Property[]
+  assigned_leads          Lead[]               @relation("LeadAssignee")
+  created_lead_activities LeadActivity[]       @relation("LeadActivityCreator")
 
-model User{
-id String @id @default(uuid())
-tenant_id String
-email String
-password_hash String
-role UserRole @default(agent)
-status UserStatus @default(active)
-suspended_at DateTime?
-first_name String
-last_name String
-created_at DateTime @default(now())
-updated_at DateTime @updatedAt
-tenant Tenant @relation(fields: [tenant_id], references: [id])
-password_reset_tokens PasswordResetToken[]
-properties Property[]
-@@unique([tenant_id, email])
-@@index([tenant_id])
+  @@unique([tenant_id, email])
+  @@index([tenant_id])
 }
 
 model PasswordResetToken {
@@ -108,6 +140,7 @@ model PasswordResetToken {
   used_at    DateTime?
   created_at DateTime  @default(now())
   user       User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
   @@index([user_id])
   @@map("password_reset_tokens")
 }
@@ -122,6 +155,7 @@ model Location {
   parent     Location?    @relation("LocationHierarchy", fields: [parent_id], references: [id])
   children   Location[]   @relation("LocationHierarchy")
   properties Property[]
+
   @@index([type])
   @@index([parent_id])
   @@map("locations")
@@ -136,23 +170,25 @@ model Category {
   created_at       DateTime   @default(now())
   updated_at       DateTime   @updatedAt
   properties       Property[]
+
   @@map("categories")
 }
 
-model AuditLog{
-id String @id @default(uuid())
-actor_id String
-actor_role String
-action String
-entity String
-entity_id String
-payload Json
-tenant_id String?
-created_at DateTime @default(now())
-@@index([tenant_id])
-@@index([actor_id])
-@@index([entity, entity_id])
-@@map("audit_log")
+model AuditLog {
+  id         String   @id @default(uuid())
+  actor_id   String
+  actor_role String
+  action     String
+  entity     String
+  entity_id  String
+  payload    Json
+  tenant_id  String?
+  created_at DateTime @default(now())
+
+  @@index([tenant_id])
+  @@index([actor_id])
+  @@index([entity, entity_id])
+  @@map("audit_log")
 }
 
 model Property {
@@ -182,6 +218,7 @@ model Property {
   location       Location?      @relation(fields: [location_id], references: [id])
   category       Category       @relation(fields: [category_id], references: [id])
   agent          User?          @relation(fields: [agent_id], references: [id])
+  leads          Lead[]
 
   @@unique([tenant_id, slug])
   @@index([tenant_id])
@@ -190,4 +227,43 @@ model Property {
   @@index([tenant_id, location_id])
   @@index([attributes], type: Gin)
   @@map("properties")
+}
+
+model Lead {
+  id          String         @id @default(uuid())
+  tenant_id   String
+  name        String
+  email       String?
+  phone       String?
+  source      LeadSource     @default(other)
+  status      LeadStatus     @default(new)
+  assigned_to String?
+  property_id String?
+  notes       String?
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+  tenant      Tenant         @relation(fields: [tenant_id], references: [id])
+  assignee    User?          @relation("LeadAssignee", fields: [assigned_to], references: [id])
+  property    Property?      @relation(fields: [property_id], references: [id], onDelete: SetNull)
+  activities  LeadActivity[]
+
+  @@index([tenant_id, status])
+  @@index([tenant_id, assigned_to])
+  @@map("leads")
+}
+
+model LeadActivity {
+  id          String           @id @default(uuid())
+  lead_id     String
+  tenant_id   String
+  type        LeadActivityType
+  description String
+  created_by  String
+  created_at  DateTime         @default(now())
+  lead        Lead             @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  tenant      Tenant           @relation(fields: [tenant_id], references: [id])
+  creator     User             @relation("LeadActivityCreator", fields: [created_by], references: [id])
+
+  @@index([lead_id, created_at])
+  @@map("lead_activities")
 }
