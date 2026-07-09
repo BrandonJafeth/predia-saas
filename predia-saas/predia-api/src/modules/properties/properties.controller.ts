@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -16,6 +25,7 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
 import { PropertyDetailResponseDto } from './dto/property-detail-response.dto';
 import { PropertyResponseDto } from './dto/property-response.dto';
+import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertiesService } from './properties.service';
 
 @ApiTags('Properties')
@@ -64,5 +74,18 @@ export class PropertiesController {
     @CurrentTenant() tenantId: string,
   ) {
     return this.propertiesService.findById(id, tenantId);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.admin, UserRole.agent)
+  @AuditLog({ action: 'UPDATE', entity: 'property' })
+  @ApiOkResponse({ type: PropertyResponseDto })
+  update(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: UpdatePropertyDto,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() caller: JwtPayload,
+  ) {
+    return this.propertiesService.update(id, dto, tenantId, caller);
   }
 }
