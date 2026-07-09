@@ -41,15 +41,15 @@ export class CategoriesService {
       });
       if (conflict) throw new ConflictException(`El slug "${dto.slug}" ya está en uso`);
     }
+    // Prisma ignora claves `undefined` en update(): asignar directo
+    // evita el spread condicional campo por campo.
     return this.prisma.category.update({
       where: { id },
       data: {
-        ...(dto.name !== undefined && { name: dto.name }),
-        ...(dto.slug !== undefined && { slug: dto.slug }),
-        ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.attribute_schema !== undefined && {
-          attribute_schema: dto.attribute_schema as Prisma.InputJsonValue,
-        }),
+        name: dto.name,
+        slug: dto.slug,
+        description: dto.description,
+        attribute_schema: dto.attribute_schema as Prisma.InputJsonValue | undefined,
       },
     });
   }

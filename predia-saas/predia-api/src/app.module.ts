@@ -20,6 +20,7 @@ import { TenantSitesModule } from './modules/tenant-sites/tenant-sites.module';
 import { LocationsModule } from './modules/locations/locations.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { PropertiesModule } from './modules/properties/properties.module';
+import { PropertyImagesModule } from './modules/property-images/property-images.module';
 import { LeadsModule } from './modules/leads/leads.module';
 
 @Module({
@@ -41,6 +42,9 @@ import { LeadsModule } from './modules/leads/leads.module';
         EMAIL_FROM_NAME: Joi.string().default('Predia'),
         EMAIL_ENABLED: Joi.string().valid('true', 'false').default('true'),
         APP_URL: Joi.string().default('http://localhost:5173'),
+        CLOUDINARY_CLOUD_NAME: Joi.string().default(''),
+        CLOUDINARY_API_KEY: Joi.string().default(''),
+        CLOUDINARY_API_SECRET: Joi.string().default(''),
       }),
     }),
     ThrottlerModule.forRoot([
@@ -71,6 +75,7 @@ import { LeadsModule } from './modules/leads/leads.module';
     LocationsModule,
     CategoriesModule,
     PropertiesModule,
+    PropertyImagesModule,
     LeadsModule,
   ],
   providers: [

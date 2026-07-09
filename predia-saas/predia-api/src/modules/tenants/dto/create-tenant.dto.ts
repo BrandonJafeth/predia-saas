@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, Matches, IsOptional, IsEmail, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  Matches,
+  IsOptional,
+  IsEmail,
+  MinLength,
+  IsInt,
+  Min,
+} from 'class-validator';
 
 export class CreateTenantDto {
   @ApiProperty({ example: 'Inmobiliaria Norte' })
@@ -35,4 +44,14 @@ export class CreateTenantDto {
   @IsString()
   @IsNotEmpty()
   advisor_last_name?: string;
+
+  @ApiPropertyOptional({
+    example: 20,
+    default: 20,
+    description: 'Límite de imágenes por property según el plan del tenant',
+  })
+  @IsOptional()
+  @IsInt({ message: 'max_images_per_property debe ser un número entero' })
+  @Min(1, { message: 'max_images_per_property debe ser al menos 1' })
+  max_images_per_property?: number;
 }

@@ -1,7 +1,20 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -14,7 +27,9 @@ import { PageOf } from '../../common/dto/page.dto';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
+import { PropertyDetailResponseDto } from './dto/property-detail-response.dto';
 import { PropertyResponseDto } from './dto/property-response.dto';
+import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertiesService } from './properties.service';
 
 @ApiTags('Properties')
@@ -43,5 +58,51 @@ export class PropertiesController {
     @CurrentUser() caller: JwtPayload,
   ) {
     return this.propertiesService.create(dto, tenantId, caller);
+  }
+
+  @Get('slug/:slug')
+  @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: PropertyDetailResponseDto })
+  findBySlug(
+    @Param('slug') slug: string,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.propertiesService.findBySlug(slug, tenantId);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: PropertyDetailResponseDto })
+  findById(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.propertiesService.findById(id, tenantId);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.admin, UserRole.agent)
+  @AuditLog({ action: 'UPDATE', entity: 'property' })
+  @ApiOkResponse({ type: PropertyResponseDto })
+  update(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() dto: UpdatePropertyDto,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() caller: JwtPayload,
+  ) {
+    return this.propertiesService.update(id, dto, tenantId, caller);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.admin, UserRole.agent)
+  @AuditLog({ action: 'DELETE', entity: 'property' })
+  @ApiNoContentResponse()
+  remove(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() caller: JwtPayload,
+  ) {
+    return this.propertiesService.remove(id, tenantId, caller);
   }
 }

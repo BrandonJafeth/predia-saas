@@ -16,6 +16,7 @@ const STATUS_LABELS: Record<Property['status'], string> = {
   inactive: 'Inactiva',
   sold: 'Vendida',
   rented: 'Arrendada',
+  archived: 'Eliminada',
 }
 
 const STATUS_VARIANT: Record<Property['status'], 'default' | 'orange' | 'pink' | 'violet' | 'emerald' | null> = {
@@ -24,6 +25,7 @@ const STATUS_VARIANT: Record<Property['status'], 'default' | 'orange' | 'pink' |
   inactive: null,
   sold: 'violet',
   rented: 'orange',
+  archived: 'pink',
 }
 
 const CURRENCY_SYMBOL: Record<Property['currency'], string> = {
