@@ -225,6 +225,7 @@ model Property {
   @@index([tenant_id, is_published])
   @@index([tenant_id, price])
   @@index([tenant_id, location_id])
+  @@index([tenant_id, created_at])
   @@index([attributes], type: Gin)
   @@map("properties")
 }

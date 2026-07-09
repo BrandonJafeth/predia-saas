@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -84,7 +85,7 @@ export class PropertiesService {
         select: PROPERTY_SELECT,
         orderBy,
         skip: filters.skip,
-        take: filters.limit ?? 10,
+        take: filters.limit ?? 20,
       }),
       this.prisma.property.count({ where }),
     ]);
@@ -96,12 +97,11 @@ export class PropertiesService {
   async create(dto: CreatePropertyDto, tenantId: string, caller: JwtPayload) {
     const agentId = await this.resolveAgentId(dto, tenantId, caller);
     const baseSlug = this.generateSlug(dto.title);
-    const slug = await this.resolveSlug(baseSlug, tenantId);
 
     const data: Prisma.PropertyCreateInput = {
       tenant: { connect: { id: tenantId } },
       title: dto.title,
-      slug,
+      slug: '',
       description: dto.description ?? null,
       price: dto.price,
       operation_type: dto.operation_type,
@@ -119,26 +119,33 @@ export class PropertiesService {
       is_published: dto.is_published ?? false,
     };
 
-    try {
-      return await this.prisma.property.create({ data, select: PROPERTY_SELECT });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        data.slug = `${slug}-${Date.now()}`;
-        return this.prisma.property.create({ data, select: PROPERTY_SELECT });
+    const maxAttempts = 5;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      data.slug = await this.resolveSlug(baseSlug, tenantId);
+      try {
+        return await this.prisma.property.create({ data, select: PROPERTY_SELECT });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          continue; // slug tomado por request concurrente: recalcula siguiente sufijo
+        }
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2025'
+        ) {
+          throw new NotFoundException(
+            'category_id o location_id no existen en la base de datos',
+          );
+        }
+        throw error;
       }
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException(
-          'category_id o location_id no existen en la base de datos',
-        );
-      }
-      throw error;
     }
+
+    throw new ConflictException(
+      'No se pudo generar un slug único para esta property, intenta de nuevo',
+    );
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
