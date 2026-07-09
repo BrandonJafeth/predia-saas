@@ -173,6 +173,42 @@ Controllers accept `@Query() pageOptionsDto: PageOptionsDto` → pass to service
 Services return `PageOf<T>` (uses `PageMetaDto` internally).  
 `PageOptionsDto` exposes `.skip` getter for Prisma `skip`.
 
+## Prisma partial update pattern
+
+For `PATCH` services, build the `data` object with **plain direct assignment**, not conditional spread:
+
+```ts
+// ✅ correct — Prisma ignores keys whose value is `undefined` in update()
+const data: Prisma.PropertyUpdateInput = {
+  title: dto.title,
+  description: dto.description,
+  price: dto.price,
+};
+
+// ❌ avoid — same runtime result, but noisier, and the spread hides
+// TS excess-property errors (see gotcha below)
+const data: Prisma.PropertyUpdateInput = {
+  ...(dto.title !== undefined && { title: dto.title }),
+  ...(dto.description !== undefined && { description: dto.description }),
+};
+```
+
+`undefined` = "field not sent, don't touch it". `null` = "clear it" (for nullable columns). Both are handled correctly by plain assignment as long as the DTO (usually `PartialType(CreateXDto)`) leaves omitted fields as `undefined`.
+
+For **nullable FK fields** (`location_id`, `agent_id`, `assigned_to`, etc.) that need three states — omitted / set-to-null / set-to-value — check `dto.field === undefined` to skip, then branch on `null` vs a real id:
+
+```ts
+location: dto.location_id === undefined
+  ? undefined
+  : dto.location_id === null
+    ? { disconnect: true }
+    : { connect: { id: dto.location_id } },
+```
+
+(`properties.service.ts`'s `toRelationUpdate()` helper is the reusable version of this.)
+
+> **TS gotcha:** `Prisma.XUpdateInput` ("checked") only exposes **relation** fields (`assignee`, `property`, `location`...), not their scalar FK columns (`assigned_to`, `property_id`, `location_id`). If you need to assign the scalar FK directly, type the object as `Prisma.XUncheckedUpdateInput` instead. Assigning `{ assigned_to: dto.assigned_to }` inside a conditional **spread** silently bypasses TS's excess-property check (spread expressions aren't checked as object literals), so the mistake compiles — but breaks the moment you switch to plain assignment. If `tsc` suddenly complains "does not exist in type `XUpdateInput`" after simplifying a spread-conditional block, switch that field's declared type to the `Unchecked` variant rather than reintroducing the spread.
+
 ## Adding a new feature module
 
 1. Create `src/modules/<name>/` with `*.module.ts`, `*.controller.ts`, `*.service.ts`
@@ -212,6 +248,7 @@ Services return `PageOf<T>` (uses `PageMetaDto` internally).
 - [ ] **Importante RLS:** Cualquier operación que inserte/actualice filas con un `tenant_id` distinto al del JWT del caller (ej. super_admin creando tenants/usuarios) DEBE usar `SystemPrismaService`. `PrismaService` setea `app.current_tenant_id` al tenantId del caller; si el registro tiene un tenant_id diferente, la policy RLS bloquea con código `42501`.
 - [ ] Paginación: recibir `PageOptionsDto`, devolver `PageDto<T>` con `PageMetaDto`
 - [ ] Errores: lanzar `NotFoundException`, `ConflictException`, etc. de `@nestjs/common` — nunca exponer errores internos
+- [ ] `update()`: asignación directa en `data` (no spread condicional `...(x !== undefined && {...})`) — ver [Prisma partial update pattern](#prisma-partial-update-pattern)
 
 #### Module
 - [ ] Registrar en `app.module.ts`
