@@ -44,6 +44,7 @@ enum PropertyStatus {
   inactive
   sold
   rented
+  archived
 }
 
 enum CurrencyCode {

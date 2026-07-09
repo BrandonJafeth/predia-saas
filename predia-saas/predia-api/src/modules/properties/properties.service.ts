@@ -4,11 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CurrencyCode, Prisma, UserRole } from '@prisma/client';
+import { CurrencyCode, Prisma, PropertyStatus, UserRole } from '@prisma/client';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PageDto } from '../../common/dto/page.dto';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
+import { AttributeValidationService } from './attribute-validation.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
@@ -65,13 +66,20 @@ const PROPERTY_DETAIL_SELECT = {
 
 @Injectable()
 export class PropertiesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private attributeValidation: AttributeValidationService,
+  ) {}
 
   async findAll(filters: FindPropertiesDto, tenantId: string) {
     const where: Prisma.PropertyWhereInput = {
       tenant_id: tenantId,
       ...(filters.operation_type !== undefined && { operation_type: filters.operation_type }),
-      ...(filters.status !== undefined && { status: filters.status }),
+      // archived = soft-deleted: nunca aparece en el listado, ni filtrando por status explícitamente
+      status: {
+        not: PropertyStatus.archived,
+        ...(filters.status !== undefined && { equals: filters.status }),
+      },
       ...(filters.currency !== undefined && { currency: filters.currency }),
       ...(filters.subtype !== undefined && { subtype: filters.subtype }),
       ...(filters.location_id !== undefined && { location_id: filters.location_id }),
@@ -122,6 +130,7 @@ export class PropertiesService {
 
   async create(dto: CreatePropertyDto, tenantId: string, caller: JwtPayload) {
     const agentId = await this.resolveAgentId(dto, tenantId, caller);
+    await this.assertValidAttributes(dto.category_id, dto.attributes ?? {});
     const baseSlug = this.generateSlug(dto.title);
 
     const data: Prisma.PropertyCreateInput = {
@@ -182,7 +191,13 @@ export class PropertiesService {
   ) {
     const existing = await this.prisma.property.findFirst({
       where: { id, tenant_id: tenantId },
-      select: { id: true, title: true, agent_id: true },
+      select: {
+        id: true,
+        title: true,
+        agent_id: true,
+        category_id: true,
+        attributes: true,
+      },
     });
 
     if (!existing) {
@@ -192,6 +207,13 @@ export class PropertiesService {
     if (caller.role === UserRole.agent && existing.agent_id !== caller.sub) {
       throw new ForbiddenException(
         'No puedes editar una property que no tienes asignada',
+      );
+    }
+
+    if (dto.category_id !== undefined || dto.attributes !== undefined) {
+      await this.assertValidAttributes(
+        dto.category_id ?? existing.category_id,
+        (dto.attributes ?? existing.attributes) as Record<string, unknown>,
       );
     }
 
@@ -262,7 +284,7 @@ export class PropertiesService {
 
   async findById(id: string, tenantId: string) {
     const property = await this.prisma.property.findFirst({
-      where: { id, tenant_id: tenantId },
+      where: { id, tenant_id: tenantId, status: { not: PropertyStatus.archived } },
       select: PROPERTY_DETAIL_SELECT,
     });
 
@@ -275,7 +297,7 @@ export class PropertiesService {
 
   async findBySlug(slug: string, tenantId: string) {
     const property = await this.prisma.property.findFirst({
-      where: { slug, tenant_id: tenantId },
+      where: { slug, tenant_id: tenantId, status: { not: PropertyStatus.archived } },
       select: PROPERTY_DETAIL_SELECT,
     });
 
@@ -286,7 +308,50 @@ export class PropertiesService {
     return property;
   }
 
+  async remove(id: string, tenantId: string, caller: JwtPayload): Promise<void> {
+    const existing = await this.prisma.property.findFirst({
+      where: { id, tenant_id: tenantId, status: { not: PropertyStatus.archived } },
+      select: { id: true, agent_id: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Property no encontrada');
+    }
+
+    if (caller.role === UserRole.agent && existing.agent_id !== caller.sub) {
+      throw new ForbiddenException(
+        'No puedes eliminar una property que no tienes asignada',
+      );
+    }
+
+    await this.prisma.property.update({
+      where: { id },
+      data: { status: PropertyStatus.archived },
+      select: { id: true },
+    });
+  }
+
   // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  private async assertValidAttributes(
+    categoryId: string,
+    attributes: Record<string, unknown>,
+  ): Promise<void> {
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { id: true, attribute_schema: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException('category_id no existe en la base de datos');
+    }
+
+    this.attributeValidation.validate(
+      attributes,
+      category.attribute_schema as Record<string, unknown>,
+      category.id,
+    );
+  }
 
   private async resolveAgentId(
     dto: CreatePropertyDto,

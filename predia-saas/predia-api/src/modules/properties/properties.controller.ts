@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -11,6 +14,7 @@ import {
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -87,5 +91,18 @@ export class PropertiesController {
     @CurrentUser() caller: JwtPayload,
   ) {
     return this.propertiesService.update(id, dto, tenantId, caller);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.admin, UserRole.agent)
+  @AuditLog({ action: 'DELETE', entity: 'property' })
+  @ApiNoContentResponse()
+  remove(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() caller: JwtPayload,
+  ) {
+    return this.propertiesService.remove(id, tenantId, caller);
   }
 }
