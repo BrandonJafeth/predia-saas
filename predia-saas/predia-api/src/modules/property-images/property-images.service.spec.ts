@@ -44,7 +44,10 @@ describe('PropertyImagesService', () => {
       create: jest.Mock;
       findFirst: jest.Mock;
       delete: jest.Mock;
+      updateMany: jest.Mock;
+      update: jest.Mock;
     };
+    $transaction: jest.Mock;
   };
   let cloudinary: { upload: jest.Mock; destroy: jest.Mock };
 
@@ -57,7 +60,10 @@ describe('PropertyImagesService', () => {
         create: jest.fn(),
         findFirst: jest.fn(),
         delete: jest.fn(),
+        updateMany: jest.fn(),
+        update: jest.fn(),
       },
+      $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops)),
     };
     cloudinary = { upload: jest.fn(), destroy: jest.fn() };
 
@@ -233,6 +239,75 @@ describe('PropertyImagesService', () => {
       expect(prisma.propertyImage.delete).toHaveBeenCalledWith({
         where: { id: 'img-1' },
       });
+    });
+  });
+
+  describe('setCover', () => {
+    it('rechaza si la property no pertenece al tenant (404)', async () => {
+      prisma.property.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.setCover(PROPERTY_ID, 'img-1', TENANT_ID, makeCaller()),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rechaza si el agent no es el owner (403)', async () => {
+      mockOwnedProperty({ agent_id: 'otro-agente' });
+
+      await expect(
+        service.setCover(PROPERTY_ID, 'img-1', TENANT_ID, makeCaller()),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('rechaza si la imagen no existe o no pertenece a la property/tenant (404)', async () => {
+      mockOwnedProperty();
+      prisma.propertyImage.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.setCover(PROPERTY_ID, 'img-inexistente', TENANT_ID, makeCaller()),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('desmarca la cover anterior y marca la nueva dentro de una transacción', async () => {
+      mockOwnedProperty();
+      prisma.propertyImage.findFirst.mockResolvedValue({ id: 'img-2', is_cover: false });
+      prisma.propertyImage.updateMany.mockResolvedValue({ count: 1 });
+      prisma.propertyImage.update.mockResolvedValue({
+        id: 'img-2',
+        property_id: PROPERTY_ID,
+        is_cover: true,
+      });
+
+      const result = await service.setCover(PROPERTY_ID, 'img-2', TENANT_ID, makeCaller());
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.propertyImage.updateMany).toHaveBeenCalledWith({
+        where: { property_id: PROPERTY_ID, is_cover: true },
+        data: { is_cover: false },
+      });
+      expect(prisma.propertyImage.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'img-2' },
+          data: { is_cover: true },
+        }),
+      );
+      expect(result).toMatchObject({ id: 'img-2', is_cover: true });
+    });
+
+    it('es idempotente: si la imagen ya es cover, no dispara la transacción', async () => {
+      mockOwnedProperty();
+      prisma.propertyImage.findFirst.mockResolvedValue({
+        id: 'img-1',
+        property_id: PROPERTY_ID,
+        is_cover: true,
+      });
+
+      const result = await service.setCover(PROPERTY_ID, 'img-1', TENANT_ID, makeCaller());
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.propertyImage.updateMany).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ id: 'img-1', is_cover: true });
     });
   });
 });

@@ -106,6 +106,42 @@ export class PropertyImagesService {
     await this.prisma.propertyImage.delete({ where: { id: image.id } });
   }
 
+  async setCover(
+    propertyId: string,
+    imageId: string,
+    tenantId: string,
+    caller: JwtPayload,
+  ) {
+    await this.assertCanManageImages(propertyId, tenantId, caller);
+
+    const image = await this.prisma.propertyImage.findFirst({
+      where: { id: imageId, property_id: propertyId, tenant_id: tenantId },
+      select: PROPERTY_IMAGE_SELECT,
+    });
+
+    if (!image) {
+      throw new NotFoundException('Imagen no encontrada');
+    }
+
+    if (image.is_cover) {
+      return image;
+    }
+
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.propertyImage.updateMany({
+        where: { property_id: propertyId, is_cover: true },
+        data: { is_cover: false },
+      }),
+      this.prisma.propertyImage.update({
+        where: { id: image.id },
+        data: { is_cover: true },
+        select: PROPERTY_IMAGE_SELECT,
+      }),
+    ]);
+
+    return updated;
+  }
+
   private async assertCanManageImages(
     propertyId: string,
     tenantId: string,

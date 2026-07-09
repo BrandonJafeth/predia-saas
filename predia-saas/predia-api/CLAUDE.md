@@ -294,6 +294,7 @@ Cualquier endpoint que **cree, modifique o elimine** un recurso persistente.
 | `PropertiesController` | `DELETE /api/v1/properties/:id` | `DELETE` | `property` (soft delete → `status: archived`) |
 | `PropertyImagesController` | `POST /api/v1/properties/:propertyId/images` | `CREATE` | `property_image` |
 | `PropertyImagesController` | `DELETE /api/v1/properties/:propertyId/images/:imageId` | `DELETE` | `property_image` |
+| `PropertyImagesController` | `PATCH /api/v1/properties/:propertyId/images/:imageId/cover` | `UPDATE` | `property_image` |
 
 ### Endpoints que NO usan @AuditLog (y por qué)
 

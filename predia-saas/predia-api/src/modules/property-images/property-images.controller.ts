@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -16,6 +17,7 @@ import {
   ApiConsumes,
   ApiCreatedResponse,
   ApiNoContentResponse,
+  ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
@@ -66,5 +68,18 @@ export class PropertyImagesController {
     @CurrentUser() caller: JwtPayload,
   ) {
     return this.propertyImagesService.remove(propertyId, imageId, tenantId, caller);
+  }
+
+  @Patch(':imageId/cover')
+  @Roles(UserRole.admin, UserRole.agent)
+  @AuditLog({ action: 'UPDATE', entity: 'property_image' })
+  @ApiOkResponse({ type: PropertyImageResponseDto })
+  setCover(
+    @Param('propertyId', new ParseUUIDPipe({ version: '4' })) propertyId: string,
+    @Param('imageId', new ParseUUIDPipe({ version: '4' })) imageId: string,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() caller: JwtPayload,
+  ) {
+    return this.propertyImagesService.setCover(propertyId, imageId, tenantId, caller);
   }
 }
