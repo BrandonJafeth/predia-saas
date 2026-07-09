@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -14,6 +14,7 @@ import { PageOf } from '../../common/dto/page.dto';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
+import { PropertyDetailResponseDto } from './dto/property-detail-response.dto';
 import { PropertyResponseDto } from './dto/property-response.dto';
 import { PropertiesService } from './properties.service';
 
@@ -43,5 +44,25 @@ export class PropertiesController {
     @CurrentUser() caller: JwtPayload,
   ) {
     return this.propertiesService.create(dto, tenantId, caller);
+  }
+
+  @Get('slug/:slug')
+  @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: PropertyDetailResponseDto })
+  findBySlug(
+    @Param('slug') slug: string,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.propertiesService.findBySlug(slug, tenantId);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: PropertyDetailResponseDto })
+  findById(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.propertiesService.findById(id, tenantId);
   }
 }

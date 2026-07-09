@@ -37,6 +37,31 @@ const PROPERTY_SELECT = {
   updated_at: true,
 } satisfies Prisma.PropertySelect;
 
+const PROPERTY_DETAIL_SELECT = {
+  ...PROPERTY_SELECT,
+  location: {
+    select: { id: true, name: true, code: true, type: true, parent_id: true },
+  },
+  category: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      attribute_schema: true,
+      created_at: true,
+      updated_at: true,
+    },
+  },
+  agent: {
+    select: { id: true, first_name: true, last_name: true, email: true },
+  },
+  images: {
+    select: { id: true, url: true, position: true, is_cover: true, created_at: true },
+    orderBy: { position: 'asc' },
+  },
+} satisfies Prisma.PropertySelect;
+
 @Injectable()
 export class PropertiesService {
   constructor(private prisma: PrismaService) {}
@@ -146,6 +171,32 @@ export class PropertiesService {
     throw new ConflictException(
       'No se pudo generar un slug único para esta property, intenta de nuevo',
     );
+  }
+
+  async findById(id: string, tenantId: string) {
+    const property = await this.prisma.property.findFirst({
+      where: { id, tenant_id: tenantId },
+      select: PROPERTY_DETAIL_SELECT,
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property no encontrada');
+    }
+
+    return property;
+  }
+
+  async findBySlug(slug: string, tenantId: string) {
+    const property = await this.prisma.property.findFirst({
+      where: { slug, tenant_id: tenantId },
+      select: PROPERTY_DETAIL_SELECT,
+    });
+
+    if (!property) {
+      throw new NotFoundException('Property no encontrada');
+    }
+
+    return property;
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────

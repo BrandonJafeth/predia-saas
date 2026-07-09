@@ -219,6 +219,7 @@ model Property {
   category       Category       @relation(fields: [category_id], references: [id])
   agent          User?          @relation(fields: [agent_id], references: [id])
   leads          Lead[]
+  images         PropertyImage[]
 
   @@unique([tenant_id, slug])
   @@index([tenant_id])
@@ -228,6 +229,21 @@ model Property {
   @@index([tenant_id, created_at])
   @@index([attributes], type: Gin)
   @@map("properties")
+}
+
+model PropertyImage {
+  id          String   @id @default(uuid())
+  property_id String
+  tenant_id   String
+  url         String
+  position    Int
+  is_cover    Boolean  @default(false)
+  created_at  DateTime @default(now())
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+
+  @@index([property_id, position])
+  @@index([tenant_id])
+  @@map("property_images")
 }
 
 model Lead {
