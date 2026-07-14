@@ -1,0 +1,75 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PropertyCard from '../../components/PropertyCard.astro';
+import CTABanner from '../../components/CTABanner.astro';
+import { getAllProperties } from '../../lib/properties';
+import { categories } from '../../data/categories.mock';
+import type { Property } from '../../lib/types/property';
+
+const url = Astro.url;
+const operacionParam = url.searchParams.get('operacion');
+const categoriaParam = url.searchParams.get('categoria');
+
+const operationMap: Record<string, Property['operation_type']> = { venta: 'sale', alquiler: 'rent' };
+
+const properties = await getAllProperties({
+  operationType: operacionParam ? operationMap[operacionParam] : undefined,
+  categorySlug: categoriaParam ?? undefined,
+});
+
+const filters = [
+  { label: 'Todas', href: '/propiedades', active: !operacionParam && !categoriaParam },
+  { label: 'Venta', href: '/propiedades?operacion=venta', active: operacionParam === 'venta' },
+  { label: 'Alquiler', href: '/propiedades?operacion=alquiler', active: operacionParam === 'alquiler' },
+  ...categories.map((c) => ({
+    label: c.name,
+    href: `/propiedades?categoria=${c.slug}`,
+    active: categoriaParam === c.slug,
+  })),
+];
+---
+
+<Layout title="Propiedades en venta y alquiler" description="Explorá propiedades y vehículos de alto valor en Costa Rica, publicados por la agencia responsable de cada listado.">
+	<section class="mx-auto max-w-6xl px-6 pb-10 pt-16 md:px-10 md:pt-20">
+		<p class="eyebrow">Catálogo</p>
+		<h1 class="mt-3 text-4xl font-semibold tracking-[-0.02em] text-ink md:text-5xl">Propiedades disponibles</h1>
+		<p class="mt-4 max-w-md text-[0.95rem] leading-relaxed text-muted-dark">
+			Filtrá por ubicación, operación y presupuesto.
+		</p>
+
+		<div class="mt-9 flex flex-wrap gap-2.5">
+			{filters.map((f) => (
+				<a
+					href={f.href}
+					class:list={[
+						'rounded-full border px-4 py-2 text-[0.82rem] font-medium transition-colors',
+						f.active ? 'border-ink bg-ink text-bg' : 'border-border text-muted-dark hover:border-ink hover:text-ink',
+					]}
+				>
+					{f.label}
+				</a>
+			))}
+		</div>
+	</section>
+
+	<section class="mx-auto max-w-6xl px-6 pb-24 md:px-10">
+		{properties.length > 0 ? (
+			<div class="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
+				{properties.map((p) => <PropertyCard property={p} />)}
+			</div>
+		) : (
+			<div class="rounded-xl border border-dashed border-border py-24 text-center">
+				<p class="text-2xl font-semibold tracking-[-0.01em] text-ink">Sin resultados para este filtro</p>
+				<a href="/propiedades" class="mt-3 inline-block text-sm text-muted-dark underline underline-offset-4">Ver todas las propiedades</a>
+			</div>
+		)}
+	</section>
+
+	<CTABanner
+		eyebrow="¿Sos agencia?"
+		heading="Publicá tu inventario en Predia"
+		subtext="Sumate al portal compartido y llegá a más compradores."
+		ctaLabel="Conocer planes"
+		ctaHref="/para-agencias"
+	/>
+</Layout>
