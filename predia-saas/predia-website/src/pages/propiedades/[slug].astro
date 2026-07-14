@@ -1,0 +1,251 @@
+---
+// Static-generated from the mock for now. Once public-api ships, this becomes a
+// server-rendered route (Astro `output: 'server'` + `Astro.params.slug` fetch) —
+// the template below does not change, only how `property` is obtained.
+import Layout from '../../layouts/Layout.astro';
+import CTABanner from '../../components/CTABanner.astro';
+import { getAllProperties, formatPrice, formatAttributes, getAmenities } from '../../lib/properties';
+import { whatsappLink } from '../../lib/site-config';
+import { amenityIcons, DEFAULT_AMENITY_ICON } from '../../lib/amenity-icons';
+import { attributeIcons, DEFAULT_ATTRIBUTE_ICON } from '../../lib/attribute-icons';
+
+export async function getStaticPaths() {
+  const properties = await getAllProperties();
+  return properties.map((property) => ({ params: { slug: property.slug }, props: { property } }));
+}
+
+const { property } = Astro.props;
+const attributes = formatAttributes(property);
+const amenities = getAmenities(property);
+const images = [...property.images].sort((a, b) => a.position - b.position);
+const operationLabel = { sale: 'Venta', rent: 'Alquiler', lease: 'Arrendamiento' }[property.operation_type];
+const agentName = property.agent ? `${property.agent.first_name} ${property.agent.last_name}` : null;
+const contactMessage = `Hola${agentName ? ` ${agentName}` : ''}, vi "${property.title}" en Predia y quiero más información.`;
+const agentWhatsapp = property.agent?.whatsapp
+  ? `https://wa.me/${property.agent.whatsapp}?text=${encodeURIComponent(contactMessage)}`
+  : whatsappLink(contactMessage);
+---
+
+<Layout title={property.title} description={property.description ?? undefined}>
+	<div class="mx-auto max-w-6xl px-6 pt-8 md:px-10">
+		<a href="/propiedades" class="text-[0.8rem] text-muted transition-colors hover:text-ink">&larr; Volver a propiedades</a>
+	</div>
+
+	<!-- GALLERY -->
+	<section class="mx-auto mt-5 max-w-6xl px-6 md:px-10">
+		<div id="gallery" class="relative aspect-4/3 overflow-hidden rounded-xl bg-ink sm:aspect-16/10 md:aspect-21/9" data-count={images.length}>
+			<div class="carousel-track" id="gallery-track">
+				{images.map((img) => (
+					<div class="carousel-frame">
+						<img src={img.url} alt={property.title} class="h-full w-full cursor-zoom-in object-cover" data-open-lightbox loading="eager" />
+					</div>
+				))}
+			</div>
+
+			<button type="button" class="carousel-btn left-4" data-dir="-1" aria-label="Foto anterior">
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7" /></svg>
+			</button>
+			<button type="button" class="carousel-btn right-4" data-dir="1" aria-label="Foto siguiente">
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg>
+			</button>
+
+			<div class="carousel-counter absolute bottom-4 right-4 rounded-full bg-ink/60 px-3 py-1 text-[0.72rem] text-bg backdrop-blur-sm">
+				<span id="gallery-current">1</span> / {images.length}
+			</div>
+			<span class="absolute left-4 top-4 rounded-full bg-bg/95 px-3.5 py-1.5 text-[0.72rem] font-semibold uppercase tracking-wide text-ink">
+				{operationLabel}
+			</span>
+		</div>
+
+		{images.length > 1 && (
+			<div class="carousel-thumbs mt-3 flex gap-2.5 overflow-x-auto pb-1">
+				{images.map((img, i) => (
+					<button type="button" class="thumb-btn h-16 w-20 shrink-0 overflow-hidden rounded-lg" data-thumb={i} data-active={i === 0 ? 'true' : 'false'} aria-label={`Ver foto ${i + 1}`}>
+						<img src={img.url} alt="" class="h-full w-full object-cover" loading="lazy" />
+					</button>
+				))}
+			</div>
+		)}
+	</section>
+
+	<!-- HEADER: title + price -->
+	<section class="mx-auto mt-10 max-w-6xl px-6 md:px-10">
+		<div class="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+			<div>
+				<h1 class="max-w-xl text-3xl font-semibold leading-tight tracking-[-0.02em] text-ink md:text-4xl">{property.title}</h1>
+				{property.location && <p class="mt-2 text-sm text-muted-dark">{property.location.name}, Costa Rica</p>}
+			</div>
+			<div class="shrink-0 md:text-right">
+				<p class="eyebrow">{operationLabel}</p>
+				<p class="mt-1 text-3xl font-semibold tracking-[-0.02em] text-ink md:text-4xl">{formatPrice(property)}</p>
+			</div>
+		</div>
+	</section>
+
+	<div class="mx-auto grid max-w-6xl gap-16 px-6 py-12 md:grid-cols-[1.6fr_1fr] md:px-10">
+		<div>
+			{attributes.length > 0 && (
+				<div>
+					<p class="eyebrow">Detalles</p>
+					<div class="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+						{attributes.map((a) => (
+							<div class="flex items-center gap-3 border-b border-border/70 py-2.5">
+								<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
+									<path d={attributeIcons[a.key] ?? DEFAULT_ATTRIBUTE_ICON} />
+								</svg>
+								<span class="text-sm text-muted-dark">{a.label}</span>
+								<span class="ml-auto text-sm font-medium text-ink">{a.value}</span>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+
+			{property.description && (
+				<div class="mt-12">
+					<p class="eyebrow">Descripción</p>
+					<p class="mt-4 whitespace-pre-line text-[1.02rem] leading-relaxed text-muted-dark">{property.description}</p>
+				</div>
+			)}
+
+			{amenities.length > 0 && (
+				<div class="mt-12">
+					<p class="eyebrow">Amenidades</p>
+					<div class="mt-5 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
+						{amenities.map((a) => (
+							<div class="flex items-center gap-3">
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C2028" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
+									<path d={amenityIcons[a.key] ?? DEFAULT_AMENITY_ICON} />
+								</svg>
+								<span class="text-sm text-ink">{a.label}</span>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+		</div>
+
+		<aside class="h-fit rounded-xl border border-border bg-surface p-7 shadow-soft md:sticky md:top-24">
+			<p class="eyebrow">Agente responsable</p>
+			<p class="mt-3 text-xl font-semibold tracking-[-0.01em] text-ink">{agentName ?? 'Predia'}</p>
+			{property.agent && <p class="mt-1 text-sm text-muted-dark">{property.agent.email}</p>}
+
+			{agentWhatsapp ? (
+				<a href={agentWhatsapp} target="_blank" rel="noopener" class="sweep mt-6 flex items-center justify-center rounded-lg bg-ink px-6 py-3.5 text-sm font-medium text-bg">
+					<span>Contactar al agente</span>
+				</a>
+			) : (
+				<a href="/contacto" class="sweep mt-6 flex items-center justify-center rounded-lg bg-ink px-6 py-3.5 text-sm font-medium text-bg">
+					<span>Contactar por este anuncio</span>
+				</a>
+			)}
+			<p class="mt-3 text-center text-xs text-muted">Respuesta directa, sin intermediarios.</p>
+		</aside>
+	</div>
+
+	<CTABanner
+		eyebrow="¿Sos agencia?"
+		heading="Publicá tu inventario en Predia"
+		subtext="Sumate al portal compartido y llegá a más compradores."
+		ctaLabel="Conocer planes"
+		ctaHref="/para-agencias"
+	/>
+
+	<!-- LIGHTBOX -->
+	<div id="lightbox" class="fixed inset-0 z-50 hidden bg-ink/97 backdrop-blur-sm">
+		<button type="button" id="lightbox-close" class="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-full bg-bg/10 text-bg hover:bg-bg/20" aria-label="Cerrar">
+			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+		</button>
+		<div class="relative flex h-full items-center justify-center px-4 md:px-20">
+			<div class="carousel-track h-[78vh] w-full" id="lightbox-track">
+				{images.map((img) => (
+					<div class="carousel-frame flex items-center justify-center">
+						<img src={img.url} alt={property.title} class="max-h-full max-w-full rounded-lg object-contain" />
+					</div>
+				))}
+			</div>
+			{images.length > 1 && (
+				<>
+					<button type="button" class="carousel-btn left-2 md:left-6" data-lightbox-dir="-1" aria-label="Foto anterior">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7" /></svg>
+					</button>
+					<button type="button" class="carousel-btn right-2 md:right-6" data-lightbox-dir="1" aria-label="Foto siguiente">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg>
+					</button>
+				</>
+			)}
+			<div class="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-bg/10 px-3 py-1 text-[0.72rem] text-bg">
+				<span id="lightbox-current">1</span> / {images.length}
+			</div>
+		</div>
+	</div>
+
+	<script>
+		const count = Number(document.getElementById('gallery')?.dataset.count ?? '0');
+		let index = 0;
+
+		const mainTrack = document.getElementById('gallery-track') as HTMLElement | null;
+		const lightboxTrack = document.getElementById('lightbox-track') as HTMLElement | null;
+		const currentLabel = document.getElementById('gallery-current');
+		const lightboxLabel = document.getElementById('lightbox-current');
+		const thumbs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-thumb]'));
+		const lightbox = document.getElementById('lightbox');
+
+		function render() {
+			const offset = `translateX(-${index * 100}%)`;
+			if (mainTrack) mainTrack.style.transform = offset;
+			if (lightboxTrack) lightboxTrack.style.transform = offset;
+			if (currentLabel) currentLabel.textContent = String(index + 1);
+			if (lightboxLabel) lightboxLabel.textContent = String(index + 1);
+			thumbs.forEach((t, i) => t.dataset.active = i === index ? 'true' : 'false');
+		}
+
+		function go(delta: number) {
+			if (count === 0) return;
+			index = (index + delta + count) % count;
+			render();
+		}
+
+		document.querySelectorAll<HTMLButtonElement>('[data-dir]').forEach((btn) => {
+			btn.addEventListener('click', () => go(Number(btn.dataset.dir)));
+		});
+		document.querySelectorAll<HTMLButtonElement>('[data-lightbox-dir]').forEach((btn) => {
+			btn.addEventListener('click', () => go(Number(btn.dataset.lightboxDir)));
+		});
+		thumbs.forEach((btn) => {
+			btn.addEventListener('click', () => {
+				index = Number(btn.dataset.thumb);
+				render();
+			});
+		});
+
+		function openLightbox() {
+			lightbox?.classList.remove('hidden');
+			document.body.style.overflow = 'hidden';
+		}
+		function closeLightbox() {
+			lightbox?.classList.add('hidden');
+			document.body.style.overflow = '';
+		}
+		document.querySelectorAll('[data-open-lightbox]').forEach((img) => img.addEventListener('click', openLightbox));
+		document.getElementById('lightbox-close')?.addEventListener('click', closeLightbox);
+		lightbox?.addEventListener('click', (e) => {
+			if (e.target === lightbox) closeLightbox();
+		});
+
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') closeLightbox();
+			if (e.key === 'ArrowLeft') go(-1);
+			if (e.key === 'ArrowRight') go(1);
+		});
+
+		// Touch swipe for the main gallery frame.
+		const galleryEl = document.getElementById('gallery');
+		let touchStartX = 0;
+		galleryEl?.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
+		galleryEl?.addEventListener('touchend', (e) => {
+			const delta = e.changedTouches[0].clientX - touchStartX;
+			if (Math.abs(delta) > 40) go(delta < 0 ? 1 : -1);
+		}, { passive: true });
+	</script>
+</Layout>

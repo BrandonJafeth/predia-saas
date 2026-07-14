@@ -1,0 +1,83 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { site } from '../lib/site-config';
+---
+
+<Layout title="Contacto" description="Escribinos si tenés dudas sobre Predia, sobre una propiedad publicada o querés sumar tu agencia.">
+	<section class="mx-auto grid max-w-6xl gap-16 px-6 py-24 md:grid-cols-[1fr_1.2fr] md:px-10">
+		<div data-reveal>
+			<p class="eyebrow">Hablemos</p>
+			<h1 class="mt-4 text-4xl font-semibold leading-tight tracking-[-0.02em] text-ink md:text-5xl">
+				Escribinos por el medio que prefieras
+			</h1>
+
+			<ul class="mt-10 space-y-6 text-sm">
+				<li>
+					<p class="text-xs uppercase tracking-wide text-muted">Teléfono</p>
+					<p class="mt-1 text-ink">{site.contact.phone ?? 'Pendiente confirmar'}</p>
+				</li>
+				<li>
+					<p class="text-xs uppercase tracking-wide text-muted">Email</p>
+					<p class="mt-1 text-ink">{site.contact.email ?? 'Pendiente confirmar'}</p>
+				</li>
+				<li>
+					<p class="text-xs uppercase tracking-wide text-muted">Redes</p>
+					<p class="mt-1 text-ink">
+						{site.social.instagram || site.social.facebook
+							? [site.social.instagram, site.social.facebook].filter(Boolean).join(' · ')
+							: 'Pendiente confirmar'}
+					</p>
+				</li>
+			</ul>
+		</div>
+
+		<form id="contacto-form" data-reveal style="transition-delay:90ms" class="space-y-5 rounded-xl border border-border bg-surface p-8 shadow-soft">
+			<div class="grid gap-5 sm:grid-cols-2">
+				<div>
+					<label for="nombre" class="text-xs font-medium text-muted-dark">Nombre</label>
+					<input id="nombre" name="nombre" required class="mt-1.5 w-full rounded-lg border border-border bg-bg px-4 py-2.5 text-sm text-ink outline-none focus:border-ink" />
+				</div>
+				<div>
+					<label for="email" class="text-xs font-medium text-muted-dark">Email</label>
+					<input id="email" name="email" type="email" required class="mt-1.5 w-full rounded-lg border border-border bg-bg px-4 py-2.5 text-sm text-ink outline-none focus:border-ink" />
+				</div>
+				<div>
+					<label for="telefono" class="text-xs font-medium text-muted-dark">Teléfono</label>
+					<input id="telefono" name="telefono" class="mt-1.5 w-full rounded-lg border border-border bg-bg px-4 py-2.5 text-sm text-ink outline-none focus:border-ink" />
+				</div>
+				<div>
+					<label for="motivo" class="text-xs font-medium text-muted-dark">Motivo</label>
+					<select id="motivo" name="motivo" class="mt-1.5 w-full rounded-lg border border-border bg-bg px-4 py-2.5 text-sm text-ink outline-none focus:border-ink">
+						<option>Busco propiedad</option>
+						<option>Quiero publicar mi agencia</option>
+						<option>Otro</option>
+					</select>
+				</div>
+			</div>
+			<div>
+				<label for="mensaje" class="text-xs font-medium text-muted-dark">Mensaje</label>
+				<textarea id="mensaje" name="mensaje" rows="4" required class="mt-1.5 w-full rounded-lg border border-border bg-bg px-4 py-2.5 text-sm text-ink outline-none focus:border-ink"></textarea>
+			</div>
+
+			<button type="submit" class="sweep w-full rounded-lg bg-ink px-6 py-3.5 text-sm font-medium text-bg">
+				<span>Enviar mensaje</span>
+			</button>
+			<p id="contacto-status" class="hidden text-center text-sm text-muted-dark" role="status"></p>
+		</form>
+	</section>
+
+	<script>
+		// TODO: envío real pendiente — debe ir a POST /public/leads en predia-api
+		// (módulo public-api, roadmap Fase 5). Por ahora simula el envío en cliente.
+		const form = document.getElementById('contacto-form') as HTMLFormElement | null;
+		const status = document.getElementById('contacto-status');
+		form?.addEventListener('submit', (e) => {
+			e.preventDefault();
+			form.reset();
+			if (status) {
+				status.textContent = 'Gracias, te vamos a contactar en menos de 24 horas.';
+				status.classList.remove('hidden');
+			}
+		});
+	</script>
+</Layout>

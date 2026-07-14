@@ -1,11 +1,164 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
+import PropertyCard from '../components/PropertyCard.astro';
+import CTABanner from '../components/CTABanner.astro';
+import { getAllProperties } from '../lib/properties';
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const all = await getAllProperties();
+const featured = all.slice(0, 3);
+const heroImage = featured[0]?.images.find((img) => img.is_cover)?.url ?? featured[0]?.images[0]?.url;
+
+const categoryTiles = [
+  {
+    label: 'Bienes Raíces',
+    text: 'Casas, apartamentos, lotes y locales, publicados por la agencia responsable de cada uno.',
+    href: '/propiedades?categoria=bienes-raices',
+    image: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?w=1200&q=80&auto=format&fit=crop',
+  },
+  {
+    label: 'Vehículos',
+    text: 'Autos, SUVs y motos de alto valor, con kilometraje e historial claros.',
+    href: '/propiedades?categoria=vehiculos',
+    image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=1200&q=80&auto=format&fit=crop',
+  },
+];
+
+const steps = [
+  { n: '01', title: 'Explorá', text: 'Filtrá por ubicación, tipo de propiedad y presupuesto entre los listados disponibles.' },
+  { n: '02', title: 'Contactá', text: 'Escribile directo al agente responsable, sin intermediarios ni comisiones ocultas.' },
+  { n: '03', title: 'Cerrá el trato', text: 'Coordiná la visita y avanzá el proceso con la inmobiliaria a cargo.' },
+];
 ---
 
-<Layout>
-	<Welcome />
+<Layout title="Predia" description="Encontrá tu próxima propiedad o vehículo en Costa Rica y contactá directo al agente responsable, sin intermediarios.">
+	<!-- HERO -->
+	<section class="relative flex min-h-[80dvh] items-end overflow-hidden">
+		{heroImage && <img src={heroImage} alt="" class="absolute inset-0 h-full w-full object-cover" />}
+		<div class="absolute inset-0 bg-linear-to-t from-ink via-ink/55 to-ink/10"></div>
+
+		<div class="relative mx-auto w-full max-w-6xl px-6 pb-16 pt-32 md:px-10 md:pb-20">
+			<h1 class="max-w-2xl text-[2.75rem] font-semibold leading-[1.03] tracking-[-0.03em] text-bg md:text-[4rem]">
+				Bienes que valen<br />la pena encontrar
+			</h1>
+
+			<p class="mt-6 max-w-md text-[1.05rem] leading-relaxed text-bg/80">
+				Propiedades y vehículos de inmobiliarias y agencias de Costa Rica, en un solo lugar.
+			</p>
+
+			<div class="mt-9 flex flex-wrap items-center gap-4">
+				<a href="/propiedades" class="sweep rounded-lg bg-bg px-6 py-3.5 text-sm font-medium text-ink shadow-soft">
+					<span>Ver propiedades</span>
+				</a>
+				<a href="/para-agencias" class="text-sm font-medium text-bg underline decoration-bg/40 underline-offset-4 hover:decoration-bg">
+					Soy una agencia
+				</a>
+			</div>
+		</div>
+	</section>
+
+	<!-- DESTACADAS: lo primero que la gente busca -->
+	<section class="mx-auto max-w-6xl px-6 py-16 md:px-10">
+		<div data-reveal class="flex items-end justify-between gap-6">
+			<div>
+				<p class="eyebrow">Catálogo</p>
+				<h2 class="mt-3 text-3xl font-semibold tracking-[-0.02em] text-ink md:text-4xl">Propiedades destacadas</h2>
+			</div>
+			<a href="/propiedades" class="hidden shrink-0 text-sm font-medium text-ink underline decoration-border underline-offset-4 hover:decoration-ink md:inline-block">
+				Ver todas &rarr;
+			</a>
+		</div>
+
+		<div class="mt-12 grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
+			{featured.map((p, i) => (
+				<div data-reveal style={`transition-delay:${i * 90}ms`}>
+					<PropertyCard property={p} />
+				</div>
+			))}
+		</div>
+	</section>
+
+	<!-- CATEGORIAS -->
+	<section class="mx-auto max-w-6xl px-6 pb-4 pt-8 md:px-10">
+		<div class="grid gap-5 sm:grid-cols-2">
+			{categoryTiles.map((c, i) => (
+				<a
+					href={c.href}
+					data-reveal
+					style={`transition-delay:${i * 90}ms`}
+					class="group relative flex aspect-[5/3] flex-col justify-end overflow-hidden rounded-xl"
+				>
+					<img src={c.image} alt="" class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" loading="lazy" />
+					<div class="absolute inset-0 bg-linear-to-t from-ink/85 via-ink/20 to-transparent"></div>
+					<div class="relative p-6">
+						<h2 class="text-2xl font-semibold tracking-[-0.01em] text-bg">{c.label}</h2>
+						<p class="mt-1.5 max-w-xs text-[0.85rem] leading-relaxed text-bg/75">{c.text}</p>
+						<span class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-bg">
+							Explorar
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform group-hover:translate-x-0.5"><path d="m9 6 6 6-6 6" /></svg>
+						</span>
+					</div>
+				</a>
+			))}
+		</div>
+	</section>
+
+	<!-- COMO FUNCIONA -->
+	<section class="mx-auto max-w-6xl px-6 py-24 md:px-10">
+		<h2 data-reveal class="max-w-lg text-3xl font-semibold tracking-[-0.02em] text-ink md:text-4xl">
+			Tres pasos entre vos y tu próxima propiedad
+		</h2>
+
+		<div class="mt-14 grid gap-10 md:grid-cols-3">
+			{steps.map((s, i) => (
+				<div data-reveal style={`transition-delay:${i * 90}ms`} class:list={['relative', i > 0 && 'md:border-l md:border-border md:pl-10']}>
+					<span class="text-5xl font-semibold tracking-[-0.03em] text-border">{s.n}</span>
+					<h3 class="mt-4 text-lg font-semibold text-ink">{s.title}</h3>
+					<p class="mt-2 text-[0.92rem] leading-relaxed text-muted-dark">{s.text}</p>
+				</div>
+			))}
+		</div>
+	</section>
+
+	<!-- FEATURES ALTERNADAS -->
+	<section class="mx-auto max-w-6xl space-y-24 px-6 py-4 md:px-10">
+		<div data-reveal class="grid gap-12 md:grid-cols-2 md:items-center">
+			<div>
+				<h3 class="text-3xl font-semibold tracking-[-0.02em] text-ink md:text-4xl">Todo en un solo portal</h3>
+				<p class="mt-5 max-w-md text-[0.95rem] leading-relaxed text-muted-dark">
+					Propiedades y vehículos de múltiples inmobiliarias, con la misma calidad de información y
+					contacto directo con cada agente.
+				</p>
+				<a href="/propiedades" class="mt-7 inline-block text-sm font-medium text-ink underline decoration-border underline-offset-4 hover:decoration-ink">
+					Ver propiedades &rarr;
+				</a>
+			</div>
+			<div class="relative aspect-4/3 overflow-hidden rounded-xl bg-secondary">
+				<img src="https://images.unsplash.com/photo-1556155092-490a1ba16284?w=1200&q=80&auto=format&fit=crop" alt="" class="h-full w-full object-cover" loading="lazy" />
+			</div>
+		</div>
+
+		<div data-reveal class="grid gap-12 md:grid-cols-2 md:items-center">
+			<div class="relative order-2 aspect-4/3 overflow-hidden rounded-xl bg-secondary md:order-1">
+				<img src="https://images.unsplash.com/photo-1554469384-e58fac16e23a?w=1200&q=80&auto=format&fit=crop" alt="" class="h-full w-full object-cover" loading="lazy" />
+			</div>
+			<div class="order-1 md:order-2">
+				<h3 class="text-3xl font-semibold tracking-[-0.02em] text-ink md:text-4xl">Tu inventario, más visible</h3>
+				<p class="mt-5 max-w-md text-[0.95rem] leading-relaxed text-muted-dark">
+					Sumá tu agencia al portal compartido de Predia y llegá a compradores que ya están buscando
+					en tu categoría.
+				</p>
+				<a href="/para-agencias" class="mt-7 inline-block text-sm font-medium text-ink underline decoration-border underline-offset-4 hover:decoration-ink">
+					Conocer planes &rarr;
+				</a>
+			</div>
+		</div>
+	</section>
+
+	<CTABanner
+		eyebrow="Listo para empezar"
+		heading="Encontrá tu próxima propiedad"
+		subtext="Explorá el catálogo completo de propiedades y vehículos en Predia."
+		ctaLabel="Ver propiedades"
+		ctaHref="/propiedades"
+	/>
 </Layout>

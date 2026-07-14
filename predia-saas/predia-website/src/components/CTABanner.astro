@@ -1,0 +1,24 @@
+---
+interface Props {
+  eyebrow: string;
+  heading: string;
+  subtext: string;
+  ctaLabel: string;
+  ctaHref: string;
+}
+const { eyebrow, heading, subtext, ctaLabel, ctaHref } = Astro.props;
+---
+
+<section class="bg-ink">
+	<div class="mx-auto max-w-4xl px-6 py-24 text-center md:px-10">
+		<p class="eyebrow text-bg/55!">{eyebrow}</p>
+		<h2 class="mt-4 text-4xl font-semibold leading-[1.1] tracking-[-0.02em] text-bg md:text-5xl">{heading}</h2>
+		<p class="mx-auto mt-5 max-w-md text-[0.95rem] leading-relaxed text-bg/70">{subtext}</p>
+		<a
+			href={ctaHref}
+			class="sweep mt-9 inline-flex rounded-lg bg-bg px-7 py-3.5 text-sm font-medium text-ink shadow-soft"
+		>
+			<span>{ctaLabel}</span>
+		</a>
+	</div>
+</section>
