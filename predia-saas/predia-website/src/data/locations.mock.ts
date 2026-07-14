@@ -18,3 +18,30 @@ export const locations: PropertyLocation[] = [
 export function getLocationById(id: string): PropertyLocation | undefined {
   return locations.find((l) => l.id === id);
 }
+
+// Properties are tagged at province, canton, OR district level depending on how
+// precisely the agency filled it in — walk the parent_id chain and bucket each
+// ancestor by type so a cascading provincia/cantón/distrito filter has real IDs
+// to compare against, whichever level the property actually specifies.
+export interface LocationChain {
+  provinceId: string | null;
+  cantonId: string | null;
+  districtId: string | null;
+}
+
+export function resolveLocationChain(locationId: string | null): LocationChain {
+  const chain: LocationChain = { provinceId: null, cantonId: null, districtId: null };
+  let current = locationId ? getLocationById(locationId) : undefined;
+  while (current) {
+    if (current.type === 'district') chain.districtId = current.id;
+    else if (current.type === 'canton') chain.cantonId = current.id;
+    else if (current.type === 'province') chain.provinceId = current.id;
+    current = current.parent_id ? getLocationById(current.parent_id) : undefined;
+  }
+  return chain;
+}
+
+export function getProvinceFor(locationId: string | null): PropertyLocation | null {
+  const { provinceId } = resolveLocationChain(locationId);
+  return provinceId ? (getLocationById(provinceId) ?? null) : null;
+}
