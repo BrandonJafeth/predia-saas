@@ -4,28 +4,19 @@ import PropertyCard from '../../components/PropertyCard.astro';
 import CTABanner from '../../components/CTABanner.astro';
 import { getAllProperties } from '../../lib/properties';
 import { categories } from '../../data/categories.mock';
-import type { Property } from '../../lib/types/property';
 
-const url = Astro.url;
-const operacionParam = url.searchParams.get('operacion');
-const categoriaParam = url.searchParams.get('categoria');
-
-const operationMap: Record<string, Property['operation_type']> = { venta: 'sale', alquiler: 'rent' };
-
-const properties = await getAllProperties({
-  operationType: operacionParam ? operationMap[operacionParam] : undefined,
-  categorySlug: categoriaParam ?? undefined,
-});
+// Static site (output: "static") — the same HTML is served regardless of query
+// string, so filtering can't happen at request time like on a server-rendered
+// page. Render every property once, tag it with data-operation/data-category,
+// and filter in the client script below by reading location.search on load
+// and on every filter click (intercepted, no full navigation).
+const properties = await getAllProperties();
 
 const filters = [
-  { label: 'Todas', href: '/propiedades', active: !operacionParam && !categoriaParam },
-  { label: 'Venta', href: '/propiedades?operacion=venta', active: operacionParam === 'venta' },
-  { label: 'Alquiler', href: '/propiedades?operacion=alquiler', active: operacionParam === 'alquiler' },
-  ...categories.map((c) => ({
-    label: c.name,
-    href: `/propiedades?categoria=${c.slug}`,
-    active: categoriaParam === c.slug,
-  })),
+  { label: 'Todas', operacion: '', categoria: '' },
+  { label: 'Venta', operacion: 'venta', categoria: '' },
+  { label: 'Alquiler', operacion: 'alquiler', categoria: '' },
+  ...categories.map((c) => ({ label: c.name, operacion: '', categoria: c.slug })),
 ];
 ---
 
@@ -37,14 +28,13 @@ const filters = [
 			Filtrá por ubicación, operación y presupuesto.
 		</p>
 
-		<div class="mt-9 flex flex-wrap gap-2.5">
+		<div class="mt-9 flex flex-wrap gap-2.5" id="filter-chips">
 			{filters.map((f) => (
 				<a
-					href={f.href}
-					class:list={[
-						'rounded-full border px-4 py-2 text-[0.82rem] font-medium transition-colors',
-						f.active ? 'border-ink bg-ink text-bg' : 'border-border text-muted-dark hover:border-ink hover:text-ink',
-					]}
+					href={`/propiedades${f.operacion || f.categoria ? '?' : ''}${f.operacion ? `operacion=${f.operacion}` : ''}${f.operacion && f.categoria ? '&' : ''}${f.categoria ? `categoria=${f.categoria}` : ''}`}
+					data-operacion={f.operacion}
+					data-categoria={f.categoria}
+					class="filter-chip rounded-full border border-border px-4 py-2 text-[0.82rem] font-medium text-muted-dark transition-colors hover:border-ink hover:text-ink"
 				>
 					{f.label}
 				</a>
@@ -53,16 +43,18 @@ const filters = [
 	</section>
 
 	<section class="mx-auto max-w-6xl px-6 pb-24 md:px-10">
-		{properties.length > 0 ? (
-			<div class="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
-				{properties.map((p) => <PropertyCard property={p} />)}
-			</div>
-		) : (
-			<div class="rounded-xl border border-dashed border-border py-24 text-center">
-				<p class="text-2xl font-semibold tracking-[-0.01em] text-ink">Sin resultados para este filtro</p>
-				<a href="/propiedades" class="mt-3 inline-block text-sm text-muted-dark underline underline-offset-4">Ver todas las propiedades</a>
-			</div>
-		)}
+		<div class="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3" id="property-grid">
+			{properties.map((p) => (
+				<div class="property-item" data-operation={p.operation_type} data-category={p.category.slug}>
+					<PropertyCard property={p} />
+				</div>
+			))}
+		</div>
+
+		<div id="empty-state" class="hidden rounded-xl border border-dashed border-border py-24 text-center">
+			<p class="text-2xl font-semibold tracking-[-0.01em] text-ink">Sin resultados para este filtro</p>
+			<a href="/propiedades" id="reset-filters" class="mt-3 inline-block text-sm text-muted-dark underline underline-offset-4">Ver todas las propiedades</a>
+		</div>
 	</section>
 
 	<CTABanner
@@ -72,4 +64,67 @@ const filters = [
 		ctaLabel="Conocer planes"
 		ctaHref="/para-agencias"
 	/>
+
+	<script>
+		const OPERATION_MAP: Record<string, string> = { venta: 'sale', alquiler: 'rent' };
+
+		const chips = Array.from(document.querySelectorAll<HTMLAnchorElement>('.filter-chip'));
+		const items = Array.from(document.querySelectorAll<HTMLElement>('.property-item'));
+		const grid = document.getElementById('property-grid');
+		const emptyState = document.getElementById('empty-state');
+
+		function styleChip(chip: HTMLAnchorElement, active: boolean) {
+			chip.classList.toggle('border-ink', active);
+			chip.classList.toggle('bg-ink', active);
+			chip.classList.toggle('text-bg', active);
+			chip.classList.toggle('border-border', !active);
+			chip.classList.toggle('text-muted-dark', !active);
+		}
+
+		function apply() {
+			const params = new URLSearchParams(location.search);
+			const operacion = params.get('operacion') ?? '';
+			const categoria = params.get('categoria') ?? '';
+			const operationValue = operacion ? OPERATION_MAP[operacion] : '';
+
+			let visible = 0;
+			for (const item of items) {
+				const matchesOp = !operationValue || item.dataset.operation === operationValue;
+				const matchesCat = !categoria || item.dataset.category === categoria;
+				const show = matchesOp && matchesCat;
+				item.style.display = show ? '' : 'none';
+				if (show) visible++;
+			}
+
+			grid?.classList.toggle('hidden', visible === 0);
+			emptyState?.classList.toggle('hidden', visible > 0);
+
+			for (const chip of chips) {
+				const chipOp = chip.dataset.operacion ?? '';
+				const chipCat = chip.dataset.categoria ?? '';
+				styleChip(chip, chipOp === operacion && chipCat === categoria);
+			}
+		}
+
+		for (const chip of chips) {
+			chip.addEventListener('click', (e) => {
+				if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let modifier-clicks open normally
+				e.preventDefault();
+				const href = chip.getAttribute('href') ?? '/propiedades';
+				history.pushState(null, '', href);
+				apply();
+				window.scrollTo({ top: grid?.getBoundingClientRect().top ? window.scrollY + grid.getBoundingClientRect().top - 96 : 0, behavior: 'smooth' });
+			});
+		}
+
+		document.getElementById('reset-filters')?.addEventListener('click', (e) => {
+			e.preventDefault();
+			history.pushState(null, '', '/propiedades');
+			apply();
+		});
+
+		window.addEventListener('popstate', apply);
+
+		apply();
+	</script>
 </Layout>
