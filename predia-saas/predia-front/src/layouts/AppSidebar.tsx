@@ -92,7 +92,7 @@ function NavGroup({
 }
 
 function AppSidebar() {
-  const { isMobile, toggleSidebar } = useSidebar()
+  const { toggleSidebar } = useSidebar()
   const { location } = useRouterState()
   const role = tokenStorage.decodeAccessToken()?.role
   const isSuperAdmin = role === 'super_admin'
