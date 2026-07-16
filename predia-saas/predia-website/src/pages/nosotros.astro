@@ -1,0 +1,78 @@
+---
+import Layout from '../layouts/Layout.astro';
+import CTABanner from '../components/CTABanner.astro';
+
+const checks = [
+  { title: 'Historial auditado', text: 'Cada cambio a una propiedad (precio, estado, fotos) queda registrado, para que la información se mantenga confiable.' },
+  { title: 'Un agente, un contacto', text: 'Cada listado muestra quién responde, sin formularios genéricos ni buzones compartidos.' },
+  { title: 'Datos aislados por agencia', text: 'El inventario y los clientes potenciales de cada inmobiliaria son privados entre sí.' },
+];
+---
+
+<Layout title="Sobre Predia" description="Conocé la misión de Predia: conectar personas y agencias con propiedades y vehículos de alto valor en Costa Rica.">
+	<section class="overflow-hidden">
+		<div class="mx-auto grid max-w-6xl gap-16 px-6 pb-16 pt-16 md:grid-cols-2 md:items-center md:px-10 md:pt-24">
+			<div>
+				<p class="eyebrow">Nuestra historia</p>
+				<h1 class="mt-4 text-4xl font-semibold leading-tight tracking-[-0.02em] text-ink md:text-5xl">
+					Un portal pensado para Costa Rica
+				</h1>
+				<p class="mt-6 max-w-md text-[1.02rem] leading-relaxed text-muted-dark">
+					Nacimos para simplificar cómo se buscan y publican bienes de alto valor en el mercado
+					costarricense.
+				</p>
+			</div>
+			<div class="relative aspect-4/3 overflow-hidden rounded-xl bg-secondary">
+				<img src="https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=1200&q=80&auto=format&fit=crop" alt="" class="h-full w-full object-cover" loading="lazy" />
+			</div>
+		</div>
+	</section>
+
+	<!-- COMO VERIFICAMOS -->
+	<section class="mx-auto max-w-6xl px-6 md:px-10">
+		<div class="grid gap-8 border-y border-border py-10 sm:grid-cols-3">
+			{checks.map((c, i) => (
+				<div data-reveal style={`transition-delay:${i * 90}ms`} class:list={['sm:pl-8', i > 0 && 'sm:border-l sm:border-border']}>
+					<p class="text-sm font-medium text-ink">{c.title}</p>
+					<p class="mt-1.5 text-[0.85rem] leading-relaxed text-muted-dark">{c.text}</p>
+				</div>
+			))}
+		</div>
+	</section>
+
+	<section class="mx-auto max-w-6xl space-y-24 px-6 py-24 md:px-10">
+		<div data-reveal class="grid gap-12 md:grid-cols-2 md:items-center">
+			<div class="relative order-2 aspect-4/3 overflow-hidden rounded-xl bg-secondary md:order-1">
+				<img src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=1200&q=80&auto=format&fit=crop" alt="" class="h-full w-full object-cover" loading="lazy" />
+			</div>
+			<div class="order-1 md:order-2">
+				<h2 class="text-3xl font-semibold tracking-[-0.02em] text-ink md:text-4xl">Confianza antes que volumen</h2>
+				<p class="mt-5 max-w-md text-[0.95rem] leading-relaxed text-muted-dark">
+					Cada inmobiliaria administra su propio inventario de forma aislada, y cada cambio queda
+					registrado, para que la información en Predia sea real y actualizada.
+				</p>
+			</div>
+		</div>
+
+		<div data-reveal class="grid gap-12 md:grid-cols-2 md:items-center">
+			<div>
+				<h2 class="text-3xl font-semibold tracking-[-0.02em] text-ink md:text-4xl">Un motor, múltiples verticales</h2>
+				<p class="mt-5 max-w-md text-[0.95rem] leading-relaxed text-muted-dark">
+					El mismo sistema que hoy lista propiedades está pensado para crecer hacia vehículos y
+					otros bienes de alto valor, sin perder el foco en calidad y confianza.
+				</p>
+			</div>
+			<div class="relative aspect-4/3 overflow-hidden rounded-xl bg-secondary">
+				<img src="https://images.unsplash.com/photo-1494959764136-6be9eb3c261e?w=1200&q=80&auto=format&fit=crop" alt="" class="h-full w-full object-cover" loading="lazy" />
+			</div>
+		</div>
+	</section>
+
+	<CTABanner
+		eyebrow="Sumate"
+		heading="Explorá Predia hoy"
+		subtext="Ya sea que busques o que quieras publicar, empezá acá."
+		ctaLabel="Ver propiedades"
+		ctaHref="/propiedades"
+	/>
+</Layout>

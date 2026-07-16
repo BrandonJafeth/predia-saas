@@ -44,6 +44,7 @@ enum PropertyStatus {
   inactive
   sold
   rented
+  archived
 }
 
 enum CurrencyCode {
@@ -79,17 +80,18 @@ enum LeadActivityType {
 }
 
 model Tenant {
-  id                  String             @id @default(uuid())
-  name                String
-  slug                String             @unique
-  subscription_status SubscriptionStatus @default(trial)
-  created_at          DateTime           @default(now())
-  updated_at          DateTime           @updatedAt
-  users               User[]
-  site                TenantSite?
-  properties          Property[]
-  leads               Lead[]
-  lead_activities     LeadActivity[]
+  id                      String             @id @default(uuid())
+  name                    String
+  slug                    String             @unique
+  subscription_status     SubscriptionStatus @default(trial)
+  max_images_per_property Int                @default(20)
+  created_at              DateTime           @default(now())
+  updated_at              DateTime           @updatedAt
+  users                   User[]
+  site                    TenantSite?
+  properties              Property[]
+  leads                   Lead[]
+  lead_activities         LeadActivity[]
 }
 
 model TenantSite {
@@ -192,41 +194,59 @@ model AuditLog {
 }
 
 model Property {
-  id             String         @id @default(uuid())
+  id             String          @id @default(uuid())
   tenant_id      String
   title          String
   slug           String
   description    String?
-  price          Decimal        @db.Decimal(15, 2)
+  price          Decimal         @db.Decimal(15, 2)
   operation_type OperationType
-  status         PropertyStatus @default(draft)
+  status         PropertyStatus  @default(draft)
   subtype        String?
-  currency       CurrencyCode   @default(CRC)
-  lot_area_m2    Decimal?       @db.Decimal(10, 2)
-  built_area_m2  Decimal?       @db.Decimal(10, 2)
+  currency       CurrencyCode    @default(CRC)
+  lot_area_m2    Decimal?        @db.Decimal(10, 2)
+  built_area_m2  Decimal?        @db.Decimal(10, 2)
   address        String?
-  lat            Decimal?       @db.Decimal(10, 6)
-  lng            Decimal?       @db.Decimal(10, 6)
+  lat            Decimal?        @db.Decimal(10, 6)
+  lng            Decimal?        @db.Decimal(10, 6)
   location_id    String?
   category_id    String
   agent_id       String?
-  attributes     Json           @default("{}")
-  is_published   Boolean        @default(false)
-  created_at     DateTime       @default(now())
-  updated_at     DateTime       @updatedAt
-  tenant         Tenant         @relation(fields: [tenant_id], references: [id])
-  location       Location?      @relation(fields: [location_id], references: [id])
-  category       Category       @relation(fields: [category_id], references: [id])
-  agent          User?          @relation(fields: [agent_id], references: [id])
+  attributes     Json            @default("{}")
+  is_published   Boolean         @default(false)
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+  tenant         Tenant          @relation(fields: [tenant_id], references: [id])
+  location       Location?       @relation(fields: [location_id], references: [id])
+  category       Category        @relation(fields: [category_id], references: [id])
+  agent          User?           @relation(fields: [agent_id], references: [id])
   leads          Lead[]
+  images         PropertyImage[]
 
   @@unique([tenant_id, slug])
   @@index([tenant_id])
   @@index([tenant_id, is_published])
   @@index([tenant_id, price])
   @@index([tenant_id, location_id])
+  @@index([tenant_id, created_at])
   @@index([attributes], type: Gin)
   @@map("properties")
+}
+
+model PropertyImage {
+  id          String   @id @default(uuid())
+  property_id String
+  tenant_id   String
+  url         String
+  public_id   String
+  position    Int
+  is_cover    Boolean  @default(false)
+  created_at  DateTime @default(now())
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+
+  @@index([property_id, position])
+  @@index([tenant_id])
+  @@map("property_images")
 }
 
 model Lead {

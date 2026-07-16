@@ -2,12 +2,15 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { CurrencyCode, OperationType, PropertyStatus } from '@prisma/client';
 import { PageOptionsDto } from '../../../common/dto/page-options.dto';
@@ -16,6 +19,14 @@ export type PropertySortField = 'price' | 'created_at';
 export type SortOrder = 'asc' | 'desc';
 
 export class FindPropertiesDto extends PageOptionsDto {
+  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 20 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  override readonly limit?: number = 20;
+
   @ApiPropertyOptional({ enum: OperationType })
   @IsOptional()
   @IsEnum(OperationType)

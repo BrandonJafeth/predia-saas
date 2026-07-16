@@ -1,0 +1,339 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PropertyCard from '../../components/PropertyCard.astro';
+import CTABanner from '../../components/CTABanner.astro';
+import { getAllProperties } from '../../lib/properties';
+import { categories } from '../../data/categories.mock';
+import { locations, resolveLocationChain, getLocationById } from '../../data/locations.mock';
+
+// Static site (output: "static") — the same HTML is served regardless of query
+// string, so filtering can't happen at request time like on a server-rendered
+// page. Render every property once, tag it with data attributes, and filter in
+// the client script below by reading location.search on load and on every
+// filter interaction (intercepted, no full navigation).
+const properties = await getAllProperties();
+
+const operationFilters = [
+  { label: 'Todas', operacion: '' },
+  { label: 'Venta', operacion: 'venta' },
+  { label: 'Alquiler', operacion: 'alquiler' },
+];
+
+// Only provinces that actually have a property — an empty option is a guaranteed dead end.
+const provinceIds = new Set(properties.map((p) => resolveLocationChain(p.location_id).provinceId).filter(Boolean));
+const provinceOptions = locations
+  .filter((l) => l.type === 'province' && provinceIds.has(l.id))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+// Price only makes sense to compare within the same currency, and only for sale
+// listings — a $1,200/mes rent and a $485,000 sale aren't the same kind of number.
+// Buckets are a UI convention (like any listings site ships), not a claim about
+// the catalog, so round figures are fine here.
+const priceBuckets = [
+  { value: 'USD:0:350000', currency: 'USD', label: 'Hasta $350,000' },
+  { value: 'USD:350000:600000', currency: 'USD', label: '$350,000 - $600,000' },
+  { value: 'USD:600000:', currency: 'USD', label: 'Más de $600,000' },
+  { value: 'CRC:0:20000000', currency: 'CRC', label: 'Hasta ₡20,000,000' },
+  { value: 'CRC:20000000:40000000', currency: 'CRC', label: '₡20,000,000 - ₡40,000,000' },
+  { value: 'CRC:40000000:', currency: 'CRC', label: 'Más de ₡40,000,000' },
+];
+
+// Serialized once for the client cascade script (province -> cantón -> distrito).
+const locationsJson = JSON.stringify(locations);
+---
+
+<Layout title="Propiedades en venta y alquiler" description="Explorá propiedades y vehículos de alto valor en Costa Rica, publicados por la agencia responsable de cada listado.">
+	<section class="mx-auto max-w-6xl px-6 pb-10 pt-16 md:px-10 md:pt-20">
+		<p class="eyebrow">Catálogo</p>
+		<h1 class="mt-3 text-4xl font-semibold tracking-[-0.02em] text-ink md:text-5xl">Propiedades disponibles</h1>
+		<p class="mt-4 max-w-md text-[0.95rem] leading-relaxed text-muted-dark">
+			Buscá por región, tipo y presupuesto.
+		</p>
+
+		<div class="mt-8 flex flex-wrap gap-2.5" id="filter-chips">
+			{operationFilters.map((f) => (
+				<a
+					href={f.operacion ? `/propiedades?operacion=${f.operacion}` : '/propiedades'}
+					data-operacion={f.operacion}
+					class="filter-chip rounded-full border border-border px-4 py-2 text-[0.82rem] font-medium text-muted-dark transition-colors hover:border-ink hover:text-ink"
+				>
+					{f.label}
+				</a>
+			))}
+		</div>
+
+		<!-- Cascading region search — Provincia narrows Cantón, Cantón narrows Distrito. -->
+		<div class="mt-5 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised sm:flex-row sm:divide-x sm:divide-border">
+			<div class="flex-1 border-b border-border px-5 py-3 sm:border-b-0">
+				<label for="filter-provincia" class="block text-[0.68rem] font-semibold uppercase tracking-wide text-muted">Provincia</label>
+				<select id="filter-provincia" class="mt-1 w-full bg-transparent text-sm font-medium text-ink outline-none">
+					<option value="">Todas</option>
+					{provinceOptions.map((prov) => <option value={prov.id}>{prov.name}</option>)}
+				</select>
+			</div>
+			<div class="flex-1 border-b border-border px-5 py-3 sm:border-b-0">
+				<label for="filter-canton" class="block text-[0.68rem] font-semibold uppercase tracking-wide text-muted">Cantón</label>
+				<select id="filter-canton" disabled class="mt-1 w-full bg-transparent text-sm font-medium text-ink outline-none disabled:text-muted">
+					<option value="">Seleccione provincia</option>
+				</select>
+			</div>
+			<div class="flex-1 border-b border-border px-5 py-3 sm:border-b-0">
+				<label for="filter-distrito" class="block text-[0.68rem] font-semibold uppercase tracking-wide text-muted">Distrito</label>
+				<select id="filter-distrito" disabled class="mt-1 w-full bg-transparent text-sm font-medium text-ink outline-none disabled:text-muted">
+					<option value="">Seleccione cantón</option>
+				</select>
+			</div>
+			<div class="flex-1 px-5 py-3">
+				<label for="filter-tipo" class="block text-[0.68rem] font-semibold uppercase tracking-wide text-muted">Tipo</label>
+				<select id="filter-tipo" class="mt-1 w-full bg-transparent text-sm font-medium text-ink outline-none">
+					<option value="">Todos</option>
+					{categories.map((c) => <option value={c.slug}>{c.name}</option>)}
+				</select>
+			</div>
+		</div>
+
+		<div class="mt-3 flex flex-wrap gap-3">
+			<select id="filter-precio" class="rounded-lg border border-border bg-surface px-3.5 py-2 text-sm text-ink shadow-soft outline-none focus:border-ink">
+				<option value="">Cualquier presupuesto</option>
+				<optgroup label="Venta en dólares">
+					{priceBuckets.filter((b) => b.currency === 'USD').map((b) => <option value={b.value}>{b.label}</option>)}
+				</optgroup>
+				<optgroup label="Venta en colones">
+					{priceBuckets.filter((b) => b.currency === 'CRC').map((b) => <option value={b.value}>{b.label}</option>)}
+				</optgroup>
+			</select>
+		</div>
+	</section>
+
+	<section class="mx-auto max-w-6xl px-6 pb-24 md:px-10">
+		<div class="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3" id="property-grid">
+			{properties.map((p) => {
+				const chain = resolveLocationChain(p.location_id);
+				return (
+					<div
+						class="property-item"
+						data-operation={p.operation_type}
+						data-category={p.category.slug}
+						data-province={chain.provinceId ?? ''}
+						data-canton={chain.cantonId ?? ''}
+						data-district={chain.districtId ?? ''}
+						data-currency={p.currency}
+						data-price={p.price}
+					>
+						<PropertyCard property={p} />
+					</div>
+				);
+			})}
+		</div>
+
+		<div id="empty-state" class="hidden rounded-xl border border-dashed border-border py-24 text-center">
+			<p class="text-2xl font-semibold tracking-[-0.01em] text-ink">Sin resultados para este filtro</p>
+			<a href="/propiedades" id="reset-filters" class="mt-3 inline-block text-sm text-muted-dark underline underline-offset-4">Ver todas las propiedades</a>
+		</div>
+	</section>
+
+	<CTABanner
+		eyebrow="¿Sos agencia?"
+		heading="Publicá tu inventario en Predia"
+		subtext="Sumate al portal compartido y llegá a más compradores."
+		ctaLabel="Conocer planes"
+		ctaHref="/para-agencias"
+	/>
+
+	<script type="application/json" id="locations-data" set:html={locationsJson} />
+
+	<script>
+		interface LocationRow {
+			id: string;
+			name: string;
+			type: 'province' | 'canton' | 'district';
+			parent_id: string | null;
+		}
+
+		const OPERATION_MAP: Record<string, string> = { venta: 'sale', alquiler: 'rent' };
+		const ALL_LOCATIONS: LocationRow[] = JSON.parse(document.getElementById('locations-data')?.textContent ?? '[]');
+
+		const chips = Array.from(document.querySelectorAll<HTMLAnchorElement>('.filter-chip'));
+		const items = Array.from(document.querySelectorAll<HTMLElement>('.property-item'));
+		const grid = document.getElementById('property-grid');
+		const emptyState = document.getElementById('empty-state');
+		const provinciaSelect = document.getElementById('filter-provincia') as HTMLSelectElement | null;
+		const cantonSelect = document.getElementById('filter-canton') as HTMLSelectElement | null;
+		const distritoSelect = document.getElementById('filter-distrito') as HTMLSelectElement | null;
+		const tipoSelect = document.getElementById('filter-tipo') as HTMLSelectElement | null;
+		const precioSelect = document.getElementById('filter-precio') as HTMLSelectElement | null;
+
+		function styleChip(chip: HTMLAnchorElement, active: boolean) {
+			chip.classList.toggle('border-ink', active);
+			chip.classList.toggle('bg-ink', active);
+			chip.classList.toggle('text-bg', active);
+			chip.classList.toggle('border-border', !active);
+			chip.classList.toggle('text-muted-dark', !active);
+		}
+
+		function currentParams() {
+			const params = new URLSearchParams(location.search);
+			return {
+				operacion: params.get('operacion') ?? '',
+				categoria: params.get('categoria') ?? '',
+				provincia: params.get('provincia') ?? '',
+				canton: params.get('canton') ?? '',
+				distrito: params.get('distrito') ?? '',
+				precio: params.get('precio') ?? '',
+			};
+		}
+
+		function pushParams(next: Partial<ReturnType<typeof currentParams>>) {
+			const merged = { ...currentParams(), ...next };
+			const params = new URLSearchParams();
+			if (merged.operacion) params.set('operacion', merged.operacion);
+			if (merged.categoria) params.set('categoria', merged.categoria);
+			if (merged.provincia) params.set('provincia', merged.provincia);
+			if (merged.canton) params.set('canton', merged.canton);
+			if (merged.distrito) params.set('distrito', merged.distrito);
+			if (merged.precio) params.set('precio', merged.precio);
+			const qs = params.toString();
+			history.pushState(null, '', qs ? `?${qs}` : location.pathname);
+			apply();
+		}
+
+		// Rebuilds the Cantón <select> options for a given provincia (or clears/
+		// disables it if no provincia is selected), and cascades the same for
+		// Distrito. `selected` pre-picks a value when restoring from the URL.
+		function populateCantones(provinceId: string, selected = '') {
+			if (!cantonSelect) return;
+			cantonSelect.innerHTML = '';
+			if (!provinceId) {
+				cantonSelect.disabled = true;
+				cantonSelect.appendChild(new Option('Seleccione provincia', ''));
+				populateDistritos('', '');
+				return;
+			}
+			cantonSelect.disabled = false;
+			cantonSelect.appendChild(new Option('Todos', ''));
+			const cantones = ALL_LOCATIONS.filter((l) => l.type === 'canton' && l.parent_id === provinceId).sort((a, b) => a.name.localeCompare(b.name));
+			for (const c of cantones) cantonSelect.appendChild(new Option(c.name, c.id));
+			cantonSelect.value = selected;
+		}
+
+		function populateDistritos(cantonId: string, selected = '') {
+			if (!distritoSelect) return;
+			distritoSelect.innerHTML = '';
+			if (!cantonId) {
+				distritoSelect.disabled = true;
+				distritoSelect.appendChild(new Option('Seleccione cantón', ''));
+				return;
+			}
+			const distritos = ALL_LOCATIONS.filter((l) => l.type === 'district' && l.parent_id === cantonId).sort((a, b) => a.name.localeCompare(b.name));
+			if (distritos.length === 0) {
+				distritoSelect.disabled = true;
+				distritoSelect.appendChild(new Option('Sin distritos cargados', ''));
+				return;
+			}
+			distritoSelect.disabled = false;
+			distritoSelect.appendChild(new Option('Todos', ''));
+			for (const d of distritos) distritoSelect.appendChild(new Option(d.name, d.id));
+			distritoSelect.value = selected;
+		}
+
+		function apply() {
+			const { operacion, categoria, provincia, canton, distrito, precio } = currentParams();
+			const operationValue = operacion ? OPERATION_MAP[operacion] : '';
+
+			// precio bucket format: "CURRENCY:min:max" (max may be empty = no ceiling).
+			// Sale-only by design — a monthly rent isn't comparable to a sale price.
+			let priceCurrency = '';
+			let priceMin = 0;
+			let priceMax = Infinity;
+			if (precio) {
+				const [currency, min, max] = precio.split(':');
+				priceCurrency = currency;
+				priceMin = Number(min) || 0;
+				priceMax = max ? Number(max) : Infinity;
+			}
+
+			let visible = 0;
+			for (const item of items) {
+				const matchesOp = !operationValue || item.dataset.operation === operationValue;
+				const matchesCat = !categoria || item.dataset.category === categoria;
+				// Most specific selected level wins: distrito > cantón > provincia.
+				const matchesRegion = distrito
+					? item.dataset.district === distrito
+					: canton
+						? item.dataset.canton === canton
+						: !provincia || item.dataset.province === provincia;
+				let matchesPrice = true;
+				if (priceCurrency) {
+					const price = Number(item.dataset.price ?? 0);
+					matchesPrice =
+						item.dataset.operation === 'sale' &&
+						item.dataset.currency === priceCurrency &&
+						price >= priceMin &&
+						price < priceMax;
+				}
+				const show = matchesOp && matchesCat && matchesRegion && matchesPrice;
+				item.style.display = show ? '' : 'none';
+				if (show) visible++;
+			}
+
+			grid?.classList.toggle('hidden', visible === 0);
+			emptyState?.classList.toggle('hidden', visible > 0);
+
+			for (const chip of chips) {
+				styleChip(chip, (chip.dataset.operacion ?? '') === operacion);
+			}
+			if (provinciaSelect && provinciaSelect.value !== provincia) {
+				provinciaSelect.value = provincia;
+				populateCantones(provincia, canton);
+			} else if (cantonSelect && cantonSelect.disabled === true && provincia) {
+				// First render pass on a page load restored from a URL with provincia set.
+				populateCantones(provincia, canton);
+			}
+			if (cantonSelect && cantonSelect.value !== canton) {
+				cantonSelect.value = canton;
+				populateDistritos(canton, distrito);
+			} else if (distritoSelect && distritoSelect.disabled === true && canton) {
+				populateDistritos(canton, distrito);
+			}
+			if (distritoSelect && distritoSelect.value !== distrito) distritoSelect.value = distrito;
+			if (tipoSelect) tipoSelect.value = categoria;
+			if (precioSelect) precioSelect.value = precio;
+		}
+
+		for (const chip of chips) {
+			chip.addEventListener('click', (e) => {
+				if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return; // let modifier-clicks open normally
+				e.preventDefault();
+				pushParams({ operacion: chip.dataset.operacion ?? '' });
+				window.scrollTo({ top: grid?.getBoundingClientRect().top ? window.scrollY + grid.getBoundingClientRect().top - 96 : 0, behavior: 'smooth' });
+			});
+		}
+
+		provinciaSelect?.addEventListener('change', () => {
+			populateCantones(provinciaSelect.value);
+			pushParams({ provincia: provinciaSelect.value, canton: '', distrito: '' });
+		});
+		cantonSelect?.addEventListener('change', () => {
+			populateDistritos(cantonSelect.value);
+			pushParams({ canton: cantonSelect.value, distrito: '' });
+		});
+		distritoSelect?.addEventListener('change', () => pushParams({ distrito: distritoSelect.value }));
+		tipoSelect?.addEventListener('change', () => pushParams({ categoria: tipoSelect.value }));
+		precioSelect?.addEventListener('change', () => pushParams({ precio: precioSelect.value }));
+
+		document.getElementById('reset-filters')?.addEventListener('click', (e) => {
+			e.preventDefault();
+			history.pushState(null, '', '/propiedades');
+			apply();
+		});
+
+		window.addEventListener('popstate', apply);
+
+		// Restore Cantón/Distrito <select> population on first load if the URL
+		// already carries a provincia/canton (bookmarked or shared filtered link).
+		const initial = currentParams();
+		populateCantones(initial.provincia, initial.canton);
+		populateDistritos(initial.canton, initial.distrito);
+		apply();
+	</script>
+</Layout>

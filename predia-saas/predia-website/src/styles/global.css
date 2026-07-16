@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+/* Same token names/values as predia-front's src/index.css (the admin app) —
+   this is a marketing site for the same product, not a separate brand. */
+@theme {
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-secondary: #eceef1;
+  --color-ink: #1c2028;
+  --color-muted: #6b7280;
+  --color-muted-dark: #343a40;
+  --color-border: #d6dce5;
+
+  --shadow-soft: 0 1px 2px rgba(15, 17, 21, 0.05);
+  --shadow-raised: 0 2px 8px rgba(15, 17, 21, 0.06), 0 1px 3px rgba(15, 17, 21, 0.04);
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+
+/* Editorial eyebrow label used above every section heading. */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Hairline divider — thin rule, no theatrics. */
+.hairline {
+  background: var(--color-border);
+  height: 1px;
+}
+
+/* Diagonal shine sweep for buttons — works regardless of the button's own colors. */
+.sweep {
+  position: relative;
+  overflow: hidden;
+}
+.sweep span {
+  position: relative;
+  z-index: 1;
+}
+.sweep::after {
+  content: "";
+  position: absolute;
+  inset: -50% -20%;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.25) 50%, transparent 60%);
+  transform: translateX(-120%);
+  transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.sweep:hover::after {
+  transform: translateX(60%);
+}
+
+/* Property gallery carousel (src/pages/propiedades/[slug].astro) — plain CSS +
+   vanilla JS, no framework: a flex track translated by index, thumbnails ring
+   the active frame, arrows/counter hide themselves via [data-count="1"]. */
+.carousel-track {
+  display: flex;
+  height: 100%;
+  transition: transform 0.45s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.carousel-frame {
+  flex: 0 0 100%;
+  height: 100%;
+}
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(28, 32, 40, 0.5);
+  color: var(--color-bg);
+  backdrop-filter: blur(6px);
+  transition: background 0.2s;
+}
+.carousel-btn:hover {
+  background: rgba(28, 32, 40, 0.75);
+}
+[data-count="1"] .carousel-btn,
+[data-count="1"] .carousel-counter,
+[data-count="1"] .carousel-thumbs {
+  display: none;
+}
+.thumb-btn {
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+.thumb-btn[data-active="true"] {
+  opacity: 1;
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.85rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Scroll-reveal, site-wide (see Layout.astro for the IntersectionObserver).
+   Motivation: sequences content on entry so long pages read as a guided walk,
+   not a wall of text dumped at once. Static under reduced-motion.
+   Gated behind html.js-reveal (added by the script itself) so content is never
+   hidden for no-JS / JS-blocked visitors — CSS alone must not hide anything. */
+html.js-reveal [data-reveal] {
+  opacity: 0;
+  transform: translateY(1.1rem);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+html.js-reveal [data-reveal].is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  html.js-reveal [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

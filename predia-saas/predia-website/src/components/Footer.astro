@@ -1,0 +1,64 @@
+---
+import { site } from '../lib/site-config';
+
+const year = new Date().getFullYear();
+const columns = [
+  {
+    title: 'Explorar',
+    links: [
+      { href: '/propiedades', label: 'Propiedades' },
+      { href: '/propiedades?operacion=venta', label: 'En venta' },
+      { href: '/propiedades?operacion=alquiler', label: 'En alquiler' },
+    ],
+  },
+  {
+    title: 'Predia',
+    links: [
+      { href: '/nosotros', label: 'Nosotros' },
+      { href: '/para-agencias', label: 'Para agencias' },
+      { href: '/contacto', label: 'Contacto' },
+    ],
+  },
+];
+---
+
+<footer class="border-t border-border bg-surface">
+	<div class="mx-auto max-w-6xl px-6 py-16 md:px-10">
+		<div class="grid gap-12 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+			<div>
+				<a href="/" class="flex items-center gap-2.5">
+					<img src="/brand/logo.jpg" width="30" height="30" alt="Predia" class="rounded-md" />
+					<span class="font-display text-[1.2rem] font-semibold tracking-[-0.02em] leading-none text-ink">Predia</span>
+				</a>
+				<p class="mt-4 max-w-xs text-sm leading-relaxed text-muted">{site.tagline}.</p>
+			</div>
+
+			{columns.map((col) => (
+				<div>
+					<p class="eyebrow mb-4">{col.title}</p>
+					<ul class="space-y-2.5">
+						{col.links.map((l) => (
+							<li><a href={l.href} class="text-sm text-muted-dark transition-colors hover:text-ink">{l.label}</a></li>
+						))}
+					</ul>
+				</div>
+			))}
+
+			<div>
+				<p class="eyebrow mb-4">Contacto</p>
+				<ul class="space-y-2.5 text-sm text-muted-dark">
+					<li>{site.contact.email ?? 'Email (pendiente)'}</li>
+					<li>{site.contact.phone ?? 'Teléfono (pendiente)'}</li>
+					<li>{site.contact.city ?? 'Costa Rica'}</li>
+				</ul>
+			</div>
+		</div>
+
+		<div class="hairline my-10"></div>
+
+		<div class="flex flex-col gap-4 text-xs text-muted md:flex-row md:items-center md:justify-between">
+			<p>&copy; {year} {site.name}. Todos los derechos reservados.</p>
+			<p>Contacto directo &middot; Sin intermediarios &middot; Costa Rica</p>
+		</div>
+	</div>
+</footer>

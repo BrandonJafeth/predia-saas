@@ -1,0 +1,67 @@
+{
+  ".vscode/extensions.json": {
+    "mtime": 1780508098.0,
+    "ast_hash": "3adedb22d082dbd1ebb00b75d21403aa",
+    "semantic_hash": "3adedb22d082dbd1ebb00b75d21403aa"
+  },
+  ".vscode/launch.json": {
+    "mtime": 1780508098.0,
+    "ast_hash": "60493763dcbc2d109e57da86d997602a",
+    "semantic_hash": "60493763dcbc2d109e57da86d997602a"
+  },
+  "astro.config.mjs": {
+    "mtime": 1780508098.0,
+    "ast_hash": "7fce1873757c6836fb4b7880f219b5ca",
+    "semantic_hash": "7fce1873757c6836fb4b7880f219b5ca"
+  },
+  "package.json": {
+    "mtime": 1780629270.1516736,
+    "ast_hash": "a617a38ab450ce46f96d73e20e5e8b89",
+    "semantic_hash": "a617a38ab450ce46f96d73e20e5e8b89"
+  },
+  "src/components/Welcome.astro": {
+    "mtime": 1780508098.0,
+    "ast_hash": "7274ef144fc0554f96f977626b0b96d4",
+    "semantic_hash": "7274ef144fc0554f96f977626b0b96d4"
+  },
+  "src/layouts/Layout.astro": {
+    "mtime": 1780508098.0,
+    "ast_hash": "544bdd418e59cd25c463e2b7a5056343",
+    "semantic_hash": "544bdd418e59cd25c463e2b7a5056343"
+  },
+  "src/pages/index.astro": {
+    "mtime": 1780508098.0,
+    "ast_hash": "ca7d752d7ba470cbc1c0fb25b2cb1396",
+    "semantic_hash": "ca7d752d7ba470cbc1c0fb25b2cb1396"
+  },
+  "tsconfig.json": {
+    "mtime": 1780508098.0,
+    "ast_hash": "1d3613ac08bdda17e2b82251613dbc21",
+    "semantic_hash": "1d3613ac08bdda17e2b82251613dbc21"
+  },
+  "README.md": {
+    "mtime": 1780629270.1506739,
+    "ast_hash": "a0ea884d1a4ceb03b80fa4dcd7230f90",
+    "semantic_hash": "a0ea884d1a4ceb03b80fa4dcd7230f90"
+  },
+  "pnpm-workspace.yaml": {
+    "mtime": 1783996100.8767831,
+    "ast_hash": "f64de4e0c685899a3e2de37d4162b5e8",
+    "semantic_hash": "f64de4e0c685899a3e2de37d4162b5e8"
+  },
+  "public/favicon.svg": {
+    "mtime": 1780508098.0,
+    "ast_hash": "8c13f40658976ea1dfb8ba37a8be0e8d",
+    "semantic_hash": "8c13f40658976ea1dfb8ba37a8be0e8d"
+  },
+  "src/assets/astro.svg": {
+    "mtime": 1780508098.0,
+    "ast_hash": "d26c3520f1f016bad745392df8b5fae5",
+    "semantic_hash": "d26c3520f1f016bad745392df8b5fae5"
+  },
+  "src/assets/background.svg": {
+    "mtime": 1780508098.0,
+    "ast_hash": "c2eaad48507ad1ea41f586bd5c21858a",
+    "semantic_hash": "c2eaad48507ad1ea41f586bd5c21858a"
+  }
+}
