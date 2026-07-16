@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -31,6 +32,14 @@ export class PropertiesController {
     @CurrentTenant() tenantId: string,
   ) {
     return this.propertiesService.findAll(filters, tenantId);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: PropertyResponseDto })
+  @ApiNotFoundResponse({ description: 'Propiedad no encontrada' })
+  findOne(@Param('id') id: string, @CurrentTenant() tenantId: string) {
+    return this.propertiesService.findOne(id, tenantId);
   }
 
   @Post()

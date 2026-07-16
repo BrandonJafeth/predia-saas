@@ -8,7 +8,22 @@ import NotFoundPage from '@/app/errors/NotFoundPage'
 const AUTH_PATHS = ['/login', '/forgot-password']
 const PUBLIC_PATHS = ['/reset-password']
 
-let sessionRestored = false
+// Shared across all beforeLoad invocations (incl. concurrent ones under
+// StrictMode) so every caller awaits the *same* restoration attempt instead
+// of racing past it — otherwise a second invocation could see the token as
+// still null and redirect to /login before the first refresh resolves.
+let sessionRestorePromise: Promise<void> | null = null
+
+function restoreSession() {
+  if (!sessionRestorePromise) {
+    sessionRestorePromise = (async () => {
+      if (!tokenStorage.getAccessToken()) {
+        await refreshAccessToken()
+      }
+    })()
+  }
+  return sessionRestorePromise
+}
 
 // Full-screen loading shown while beforeLoad resolves (session restoration).
 // This prevents the login card from flashing on protected routes.
@@ -53,12 +68,7 @@ function RootComponent() {
 
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
-    if (!sessionRestored) {
-      sessionRestored = true
-      if (!tokenStorage.getAccessToken()) {
-        await refreshAccessToken()
-      }
-    }
+    await restoreSession()
 
     const token = tokenStorage.getAccessToken()
     const isAuthPath = AUTH_PATHS.includes(location.pathname)

@@ -155,9 +155,43 @@
     display: none;
   }
 
+  html, body {
+    /* Safety net: a wide descendant anywhere in the app (e.g. the leads
+       kanban board) must scroll within its own overflow-x-auto container,
+       never drag the whole page into horizontal scroll. Components that
+       need their own horizontal scroll already opt in locally. */
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Scrollbars are hidden globally (see `@layer base` above) for aesthetics,
+   but a horizontally-scrolling row (e.g. the leads kanban board) needs a
+   visible affordance or users have no way to discover there's more content. */
+@utility scroll-x-visible {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline) transparent;
+
+  &::-webkit-scrollbar {
+    display: block;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-hairline);
+    border-radius: 9999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-hairline-soft);
   }
 }
 

@@ -48,6 +48,14 @@ export class PropertiesService {
       ...(filters.currency !== undefined && { currency: filters.currency }),
       ...(filters.subtype !== undefined && { subtype: filters.subtype }),
       ...(filters.location_id !== undefined && { location_id: filters.location_id }),
+      ...(filters.search
+        ? {
+            OR: [
+              { title: { contains: filters.search, mode: 'insensitive' as const } },
+              { address: { contains: filters.search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
       ...(filters.price_min !== undefined || filters.price_max !== undefined
         ? {
             price: {
@@ -91,6 +99,16 @@ export class PropertiesService {
 
     const meta = new PageMetaDto({ pageOptionsDto: filters, itemCount });
     return new PageDto(items, meta);
+  }
+
+  async findOne(id: string, tenantId: string) {
+    const property = await this.prisma.property.findFirst({
+      where: { id, tenant_id: tenantId },
+      select: PROPERTY_SELECT,
+    });
+
+    if (!property) throw new NotFoundException('Propiedad no encontrada');
+    return property;
   }
 
   async create(dto: CreatePropertyDto, tenantId: string, caller: JwtPayload) {

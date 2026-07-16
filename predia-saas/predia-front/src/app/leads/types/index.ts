@@ -53,10 +53,45 @@ export interface PaginatedResponse<T> {
   }
 }
 
+export type LeadActivityType = 'call' | 'email' | 'meeting' | 'note' | 'status_change'
+
+export interface LeadActivityCreator {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+}
+
+export interface LeadActivity {
+  id: string
+  lead_id: string
+  tenant_id: string
+  type: LeadActivityType
+  description: string
+  created_by: string
+  creator: LeadActivityCreator
+  created_at: string
+}
+
+// Detalle de un lead (GET /leads/{id}) — incluye sus actividades recientes.
+export interface LeadDetail extends Lead {
+  activities: LeadActivity[]
+}
+
+export type CreateLeadActivityRequest = components['schemas']['CreateLeadActivityDto']
+
+export interface LeadActivityFilters {
+  page?: number
+  limit?: number
+}
+
 export const leadKeys = {
   all: ['leads'] as const,
   lists: () => [...leadKeys.all, 'list'] as const,
   list: (filters?: LeadFilters) => [...leadKeys.lists(), filters] as const,
   details: () => [...leadKeys.all, 'detail'] as const,
   detail: (id: string) => [...leadKeys.details(), id] as const,
+  activities: (leadId: string) => [...leadKeys.detail(leadId), 'activities'] as const,
+  activityList: (leadId: string, filters?: LeadActivityFilters) =>
+    [...leadKeys.activities(leadId), filters] as const,
 }
