@@ -48,6 +48,12 @@ export class FindPropertiesDto extends PageOptionsDto {
   @MaxLength(100)
   subtype?: string;
 
+  @ApiPropertyOptional({ description: 'Búsqueda libre por título o dirección.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID(4)

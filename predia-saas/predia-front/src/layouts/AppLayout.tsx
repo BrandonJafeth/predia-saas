@@ -52,16 +52,30 @@ function LayoutContent({ children }: { children: ReactNode }) {
   const isOpen = state === 'expanded'
 
   return (
-    <div className="min-h-screen w-full">
+    // min-w-0: SidebarProvider's own wrapper is `flex` (row) for the
+    // original shadcn sidebar pattern, but this app's sidebar is
+    // `position: fixed` instead — this div ends up as that flex row's only
+    // item regardless, and without min-w-0 a flex item refuses to shrink
+    // below its content's intrinsic width. A wide descendant (e.g. the
+    // leads kanban board) would otherwise force the whole page wider than
+    // the viewport instead of scrolling within its own overflow-x-auto box.
+    <div className="min-h-screen w-full min-w-0">
       <DesktopSidebar />
       <MobileSidebar />
 
       <main
-        className="flex min-h-screen flex-col transition-[margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        className="flex min-h-screen min-w-0 flex-col transition-[margin] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ marginLeft: isMobile ? 0 : isOpen ? SIDEBAR_W : 0 }}
       >
         <AppNavbar />
-        <div key={pathname} className="flex-1 p-6 md:p-8 animate-page-enter">
+        {/* min-w-0: this is the actual leak point — a flex-col item (child
+            of <main>) stretches to cross-axis width by default, but still
+            refuses to shrink below its content's intrinsic width unless
+            explicitly told to. Without it, a wide page (e.g. the leads
+            kanban board) pushes this box past the viewport, which drags
+            the whole document into horizontal scroll instead of staying
+            contained in the page's own overflow-x-auto. */}
+        <div key={pathname} className="min-w-0 flex-1 p-6 md:p-8 animate-page-enter">
           <div className="mx-auto w-full max-w-6xl">
             {children}
           </div>

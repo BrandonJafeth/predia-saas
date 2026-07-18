@@ -80,7 +80,7 @@ function NavBtn({
   )
 }
 
-export function PaginationControls({ page, pageCount, itemCount, limit, onPageChange }: Props) {
+export function PaginationControls({ page, pageCount, itemCount, onPageChange }: Props) {
   if (itemCount === 0) return null
 
   const pages = buildPages(page, pageCount)

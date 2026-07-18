@@ -1,7 +1,11 @@
 import { apiClient } from '@/shared/lib/api'
 import type {
+  CreateLeadActivityRequest,
   CreateLeadRequest,
   Lead,
+  LeadActivity,
+  LeadActivityFilters,
+  LeadDetail,
   LeadFilters,
   PaginatedResponse,
   UpdateLeadRequest,
@@ -16,12 +20,12 @@ export const leadsService = {
     return data as unknown as PaginatedResponse<Lead>
   },
 
-  async findOne(id: string): Promise<Lead> {
+  async findOne(id: string): Promise<LeadDetail> {
     const { data, error } = await apiClient.GET('/api/v1/leads/{id}', {
       params: { path: { id } },
     })
     if (error) throw error
-    return data as unknown as Lead
+    return data as unknown as LeadDetail
   },
 
   async create(payload: CreateLeadRequest): Promise<Lead> {
@@ -46,5 +50,28 @@ export const leadsService = {
       params: { path: { id } },
     })
     if (error) throw error
+  },
+
+  async findActivities(
+    leadId: string,
+    filters?: LeadActivityFilters,
+  ): Promise<PaginatedResponse<LeadActivity>> {
+    const { data, error } = await apiClient.GET('/api/v1/leads/{leadId}/activities', {
+      params: { path: { leadId }, query: filters },
+    })
+    if (error) throw error
+    return data as unknown as PaginatedResponse<LeadActivity>
+  },
+
+  async createActivity(
+    leadId: string,
+    payload: CreateLeadActivityRequest,
+  ): Promise<LeadActivity> {
+    const { data, error } = await apiClient.POST('/api/v1/leads/{leadId}/activities', {
+      params: { path: { leadId } },
+      body: payload,
+    })
+    if (error) throw error
+    return data as unknown as LeadActivity
   },
 }

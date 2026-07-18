@@ -94,7 +94,6 @@ function DashboardPage() {
 
   const properties: Property[] = (propsData as { data?: Property[] } | undefined)?.data ?? []
   const totalProps = (propsData as { meta?: { itemCount?: number } } | undefined)?.meta?.itemCount ?? null
-  const activeProps = properties.filter(p => p.status === 'active').length || null
   const totalUsers = (usersData as { meta?: { itemCount?: number } } | undefined)?.meta?.itemCount ?? null
 
   // Pie data

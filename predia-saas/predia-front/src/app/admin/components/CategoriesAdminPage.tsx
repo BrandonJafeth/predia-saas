@@ -342,7 +342,6 @@ function SchemaBuilder({ value, onChange }: { value: JSONSchema; onChange: (s: J
             >
               <FieldRow
                 field={f}
-                index={index}
                 onChange={updated => updateField(f.id, updated)}
                 onRemove={() => removeField(f.id)}
               />

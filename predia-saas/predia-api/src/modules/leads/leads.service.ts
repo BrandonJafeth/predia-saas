@@ -74,17 +74,6 @@ const LEAD_ACTIVITY_SELECT = {
   },
 } satisfies Prisma.LeadActivitySelect;
 
-const VALID_STATUS_TRANSITIONS: Record<LeadStatus, LeadStatus[]> = {
-  [LeadStatus.new]: [LeadStatus.contacted, LeadStatus.lost],
-  [LeadStatus.contacted]: [LeadStatus.qualified, LeadStatus.lost],
-  [LeadStatus.qualified]: [LeadStatus.proposal, LeadStatus.lost],
-  [LeadStatus.proposal]: [LeadStatus.negotiation, LeadStatus.lost],
-  [LeadStatus.negotiation]: [LeadStatus.won, LeadStatus.lost],
-  [LeadStatus.won]: [],
-  [LeadStatus.lost]: [],
-  [LeadStatus.archived]: [],
-};
-
 @Injectable()
 export class LeadsService {
   constructor(
@@ -190,22 +179,15 @@ export class LeadsService {
     const statusChanged =
       nextStatus !== undefined && nextStatus !== lead.status;
 
-    if (statusChanged) {
-      this.validateStatusTransition(lead.status, nextStatus);
-    }
-
-    // Prisma ignora claves `undefined` en update(): asignar directo
-    // evita el spread condicional campo por campo.
-    // Unchecked porque assigned_to/property_id son FKs escalares, no relaciones anidadas.
-    const data: Prisma.LeadUncheckedUpdateInput = {
-      name: dto.name,
-      email: dto.email,
-      phone: dto.phone,
-      source: dto.source,
-      status: dto.status,
-      assigned_to: dto.assigned_to,
-      property_id: dto.property_id,
-      notes: dto.notes,
+    const data: Prisma.LeadUpdateInput = {
+      ...(dto.name !== undefined && { name: dto.name }),
+      ...(dto.email !== undefined && { email: dto.email }),
+      ...(dto.phone !== undefined && { phone: dto.phone }),
+      ...(dto.source !== undefined && { source: dto.source }),
+      ...(dto.status !== undefined && { status: dto.status }),
+      ...(dto.assigned_to !== undefined && { assigned_to: dto.assigned_to }),
+      ...(dto.property_id !== undefined && { property_id: dto.property_id }),
+      ...(dto.notes !== undefined && { notes: dto.notes }),
     };
 
     if (!statusChanged) {
@@ -375,12 +357,4 @@ export class LeadsService {
     }
   }
 
-  private validateStatusTransition(from: LeadStatus, to: LeadStatus) {
-    const allowed = VALID_STATUS_TRANSITIONS[from];
-    if (!allowed.includes(to)) {
-      throw new BadRequestException(
-        `Transición de status inválida: ${from} -> ${to}`,
-      );
-    }
-  }
 }

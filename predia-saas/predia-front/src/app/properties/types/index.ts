@@ -35,6 +35,7 @@ export interface PropertyFilters {
   is_published?: boolean
   category_id?: string
   location_id?: string
+  search?: string
 }
 
 export interface PaginatedResponse<T> {
