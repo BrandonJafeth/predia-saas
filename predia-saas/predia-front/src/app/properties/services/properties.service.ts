@@ -8,44 +8,48 @@ import type {
 } from '../types'
 
 // GET /PATCH /DELETE for properties are not in the schema yet (backend pending).
-// Cast the methods to bypass PathsWithMethod validation.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LooseFetch = (...args: any[]) => Promise<{ data: unknown; error: unknown }>
-
-// Lazy accessors — avoids accessing apiClient at module-load time (TDZ risk)
-const get: LooseFetch = (...args) => (apiClient.GET as unknown as LooseFetch)(...args)
-const patch: LooseFetch = (...args) => (apiClient.PATCH as unknown as LooseFetch)(...args)
-const del: LooseFetch = (...args) => (apiClient.DELETE as unknown as LooseFetch)(...args)
+// Cast the client to bypass PathsWithMethod validation without using any.
+const { GET, PATCH, DELETE } = apiClient as unknown as {
+  GET: (url: string, options?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
+  PATCH: (url: string, options?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
+  DELETE: (url: string, options?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
+}
 
 export const propertiesService = {
-  async findAll(filters?: PropertyFilters): Promise<PaginatedResponse<Property>> {
-    const { data, error } = await get('/api/v1/properties', { params: { query: filters } })
+  async getProperties(filters?: PropertyFilters): Promise<PaginatedResponse<Property>> {
+    const { data, error } = await GET('/api/v1/properties', { params: { query: filters } })
     if (error) throw error
     return data as PaginatedResponse<Property>
   },
 
-  async findOne(id: string): Promise<Property> {
-    const { data, error } = await get(`/api/v1/properties/${id}`)
+  async getProperty(id: string): Promise<Property> {
+    const { data, error } = await GET(`/api/v1/properties/${id}`)
     if (error) throw error
     return data as Property
   },
 
-  async create(payload: CreatePropertyRequest): Promise<Property> {
+  async getPropertyBySlug(slug: string): Promise<Property> {
+    const { data, error } = await GET(`/api/v1/properties/slug/${slug}`)
+    if (error) throw error
+    return data as Property
+  },
+
+  async createProperty(payload: CreatePropertyRequest): Promise<Property> {
     const { data, error } = await apiClient.POST('/api/v1/properties', { body: payload })
     if (error) throw error
     return data as unknown as Property
   },
 
-  async update(id: string, payload: UpdatePropertyRequest): Promise<Property> {
-    const { data, error } = await patch(`/api/v1/properties/${id}`, {
+  async updateProperty(id: string, payload: UpdatePropertyRequest): Promise<Property> {
+    const { data, error } = await PATCH(`/api/v1/properties/${id}`, {
       body: payload,
     })
     if (error) throw error
     return data as Property
   },
 
-  async remove(id: string): Promise<void> {
-    const { error } = await del(`/api/v1/properties/${id}`)
+  async deleteProperty(id: string): Promise<void> {
+    const { error } = await DELETE(`/api/v1/properties/${id}`)
     if (error) throw error
   },
 }
