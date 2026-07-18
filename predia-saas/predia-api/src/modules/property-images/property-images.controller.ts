@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   HttpCode,
@@ -27,6 +28,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { PropertyImageResponseDto } from './dto/property-image-response.dto';
+import { ReorderImagesDto } from './dto/reorder-images.dto';
 import { PropertyImagesService } from './property-images.service';
 
 @ApiTags('Property Images')
@@ -81,5 +83,18 @@ export class PropertyImagesController {
     @CurrentUser() caller: JwtPayload,
   ) {
     return this.propertyImagesService.setCover(propertyId, imageId, tenantId, caller);
+  }
+
+  @Patch('reorder')
+  @Roles(UserRole.admin, UserRole.agent)
+  @AuditLog({ action: 'UPDATE', entity: 'property_image' })
+  @ApiOkResponse({ type: PropertyImageResponseDto, isArray: true })
+  reorder(
+    @Param('propertyId', new ParseUUIDPipe({ version: '4' })) propertyId: string,
+    @Body() dto: ReorderImagesDto,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() caller: JwtPayload,
+  ) {
+    return this.propertyImagesService.reorder(propertyId, dto, tenantId, caller);
   }
 }
