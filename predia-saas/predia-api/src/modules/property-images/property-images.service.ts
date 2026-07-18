@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CloudinaryService } from './cloudinary.service';
+import type { ReorderImagesDto } from './dto/reorder-images.dto';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -140,6 +141,60 @@ export class PropertyImagesService {
     ]);
 
     return updated;
+  }
+
+  async reorder(
+    propertyId: string,
+    dto: ReorderImagesDto,
+    tenantId: string,
+    caller: JwtPayload,
+  ) {
+    await this.assertCanManageImages(propertyId, tenantId, caller);
+
+    const dbImages = await this.prisma.propertyImage.findMany({
+      where: { property_id: propertyId },
+      select: { id: true },
+    });
+
+    if (dbImages.length !== dto.items.length) {
+      throw new BadRequestException(
+        'Debes incluir todas las imágenes de la propiedad para reordenarlas',
+      );
+    }
+
+    const dbImageIds = new Set(dbImages.map((img) => img.id));
+    for (const item of dto.items) {
+      if (!dbImageIds.has(item.id)) {
+        throw new BadRequestException(
+          `La imagen ${item.id} no pertenece a esta propiedad`,
+        );
+      }
+    }
+
+    const sortedPositions = [...dto.items].sort((a, b) => a.position - b.position);
+    for (let i = 0; i < sortedPositions.length; i++) {
+      if (sortedPositions[i].position !== i) {
+        throw new BadRequestException(
+          'Las posiciones deben ser contiguas desde 0 (0, 1, 2, ...)',
+        );
+      }
+    }
+
+    await this.prisma.$transaction(
+      dto.items.map((item) =>
+        this.prisma.propertyImage.update({
+          where: { id: item.id },
+          data: { position: item.position },
+          select: PROPERTY_IMAGE_SELECT,
+        }),
+      ),
+    );
+
+    return this.prisma.propertyImage.findMany({
+      where: { property_id: propertyId },
+      orderBy: { position: 'asc' },
+      select: PROPERTY_IMAGE_SELECT,
+    });
   }
 
   private async assertCanManageImages(
