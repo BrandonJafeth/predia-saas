@@ -24,7 +24,11 @@ export interface Property extends Omit<
   attributes: Record<string, unknown>
 }
 
-export type CreatePropertyRequest = components['schemas']['CreatePropertyDto']
+// attributes is generated as Record<string,never> (openapi-typescript quirk for
+// additionalProperties without a type) — override to the actual dynamic shape.
+export type CreatePropertyRequest = Omit<components['schemas']['CreatePropertyDto'], 'attributes'> & {
+  attributes?: Record<string, unknown>
+}
 export type UpdatePropertyRequest = Partial<CreatePropertyRequest>
 
 export interface PropertyFilters {

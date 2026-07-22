@@ -1,4 +1,5 @@
 import { apiClient } from '@/shared/lib/api'
+import type { components } from '@predia/api-types'
 import type {
   CreatePropertyRequest,
   PaginatedResponse,
@@ -35,7 +36,11 @@ export const propertiesService = {
   },
 
   async createProperty(payload: CreatePropertyRequest): Promise<Property> {
-    const { data, error } = await apiClient.POST('/api/v1/properties', { body: payload })
+    // attributes is Record<string, unknown> on our type (see types/index.ts) but the
+    // generated client expects the openapi-typescript Record<string, never> quirk.
+    const { data, error } = await apiClient.POST('/api/v1/properties', {
+      body: payload as components['schemas']['CreatePropertyDto'],
+    })
     if (error) throw error
     return data as unknown as Property
   },

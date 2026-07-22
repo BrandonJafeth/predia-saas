@@ -63,7 +63,12 @@ export const useUpdateProperty = () => {
       await queryClient.cancelQueries({ queryKey: propertyKeys.detail(id) })
       const previous = queryClient.getQueryData<Property>(propertyKeys.detail(id))
       if (previous) {
-        queryClient.setQueryData<Property>(propertyKeys.detail(id), { ...previous, ...payload })
+        // Optimistic patch only — response-shaped (string) and request-shaped (number)
+        // field types legitimately differ; onSettled invalidation replaces this with real data.
+        queryClient.setQueryData<Property>(propertyKeys.detail(id), {
+          ...previous,
+          ...payload,
+        } as Property)
       }
       return { previous }
     },
