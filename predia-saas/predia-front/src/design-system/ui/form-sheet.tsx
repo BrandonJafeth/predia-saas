@@ -19,6 +19,7 @@ interface FormSheetProps {
   isSubmitting?: boolean
   submitLabel?: string
   cancelLabel?: string
+  hideActions?: boolean
 }
 
 function FormSheet({
@@ -31,6 +32,7 @@ function FormSheet({
   isSubmitting = false,
   submitLabel = 'Guardar',
   cancelLabel = 'Cancelar',
+  hideActions = false,
 }: FormSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -47,33 +49,39 @@ function FormSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <form
-          onSubmit={onSubmit}
-          className="flex flex-col flex-1 overflow-hidden"
-        >
+        {hideActions ? (
           <div className="flex-1 overflow-y-auto px-6 space-y-5 animate-in fade-in slide-in-from-right-4 duration-500 delay-150 fill-mode-both">
             {children}
           </div>
+        ) : (
+          <form
+            onSubmit={onSubmit}
+            className="flex flex-col flex-1 overflow-hidden"
+          >
+            <div className="flex-1 overflow-y-auto px-6 space-y-5 animate-in fade-in slide-in-from-right-4 duration-500 delay-150 fill-mode-both">
+              {children}
+            </div>
 
-          <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:justify-end border-t border-hairline px-6 py-4 animate-in fade-in duration-500 delay-200 fill-mode-both">
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="min-w-32"
-            >
-              {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-              {submitLabel}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="min-w-32"
-            >
-              {cancelLabel}
-            </Button>
-          </div>
-        </form>
+            <div className="shrink-0 flex flex-col gap-2 sm:flex-row sm:justify-end border-t border-hairline px-6 py-4 animate-in fade-in duration-500 delay-200 fill-mode-both">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="min-w-32"
+              >
+                {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+                {submitLabel}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="min-w-32"
+              >
+                {cancelLabel}
+              </Button>
+            </div>
+          </form>
+        )}
       </SheetContent>
     </Sheet>
   )

@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/ui/car
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Skeleton } from '@/design-system/ui/skeleton'
+import { FormSheet } from '@/design-system/ui/form-sheet'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
-import { Plus, MapPin } from 'lucide-react'
+import { Plus, MapPin, PencilLine } from 'lucide-react'
 import { useProperties } from '../hooks'
-import { CreatePropertySheet } from './CreatePropertySheet'
+import { PropertyForm } from './PropertyForm'
 import type { Property } from '../types'
 
 const STATUS_LABELS: Record<Property['status'], string> = {
@@ -60,7 +61,7 @@ function PropertyCardSkeleton() {
   )
 }
 
-function PropertyCard({ property: p }: { property: Property }) {
+function PropertyCard({ property: p, onEdit }: { property: Property; onEdit: (p: Property) => void }) {
   return (
     <Card className="overflow-hidden">
       <div className="aspect-video w-full bg-surface-card" />
@@ -92,8 +93,15 @@ function PropertyCard({ property: p }: { property: Property }) {
             )}
           </div>
         )}
-        <div className="mt-4">
+        <div className="mt-4 flex items-center justify-between">
           <Heading as="sm">{formatPrice(p.price, p.currency)}</Heading>
+          <button
+            onClick={() => onEdit(p)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-soft transition-colors"
+            aria-label="Editar propiedad"
+          >
+            <PencilLine className="size-4" />
+          </button>
         </div>
       </CardContent>
     </Card>
@@ -101,10 +109,14 @@ function PropertyCard({ property: p }: { property: Property }) {
 }
 
 function PropertiesPage() {
-  const [createOpen, setCreateOpen] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editing, setEditing] = useState<Property | null>(null)
   const [page, setPage] = useState(1)
   const limit = 15
   const { data, isLoading, error } = useProperties({ page, limit })
+
+  function openCreate() { setEditing(null); setSheetOpen(true) }
+  function openEdit(property: Property) { setEditing(property); setSheetOpen(true) }
 
   return (
     <div className="space-y-6">
@@ -115,13 +127,29 @@ function PropertiesPage() {
             Gestiona tu cartera de propiedades
           </Text>
         </div>
-        <Button className="self-start sm:self-auto" onClick={() => setCreateOpen(true)}>
+        <Button className="self-start sm:self-auto" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Nueva propiedad
         </Button>
       </div>
 
-      <CreatePropertySheet open={createOpen} onOpenChange={setCreateOpen} />
+      <FormSheet
+        key={editing?.id ?? 'new'}
+        open={sheetOpen}
+        onOpenChange={(v) => { setSheetOpen(v); if (!v) setEditing(null) }}
+        title={editing ? 'Editar propiedad' : 'Nueva propiedad'}
+        description={editing ? 'Modificá los datos de la propiedad.' : 'Completá los datos básicos para crear la propiedad.'}
+        onSubmit={() => {}}
+        isSubmitting={false}
+        submitLabel=""
+        hideActions
+      >
+        <PropertyForm
+          initialData={editing ?? undefined}
+          onSuccess={() => { setSheetOpen(false); setEditing(null) }}
+          onCancel={() => { setSheetOpen(false); setEditing(null) }}
+        />
+      </FormSheet>
 
       {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">
@@ -134,7 +162,7 @@ function PropertiesPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => <PropertyCardSkeleton key={i} />)
-          : data?.data.map((p) => <PropertyCard key={p.id} property={p} />)}
+          : data?.data.map((p) => <PropertyCard key={p.id} property={p} onEdit={openEdit} />)}
       </div>
 
       {!isLoading && data?.data.length === 0 && (
@@ -143,7 +171,7 @@ function PropertiesPage() {
           <Text as="sm" className="text-muted-foreground mt-1">
             Creá tu primera propiedad para comenzar.
           </Text>
-          <Button className="mt-4" onClick={() => setCreateOpen(true)}>
+          <Button className="mt-4" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Nueva propiedad
           </Button>
