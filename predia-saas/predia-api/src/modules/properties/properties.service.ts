@@ -55,6 +55,24 @@ const PROPERTY_DETAIL_SELECT = {
       updated_at: true,
     },
   },
+  amenities: {
+    select: {
+      property_id: true,
+      amenity_id: true,
+      amenity: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          icon: true,
+          is_active: true,
+          created_at: true,
+          updated_at: true,
+        },
+      },
+    },
+    orderBy: { amenity: { name: 'asc' } },
+  },
   agent: {
     select: { id: true, first_name: true, last_name: true, email: true },
   },
@@ -134,16 +152,6 @@ export class PropertiesService {
 
     const meta = new PageMetaDto({ pageOptionsDto: filters, itemCount });
     return new PageDto(items, meta);
-  }
-
-  async findOne(id: string, tenantId: string) {
-    const property = await this.prisma.property.findFirst({
-      where: { id, tenant_id: tenantId },
-      select: PROPERTY_SELECT,
-    });
-
-    if (!property) throw new NotFoundException('Propiedad no encontrada');
-    return property;
   }
 
   async create(dto: CreatePropertyDto, tenantId: string, caller: JwtPayload) {

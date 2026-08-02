@@ -15,7 +15,6 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
-  ApiNotFoundResponse,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -51,10 +50,12 @@ export class PropertiesController {
 
   @Get(':id')
   @Roles(UserRole.admin, UserRole.agent)
-  @ApiOkResponse({ type: PropertyResponseDto })
-  @ApiNotFoundResponse({ description: 'Propiedad no encontrada' })
-  findOne(@Param('id') id: string, @CurrentTenant() tenantId: string) {
-    return this.propertiesService.findOne(id, tenantId);
+  @ApiOkResponse({ type: PropertyDetailResponseDto })
+  findById(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentTenant() tenantId: string,
+  ) {
+    return this.propertiesService.findById(id, tenantId);
   }
 
   @Post()
@@ -77,16 +78,6 @@ export class PropertiesController {
     @CurrentTenant() tenantId: string,
   ) {
     return this.propertiesService.findBySlug(slug, tenantId);
-  }
-
-  @Get(':id')
-  @Roles(UserRole.admin, UserRole.agent)
-  @ApiOkResponse({ type: PropertyDetailResponseDto })
-  findById(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @CurrentTenant() tenantId: string,
-  ) {
-    return this.propertiesService.findById(id, tenantId);
   }
 
   @Patch(':id')

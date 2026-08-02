@@ -29,6 +29,7 @@ Scripts:
 npx ts-node src/scripts/seed-superadmin.ts    # seed initial super_admin
 npx ts-node src/scripts/seed-locations.ts     # seed CR provinces/cantons/districts (idempotent)
 npx ts-node src/scripts/seed-categories.ts    # seed initial categories (idempotent, upsert by slug)
+npx ts-node src/scripts/seed-amenities.ts     # seed shared amenity catalog (idempotent, upsert by slug)
 npx ts-node src/scripts/generate-openapi.ts   # export OpenAPI JSON
 ```
 
@@ -295,6 +296,12 @@ Cualquier endpoint que **cree, modifique o elimine** un recurso persistente.
 | `PropertyImagesController` | `POST /api/v1/properties/:propertyId/images` | `CREATE` | `property_image` |
 | `PropertyImagesController` | `DELETE /api/v1/properties/:propertyId/images/:imageId` | `DELETE` | `property_image` |
 | `PropertyImagesController` | `PATCH /api/v1/properties/:propertyId/images/:imageId/cover` | `UPDATE` | `property_image` |
+| `CategoryAmenitiesController` | `POST /api/v1/categories/:categoryId/amenities` | `CREATE` | `category_amenity` |
+| `CategoryAmenitiesController` | `DELETE /api/v1/categories/:categoryId/amenities` | `DELETE` | `category_amenity` |
+| `PropertyAmenitiesController` | `POST /api/v1/properties/:propertyId/amenities` | `CREATE` | `property_amenity` |
+| `PropertyAmenitiesController` | `DELETE /api/v1/properties/:propertyId/amenities` | `DELETE` | `property_amenity` |
+
+> **Nota:** `CategoryAmenitiesController` y `PropertyAmenitiesController` NO usan el decorador `@AuditLog()`. La respuesta es un array y el param es `:categoryId`/`:propertyId` (no `:id`), así que el interceptor dejaría `entity_id: 'unknown'`. En su lugar, `AmenitiesService` llama `auditLogService.log()` directamente con `entity_id = categoryId/propertyId` (patrón documentado en [Limitación del interceptor: entity_id](#limitación-del-interceptor-entity_id)).
 
 ### Endpoints que NO usan @AuditLog (y por qué)
 

@@ -12,10 +12,12 @@ import {
   SelectValue,
 } from '@/design-system/ui/select'
 import { Switch } from '@/design-system/ui/switch'
+import { Checkbox } from '@/design-system/ui/checkbox'
 import { Label } from '@/design-system/ui/label'
 import { Button } from '@/design-system/ui/button'
 import { FormField } from '@/shared/components/form-field'
 import { useCreateProperty, useUpdateProperty } from '../hooks'
+import { useAddPropertyAmenities, useRemovePropertyAmenities } from '@/app/amenities/hooks'
 import { useCategories } from '@/app/categories/hooks'
 import { useProvinces, useLocationsTree, useLocationChildren } from '@/app/locations/hooks'
 import { propertyFormSchema } from '../types/create-property.schema'
@@ -39,6 +41,8 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
   const { data: categoriesData, isLoading: categoriesLoading } = useCategories()
   const { mutate: createProperty, isPending: isCreating } = useCreateProperty()
   const { mutate: updateProperty, isPending: isUpdating } = useUpdateProperty()
+  const { mutate: addPropertyAmenities } = useAddPropertyAmenities()
+  const { mutate: removePropertyAmenities } = useRemovePropertyAmenities()
   const isPending = isCreating || isUpdating
 
   const categories = categoriesData ?? []
@@ -129,6 +133,7 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
           { id: initialData.id, ...payload },
           {
             onSuccess: () => {
+              syncPropertyAmenities(initialData.id)
               form.reset()
               if (onSuccess) onSuccess()
               else navigate({ to: '/properties' })
@@ -143,7 +148,8 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
         )
       } else {
         createProperty(payload, {
-          onSuccess: () => {
+          onSuccess: (data) => {
+            if (data?.id) syncPropertyAmenities(data.id)
             form.reset()
             if (onSuccess) onSuccess()
             else navigate({ to: '/properties' })
@@ -166,6 +172,36 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
   const selectedCategory = useMemo(
     () => categories.find((c) => c.id === categoryId) ?? null,
     [categories, categoryId],
+  )
+
+  const existingAmenityIds = useMemo(() => {
+    if (!initialData?.amenities) return new Set<string>()
+    return new Set(initialData.amenities.map((a) => a.amenity_id))
+  }, [initialData?.amenities])
+
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<Set<string>>(() =>
+    isEdit && initialData?.amenities?.length
+      ? new Set(initialData.amenities.map((a) => a.amenity_id))
+      : new Set<string>(),
+  )
+
+  const toggleAmenity = useCallback((id: string) => {
+    setSelectedAmenityIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const syncPropertyAmenities = useCallback(
+    (propertyId: string) => {
+      const toAdd = [...selectedAmenityIds].filter((id) => !existingAmenityIds.has(id))
+      const toRemove = [...existingAmenityIds].filter((id) => !selectedAmenityIds.has(id))
+      if (toAdd.length > 0) addPropertyAmenities({ propertyId, amenityIds: toAdd })
+      if (toRemove.length > 0) removePropertyAmenities({ propertyId, amenityIds: toRemove })
+    },
+    [selectedAmenityIds, existingAmenityIds, addPropertyAmenities, removePropertyAmenities],
   )
 
   const attributeErrors = useMemo(
@@ -349,6 +385,50 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
         errors={attributeErrors}
         isEdit={isEdit}
       />
+
+      {/* Amenidades seleccionables, pre-marcadas desde la categoría */}
+      <div className="rounded-xl border border-hairline p-4 space-y-3">
+        <div className="space-y-1">
+          <Label className="text-sm font-medium">Amenidades</Label>
+          <span className="text-[13px] font-body text-muted-foreground block">
+            Pre-marcadas según la categoría del bien. Podés desmarcar o agregar
+            las comodidades específicas de esta propiedad.
+          </span>
+        </div>
+        {!categoryId ? (
+          <p className="text-sm text-muted-foreground">
+            Seleccioná una categoría para ver sus amenidades.
+          </p>
+        ) : !selectedCategory?.amenities || selectedCategory.amenities.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Esta categoría no tiene amenidades asociadas.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {selectedCategory.amenities.map((pa) => {
+              const id = pa.amenity_id
+              const checked = selectedAmenityIds.has(id)
+              return (
+                <label
+                  key={id}
+                  className={`inline-flex items-center gap-2 rounded-md border border-hairline px-3 py-2 text-sm cursor-pointer transition-colors ${
+                    checked
+                      ? 'bg-primary/10 text-foreground'
+                      : 'bg-surface-soft text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Checkbox
+                    id={isEdit ? `edit_amenity_${id}` : `amenity_${id}`}
+                    checked={checked}
+                    onCheckedChange={() => toggleAmenity(id)}
+                  />
+                  <span>{pa.amenity.name}</span>
+                </label>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Dirección */}
       <form.Field name="address">

@@ -68,58 +68,6 @@ const CATEGORIES = [
           enum: ['nuevo', 'excelente', 'bueno', 'regular', 'por_remodelar'],
           enumNames: ['Nuevo / Estreno', 'Excelente', 'Bueno', 'Regular', 'Por remodelar'],
         },
-        amenidades: {
-          type: 'array',
-          title: 'Amenidades',
-          uniqueItems: true,
-          items: {
-            type: 'string',
-            enum: [
-              'piscina',
-              'gimnasio',
-              'seguridad_24h',
-              'portón_eléctrico',
-              'área_bbq',
-              'cancha',
-              'salón_comunal',
-              'juegos_infantiles',
-              'bodega',
-              'cuarto_servicio',
-              'terraza',
-              'balcón',
-              'jardín',
-              'vista_al_mar',
-              'vista_a_montaña',
-              'cisterna',
-              'planta_eléctrica',
-              'paneles_solares',
-              'ascensor',
-              'pet_friendly',
-            ],
-            enumNames: [
-              'Piscina',
-              'Gimnasio',
-              'Seguridad 24h',
-              'Portón eléctrico',
-              'Área BBQ',
-              'Cancha deportiva',
-              'Salón comunal',
-              'Juegos infantiles',
-              'Bodega',
-              'Cuarto de servicio',
-              'Terraza',
-              'Balcón',
-              'Jardín',
-              'Vista al mar',
-              'Vista a montaña',
-              'Cisterna',
-              'Planta eléctrica',
-              'Paneles solares',
-              'Ascensor',
-              'Pet friendly',
-            ],
-          },
-        },
       },
     },
   },
@@ -210,62 +158,61 @@ const CATEGORIES = [
           enum: ['nuevo', 'usado', 'reconstruido'],
           enumNames: ['Nuevo (0 km)', 'Usado', 'Reconstruido'],
         },
-        extras: {
-          type: 'array',
-          title: 'Extras',
-          uniqueItems: true,
-          items: {
-            type: 'string',
-            enum: [
-              'aire_acondicionado',
-              'sunroof',
-              'camara_reversa',
-              'sensores_parking',
-              'asientos_cuero',
-              'asientos_electricos',
-              'volante_cuero',
-              'bluetooth',
-              'apple_carplay',
-              'android_auto',
-              'pantalla_tactil',
-              'navegacion_gps',
-              'luces_led',
-              'llantas_nuevas',
-              'turbo',
-              'control_crucero',
-              'arranque_remoto',
-              'vidrios_electricos',
-              'espejos_electricos',
-              'techo_panoramico',
-            ],
-            enumNames: [
-              'Aire acondicionado',
-              'Sunroof',
-              'Cámara de reversa',
-              'Sensores de parking',
-              'Asientos de cuero',
-              'Asientos eléctricos',
-              'Volante de cuero',
-              'Bluetooth',
-              'Apple CarPlay',
-              'Android Auto',
-              'Pantalla táctil',
-              'Navegación GPS',
-              'Luces LED',
-              'Llantas nuevas',
-              'Turbo',
-              'Control crucero',
-              'Arranque remoto',
-              'Vidrios eléctricos',
-              'Espejos eléctricos',
-              'Techo panorámico',
-            ],
-          },
-        },
       },
     },
   },
 ];
+
+const AMENITY_AMENITIES = [
+  'piscina',
+  'gimnasio',
+  'seguridad_24h',
+  'portón_eléctrico',
+  'área_bbq',
+  'cancha',
+  'salón_comunal',
+  'juegos_infantiles',
+  'bodega',
+  'cuarto_servicio',
+  'terraza',
+  'balcón',
+  'jardín',
+  'vista_al_mar',
+  'vista_a_montaña',
+  'cisterna',
+  'planta_eléctrica',
+  'paneles_solares',
+  'ascensor',
+  'pet_friendly',
+] as const;
+
+const AMENITY_VEHICULOS = [
+  'aire_acondicionado',
+  'sunroof',
+  'camara_reversa',
+  'sensores_parking',
+  'asientos_cuero',
+  'asientos_electricos',
+  'volante_cuero',
+  'bluetooth',
+  'apple_carplay',
+  'android_auto',
+  'pantalla_tactil',
+  'navegacion_gps',
+  'luces_led',
+  'llantas_nuevas',
+  'turbo',
+  'control_crucero',
+  'arranque_remoto',
+  'vidrios_electricos',
+  'espejos_electricos',
+  'techo_panoramico',
+] as const;
+
+const AMENITY_SLUGS: Record<string, readonly string[]> = {
+  'bienes-raices': AMENITY_AMENITIES,
+  vehiculos: AMENITY_VEHICULOS,
+};
 
 async function main() {
   const databaseUrl = process.env.SYSTEM_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -279,7 +226,7 @@ async function main() {
 
   try {
     for (const cat of CATEGORIES) {
-      await prisma.category.upsert({
+      const created = await prisma.category.upsert({
         where: { slug: cat.slug },
         create: cat,
         update: {
@@ -288,6 +235,19 @@ async function main() {
           attribute_schema: cat.attribute_schema,
         },
       });
+
+      // Enlazar el catálogo de amenidades a la categoría (según AMENITY_SLUGS por slug de categoría).
+      const amenitySlugs = AMENITY_SLUGS[cat.slug] ?? [];
+      if (amenitySlugs.length > 0) {
+        const amenities = await prisma.amenity.findMany({
+          where: { slug: { in: [...amenitySlugs] }, is_active: true },
+          select: { id: true },
+        });
+        await prisma.categoryAmenity.createMany({
+          data: amenities.map((a) => ({ category_id: created.id, amenity_id: a.id })),
+          skipDuplicates: true,
+        });
+      }
       console.log(`✓ ${cat.name} (${cat.slug})`);
     }
 
