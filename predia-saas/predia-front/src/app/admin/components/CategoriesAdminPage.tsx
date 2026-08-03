@@ -21,6 +21,11 @@ import {
   useUpdateCategory,
   useDeleteCategory,
 } from '@/app/categories/hooks'
+import {
+  useAddCategoryAmenities,
+  useRemoveCategoryAmenities,
+} from '@/app/amenities/hooks'
+import { AmenityPicker } from '@/app/amenities/components/AmenityPicker'
 import type { Category, JSONSchema, JSONSchemaProperty } from '@/app/categories/types'
 
 const categoryMetaSchema = z.object({
@@ -434,6 +439,21 @@ function CategoryCard({ category, onEdit, onDelete }: {
             ))}
           </div>
         )}
+
+        <div className="mt-5 pt-4 border-t border-hairline">
+          <Text as="caption" className="text-muted-foreground uppercase tracking-wide font-semibold mb-2 block">Amenidades</Text>
+          {!category.amenities || category.amenities.length === 0 ? (
+            <Text as="sm" className="text-muted-foreground">Sin amenidades asociadas.</Text>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {category.amenities.map((pa) => (
+                <span key={pa.amenity_id} className="inline-flex items-center rounded-md bg-surface-soft border border-hairline px-2.5 py-1 text-xs text-foreground">
+                  {pa.amenity.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -450,10 +470,16 @@ function CategoryForm({ open, onOpenChange, editing }: {
 }) {
   const { mutate: create, isPending: creating } = useCreateCategory()
   const { mutate: update, isPending: updating } = useUpdateCategory()
+  const { mutate: addAmenities } = useAddCategoryAmenities()
+  const { mutate: removeAmenities } = useRemoveCategoryAmenities()
   const isPending = creating || updating
 
   const [schema, setSchema] = useState<JSONSchema>(() =>
     editing ? editing.attribute_schema : { type: 'object', required: [], properties: {} }
+  )
+
+  const [amenityIds, setAmenityIds] = useState<string[]>(() =>
+    editing?.amenities?.map((a) => a.amenity_id) ?? []
   )
 
   const form = useForm({
@@ -471,18 +497,35 @@ function CategoryForm({ open, onOpenChange, editing }: {
         attribute_schema: schema,
       }
       if (editing) {
-        update({ id: editing.id, ...payload }, { onSuccess: () => { onOpenChange(false) } })
+        update(
+          { id: editing.id, ...payload },
+          {
+            onSuccess: (updated) => syncAmenities(updated.id),
+          },
+        )
       } else {
-        create(payload, { onSuccess: () => { onOpenChange(false) } })
+        create(payload, {
+          onSuccess: (created) => syncAmenities(created.id),
+        })
       }
     },
   })
+
+  function syncAmenities(categoryId: string) {
+    const currentAmenityIds = editing?.amenities?.map((a) => a.amenity_id) ?? []
+    const toAdd = amenityIds.filter((id) => !currentAmenityIds.includes(id))
+    const toRemove = currentAmenityIds.filter((id) => !amenityIds.includes(id))
+    if (toAdd.length > 0) addAmenities({ categoryId, amenityIds: toAdd })
+    if (toRemove.length > 0) removeAmenities({ categoryId, amenityIds: toRemove })
+    onOpenChange(false)
+  }
 
   function handleOpen(v: boolean) {
     onOpenChange(v)
     if (!v) {
       form.reset()
       setSchema(editing ? editing.attribute_schema : { type: 'object', required: [], properties: {} })
+      setAmenityIds(editing?.amenities?.map((a) => a.amenity_id) ?? [])
     }
   }
 
@@ -546,6 +589,8 @@ function CategoryForm({ open, onOpenChange, editing }: {
         value={schema}
         onChange={setSchema}
       />
+
+      <AmenityPicker selectedIds={amenityIds} onChange={setAmenityIds} isEdit={!!editing} />
     </FormSheet>
   )
 }

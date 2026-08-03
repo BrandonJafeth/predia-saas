@@ -22,6 +22,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { PropertiesModule } from './modules/properties/properties.module';
 import { PropertyImagesModule } from './modules/property-images/property-images.module';
 import { LeadsModule } from './modules/leads/leads.module';
+import { AmenitiesModule } from './modules/amenities/amenities.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { LeadsModule } from './modules/leads/leads.module';
     PropertiesModule,
     PropertyImagesModule,
     LeadsModule,
+    AmenitiesModule,
   ],
   providers: [
     {

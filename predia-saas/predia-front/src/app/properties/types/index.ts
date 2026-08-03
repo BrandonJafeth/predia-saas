@@ -1,4 +1,5 @@
 import type { components } from '@predia/api-types'
+import type { CategoryAmenity } from '@/app/amenities/types'
 
 // The generated schema infers nullable string fields as Record<string,never>|null
 // due to missing type info in openapi-typescript. Override with correct types.
@@ -22,6 +23,7 @@ export interface Property extends Omit<
   location_id: string | null
   agent_id: string | null
   attributes: Record<string, unknown>
+  amenities?: CategoryAmenity[]
 }
 
 // attributes is generated as Record<string,never> (openapi-typescript quirk for

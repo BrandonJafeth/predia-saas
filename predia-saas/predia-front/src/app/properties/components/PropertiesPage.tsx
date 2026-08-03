@@ -6,8 +6,8 @@ import { Button } from '@/design-system/ui/button'
 import { Skeleton } from '@/design-system/ui/skeleton'
 import { FormSheet } from '@/design-system/ui/form-sheet'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
-import { Plus, MapPin, PencilLine } from 'lucide-react'
-import { useProperties } from '../hooks'
+import { Plus, MapPin, PencilLine, Loader2 } from 'lucide-react'
+import { useProperties, useProperty } from '../hooks'
 import { PropertyForm } from './PropertyForm'
 import type { Property } from '../types'
 
@@ -115,6 +115,13 @@ function PropertiesPage() {
   const limit = 15
   const { data, isLoading, error } = useProperties({ page, limit })
 
+  const editingId = editing?.id ?? ''
+  const {
+    data: editingDetail,
+    isLoading: editingLoading,
+    isFetching: editingFetching,
+  } = useProperty(editingId)
+
   function openCreate() { setEditing(null); setSheetOpen(true) }
   function openEdit(property: Property) { setEditing(property); setSheetOpen(true) }
 
@@ -144,11 +151,17 @@ function PropertiesPage() {
         submitLabel=""
         hideActions
       >
-        <PropertyForm
-          initialData={editing ?? undefined}
-          onSuccess={() => { setSheetOpen(false); setEditing(null) }}
-          onCancel={() => { setSheetOpen(false); setEditing(null) }}
-        />
+        {editing && (editingLoading || editingFetching) ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <PropertyForm
+            initialData={editingDetail ?? undefined}
+            onSuccess={() => { setSheetOpen(false); setEditing(null) }}
+            onCancel={() => { setSheetOpen(false); setEditing(null) }}
+          />
+        )}
       </FormSheet>
 
       {error && (

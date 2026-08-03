@@ -11,11 +11,25 @@ export class CategoriesService {
   findAll() {
     return this.prisma.category.findMany({
       orderBy: { name: 'asc' },
+      include: {
+        amenities: {
+          orderBy: { amenity: { name: 'asc' } },
+          include: { amenity: true },
+        },
+      },
     });
   }
 
   async findBySlug(slug: string) {
-    const category = await this.prisma.category.findUnique({ where: { slug } });
+    const category = await this.prisma.category.findUnique({
+      where: { slug },
+      include: {
+        amenities: {
+          orderBy: { amenity: { name: 'asc' } },
+          include: { amenity: true },
+        },
+      },
+    });
     if (!category) throw new NotFoundException('Categoría no encontrada');
     return category;
   }
@@ -29,6 +43,12 @@ export class CategoriesService {
         slug: dto.slug,
         description: dto.description,
         attribute_schema: dto.attribute_schema as Prisma.InputJsonValue,
+      },
+      include: {
+        amenities: {
+          orderBy: { amenity: { name: 'asc' } },
+          include: { amenity: true },
+        },
       },
     });
   }
@@ -50,6 +70,12 @@ export class CategoriesService {
         slug: dto.slug,
         description: dto.description,
         attribute_schema: dto.attribute_schema as Prisma.InputJsonValue | undefined,
+      },
+      include: {
+        amenities: {
+          orderBy: { amenity: { name: 'asc' } },
+          include: { amenity: true },
+        },
       },
     });
   }

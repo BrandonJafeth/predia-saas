@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LocationType } from '@prisma/client';
+import { PropertyAmenityResponseDto } from '../../amenities/dto/property-amenity-response.dto';
 import { CategoryResponseDto } from '../../categories/dto/category-response.dto';
 import { PropertyResponseDto } from './property-response.dto';
 
@@ -63,4 +64,7 @@ export class PropertyDetailResponseDto extends PropertyResponseDto {
 
   @ApiProperty({ type: () => [PropertyImageResponseDto] })
   images!: PropertyImageResponseDto[];
+
+  @ApiProperty({ type: () => [PropertyAmenityResponseDto] })
+  amenities!: PropertyAmenityResponseDto[];
 }

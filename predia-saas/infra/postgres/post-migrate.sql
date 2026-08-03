@@ -40,3 +40,14 @@ CREATE POLICY tenant_isolation ON audit_log
 
 -- Nota: "User" tiene RLS en la migración 20260605220000_rls_tenant_isolation.
 -- tenant_sites y demás tablas con tenant_id reciben RLS del trigger automáticamente.
+
+
+-- ─── property_amenities — RLS directo (defensivo) ────────────────────────────
+-- Cubre el caso en que el event trigger de init.sql no esté instalado o haya
+-- fallado. Idempotente: DROP IF EXISTS + CREATE permite re-ejecución segura.
+
+ALTER TABLE property_amenities ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS tenant_isolation ON property_amenities;
+CREATE POLICY tenant_isolation ON property_amenities
+  USING (tenant_id = current_setting('app.current_tenant_id', true));

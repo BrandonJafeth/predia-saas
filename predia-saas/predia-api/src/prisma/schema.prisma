@@ -92,6 +92,7 @@ model Tenant {
   properties              Property[]
   leads                   Lead[]
   lead_activities         LeadActivity[]
+  property_amenities      PropertyAmenity[]
 }
 
 model TenantSite {
@@ -164,16 +165,43 @@ model Location {
 }
 
 model Category {
-  id               String     @id @default(uuid())
+  id               String           @id @default(uuid())
   name             String
-  slug             String     @unique
+  slug             String           @unique
   description      String?
   attribute_schema Json
-  created_at       DateTime   @default(now())
-  updated_at       DateTime   @updatedAt
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
   properties       Property[]
+  amenities        CategoryAmenity[]
 
   @@map("categories")
+}
+
+model Amenity {
+  id          String           @id @default(uuid())
+  name        String
+  slug        String           @unique
+  icon        String?
+  is_active   Boolean          @default(true)
+  created_at  DateTime         @default(now())
+  updated_at  DateTime         @updatedAt
+  categories  CategoryAmenity[]
+  property_amenities PropertyAmenity[]
+
+  @@index([is_active])
+  @@map("amenities")
+}
+
+model CategoryAmenity {
+  category_id String
+  amenity_id  String
+  category    Category @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  amenity     Amenity  @relation(fields: [amenity_id], references: [id], onDelete: Cascade)
+
+  @@id([category_id, amenity_id])
+  @@index([amenity_id])
+  @@map("category_amenities")
 }
 
 model AuditLog {
@@ -222,6 +250,7 @@ model Property {
   agent          User?           @relation(fields: [agent_id], references: [id])
   leads          Lead[]
   images         PropertyImage[]
+  amenities      PropertyAmenity[]
 
   @@unique([tenant_id, slug])
   @@index([tenant_id])
@@ -247,6 +276,20 @@ model PropertyImage {
   @@index([property_id, position])
   @@index([tenant_id])
   @@map("property_images")
+}
+
+model PropertyAmenity {
+  property_id String
+  amenity_id  String
+  tenant_id   String
+  property    Property @relation(fields: [property_id], references: [id], onDelete: Cascade)
+  amenity     Amenity  @relation(fields: [amenity_id], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id])
+
+  @@id([property_id, amenity_id])
+  @@index([tenant_id])
+  @@index([amenity_id])
+  @@map("property_amenities")
 }
 
 model Lead {
