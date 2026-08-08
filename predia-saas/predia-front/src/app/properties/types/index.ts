@@ -1,5 +1,6 @@
 import type { components } from '@predia/api-types'
 import type { CategoryAmenity } from '@/app/amenities/types'
+import type { Category } from '@/app/categories/types'
 
 // The generated schema infers nullable string fields as Record<string,never>|null
 // due to missing type info in openapi-typescript. Override with correct types.
@@ -8,6 +9,29 @@ type RawProperty = components['schemas']['PropertyResponseDto']
 export type OperationType = 'sale' | 'rent' | 'lease'
 export type PropertyStatus = 'draft' | 'active' | 'inactive' | 'sold' | 'rented'
 export type CurrencyCode = 'CRC' | 'USD'
+
+export interface PropertyImage {
+  id: string
+  url: string
+  position: number
+  is_cover: boolean
+  created_at: string
+}
+
+export interface PropertyLocation {
+  id: string
+  name: string
+  code: string
+  type: 'province' | 'canton' | 'district'
+  parent_id: string | null
+}
+
+export interface PropertyAgent {
+  id: string
+  first_name: string
+  last_name: string
+  email: string
+}
 
 export interface Property extends Omit<
   RawProperty,
@@ -23,7 +47,17 @@ export interface Property extends Omit<
   location_id: string | null
   agent_id: string | null
   attributes: Record<string, unknown>
+  cover_image: PropertyImage | null
   amenities?: CategoryAmenity[]
+}
+
+export interface PropertyDetail extends Property {
+  location: PropertyLocation | null
+  category: Category
+  agent: PropertyAgent | null
+  images: PropertyImage[]
+  amenities: CategoryAmenity[]
+  max_images_per_property: number
 }
 
 // attributes is generated as Record<string,never> (openapi-typescript quirk for

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useForm, useStore } from '@tanstack/react-form'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { Input } from '@/design-system/ui/input'
@@ -23,14 +24,16 @@ import { useProvinces, useLocationsTree, useLocationChildren } from '@/app/locat
 import { propertyFormSchema } from '../types/create-property.schema'
 import { DynamicAttributeFields } from './DynamicAttributeFields'
 import { validateAttributes } from '../utils/build-attributes-schema'
-import type { Property, CreatePropertyRequest } from '../types'
-import { extractApiError } from '@/shared/lib/notifications'
+import { PropertyImagesField } from './PropertyImagesField'
+import { propertyImagesService } from '../services/property-images.service'
+import { propertyKeys, type Property, type CreatePropertyRequest } from '../types'
+import { notify, extractApiError } from '@/shared/lib/notifications'
 
 const NONE_VALUE = '__none__'
 
 interface PropertyFormProps {
   initialData?: Property
-  onSuccess?: () => void
+  onSuccess?: (id?: string) => void
   onCancel?: () => void
 }
 
@@ -41,9 +44,27 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
   const { data: categoriesData, isLoading: categoriesLoading } = useCategories()
   const { mutate: createProperty, isPending: isCreating } = useCreateProperty()
   const { mutate: updateProperty, isPending: isUpdating } = useUpdateProperty()
-  const { mutate: addPropertyAmenities } = useAddPropertyAmenities()
-  const { mutate: removePropertyAmenities } = useRemovePropertyAmenities()
+  const { mutateAsync: addPropertyAmenities } = useAddPropertyAmenities()
+  const { mutateAsync: removePropertyAmenities } = useRemovePropertyAmenities()
   const isPending = isCreating || isUpdating
+
+  const queryClient = useQueryClient()
+  const [queuedFiles, setQueuedFiles] = useState<File[]>([])
+  const [isUploadingImages, setIsUploadingImages] = useState(false)
+
+  const uploadQueuedImages = async (propertyId: string) => {
+    const files = queuedFiles
+    if (files.length === 0) return
+    setQueuedFiles([])
+    for (const file of files) {
+      try {
+        await propertyImagesService.uploadImage(propertyId, file)
+      } catch (err) {
+        notify.error({ title: 'Error al subir imagen', description: extractApiError(err) })
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: propertyKeys.detail(propertyId) })
+  }
 
   const categories = categoriesData ?? []
 
@@ -133,10 +154,12 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
           { id: initialData.id, ...payload },
           {
             onSuccess: () => {
-              syncPropertyAmenities(initialData.id)
-              form.reset()
-              if (onSuccess) onSuccess()
-              else navigate({ to: '/properties' })
+              void (async () => {
+                await finalizeSave(initialData.id)
+                form.reset()
+                if (onSuccess) onSuccess(initialData.id)
+                else navigate({ to: '/properties' })
+              })()
             },
             onError: (err) => {
               const msg = extractApiError(err).toLowerCase()
@@ -148,12 +171,15 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
         )
       } else {
         createProperty(payload, {
-          onSuccess: (data) => {
-            if (data?.id) syncPropertyAmenities(data.id)
-            form.reset()
-            if (onSuccess) onSuccess()
-            else navigate({ to: '/properties' })
-          },
+            onSuccess: (data) => {
+              void (async () => {
+                const id = data?.id
+                if (id) await finalizeSave(id)
+                form.reset()
+                if (onSuccess) onSuccess(id)
+                else navigate({ to: '/properties' })
+              })()
+            },
           onError: (err) => {
             const msg = extractApiError(err).toLowerCase()
             if (msg.includes('title')) {
@@ -195,14 +221,31 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
   }, [])
 
   const syncPropertyAmenities = useCallback(
-    (propertyId: string) => {
+    async (propertyId: string) => {
       const toAdd = [...selectedAmenityIds].filter((id) => !existingAmenityIds.has(id))
       const toRemove = [...existingAmenityIds].filter((id) => !selectedAmenityIds.has(id))
-      if (toAdd.length > 0) addPropertyAmenities({ propertyId, amenityIds: toAdd })
-      if (toRemove.length > 0) removePropertyAmenities({ propertyId, amenityIds: toRemove })
+      if (toAdd.length > 0) await addPropertyAmenities({ propertyId, amenityIds: toAdd })
+      if (toRemove.length > 0) await removePropertyAmenities({ propertyId, amenityIds: toRemove })
     },
     [selectedAmenityIds, existingAmenityIds, addPropertyAmenities, removePropertyAmenities],
   )
+
+  // Espera imágenes + amenidades y refresca el detalle antes de cerrar, para que
+  // al reabrir el form las amenidades ya estén actualizadas en cache.
+  const finalizeSave = async (id: string) => {
+    setIsUploadingImages(true)
+    try {
+      await uploadQueuedImages(id)
+      try {
+        await syncPropertyAmenities(id)
+      } catch {
+        // las mutaciones de amenidades ya notifican el error; no bloquear el cierre
+      }
+      await queryClient.refetchQueries({ queryKey: propertyKeys.detail(id) })
+    } finally {
+      setIsUploadingImages(false)
+    }
+  }
 
   const attributeErrors = useMemo(
     () => validateAttributes(selectedCategory?.attribute_schema, attributes),
@@ -581,15 +624,23 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
         )}
       </form.Field>
 
+      {/* Imágenes */}
+      <PropertyImagesField
+        propertyId={isEdit && initialData ? initialData.id : undefined}
+        files={queuedFiles}
+        onChangeFiles={setQueuedFiles}
+      />
+
       {/* Submit */}
       <div className="flex items-center gap-3 pt-2">
-        <Button type="submit" disabled={isPending} className="min-w-32">
-          {isPending && <Loader2 className="size-4 animate-spin" />}
-          {isEdit ? 'Guardar cambios' : 'Crear propiedad'}
+        <Button type="submit" disabled={isPending || isUploadingImages} className="min-w-32">
+          {(isPending || isUploadingImages) && <Loader2 className="size-4 animate-spin" />}
+          {isUploadingImages ? 'Subiendo imágenes…' : isEdit ? 'Guardar cambios' : 'Crear propiedad'}
         </Button>
         <Button
           type="button"
           variant="outline"
+          disabled={isUploadingImages}
           onClick={() => {
             if (onCancel) onCancel()
             else navigate({ to: '/properties' })

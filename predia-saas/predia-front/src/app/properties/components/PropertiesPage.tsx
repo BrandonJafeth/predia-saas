@@ -6,7 +6,7 @@ import { Button } from '@/design-system/ui/button'
 import { Skeleton } from '@/design-system/ui/skeleton'
 import { FormSheet } from '@/design-system/ui/form-sheet'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
-import { Plus, MapPin, PencilLine, Loader2 } from 'lucide-react'
+import { Plus, MapPin, PencilLine, Loader2, Image as ImageIcon } from 'lucide-react'
 import { useProperties, useProperty } from '../hooks'
 import { PropertyForm } from './PropertyForm'
 import type { Property } from '../types'
@@ -64,7 +64,20 @@ function PropertyCardSkeleton() {
 function PropertyCard({ property: p, onEdit }: { property: Property; onEdit: (p: Property) => void }) {
   return (
     <Card className="overflow-hidden">
-      <div className="aspect-video w-full bg-surface-card" />
+      <div className="aspect-video w-full bg-surface-card">
+        {p.cover_image ? (
+          <img
+            src={p.cover_image.url}
+            alt={p.title}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <ImageIcon className="size-8 text-muted-foreground/40" />
+          </div>
+        )}
+      </div>
       <CardHeader>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
@@ -119,8 +132,12 @@ function PropertiesPage() {
   const {
     data: editingDetail,
     isLoading: editingLoading,
-    isFetching: editingFetching,
   } = useProperty(editingId)
+
+  function closeSheet() {
+    setSheetOpen(false)
+    setEditing(null)
+  }
 
   function openCreate() { setEditing(null); setSheetOpen(true) }
   function openEdit(property: Property) { setEditing(property); setSheetOpen(true) }
@@ -143,23 +160,25 @@ function PropertiesPage() {
       <FormSheet
         key={editing?.id ?? 'new'}
         open={sheetOpen}
-        onOpenChange={(v) => { setSheetOpen(v); if (!v) setEditing(null) }}
+        onOpenChange={(v) => { if (!v) closeSheet() }}
         title={editing ? 'Editar propiedad' : 'Nueva propiedad'}
-        description={editing ? 'Modificá los datos de la propiedad.' : 'Completá los datos básicos para crear la propiedad.'}
+        description={editing
+          ? 'Modificá los datos de la propiedad y sus imágenes.'
+          : 'Completá los datos de la propiedad y subí las fotos.'}
         onSubmit={() => {}}
         isSubmitting={false}
         submitLabel=""
         hideActions
       >
-        {editing && (editingLoading || editingFetching) ? (
+        {editing && editingLoading && !editingDetail ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <PropertyForm
             initialData={editingDetail ?? undefined}
-            onSuccess={() => { setSheetOpen(false); setEditing(null) }}
-            onCancel={() => { setSheetOpen(false); setEditing(null) }}
+            onSuccess={closeSheet}
+            onCancel={closeSheet}
           />
         )}
       </FormSheet>

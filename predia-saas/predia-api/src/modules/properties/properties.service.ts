@@ -37,6 +37,13 @@ const PROPERTY_SELECT = {
   is_published: true,
   created_at: true,
   updated_at: true,
+  // Solo la portada en el listado; el detalle trae todas (PROPERTY_DETAIL_SELECT)
+  images: {
+    where: { is_cover: true },
+    take: 1,
+    select: { id: true, url: true, position: true, is_cover: true, created_at: true },
+    orderBy: { position: 'asc' },
+  },
 } satisfies Prisma.PropertySelect;
 
 const PROPERTY_DETAIL_SELECT = {
@@ -79,6 +86,9 @@ const PROPERTY_DETAIL_SELECT = {
   images: {
     select: { id: true, url: true, position: true, is_cover: true, created_at: true },
     orderBy: { position: 'asc' },
+  },
+  tenant: {
+    select: { max_images_per_property: true },
   },
 } satisfies Prisma.PropertySelect;
 
@@ -151,7 +161,7 @@ export class PropertiesService {
     ]);
 
     const meta = new PageMetaDto({ pageOptionsDto: filters, itemCount });
-    return new PageDto(items, meta);
+    return new PageDto(items.map((item) => this.toResponse(item)), meta);
   }
 
   async create(dto: CreatePropertyDto, tenantId: string, caller: JwtPayload) {
@@ -184,7 +194,9 @@ export class PropertiesService {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       data.slug = await this.resolveSlug(baseSlug, tenantId);
       try {
-        return await this.prisma.property.create({ data, select: PROPERTY_SELECT });
+        return this.toResponse(
+          await this.prisma.property.create({ data, select: PROPERTY_SELECT }),
+        );
       } catch (error) {
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -278,11 +290,13 @@ export class PropertiesService {
         data.slug = await this.resolveSlug(baseSlug, tenantId, id);
       }
       try {
-        return await this.prisma.property.update({
-          where: { id },
-          data,
-          select: PROPERTY_SELECT,
-        });
+        return this.toResponse(
+          await this.prisma.property.update({
+            where: { id },
+            data,
+            select: PROPERTY_SELECT,
+          }),
+        );
       } catch (error) {
         if (
           baseSlug !== null &&
@@ -358,6 +372,17 @@ export class PropertiesService {
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * Convierte el resultado del query (con la relación `images` filtrada a la
+   * portada) al shape del DTO: expone `cover_image` en vez del array crudo.
+   */
+  private toResponse(
+    property: Prisma.PropertyGetPayload<{ select: typeof PROPERTY_SELECT }>,
+  ) {
+    const { images, ...rest } = property;
+    return { ...rest, cover_image: images[0] ?? null };
+  }
 
   private async assertValidAttributes(
     categoryId: string,

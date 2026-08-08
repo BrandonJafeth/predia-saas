@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Heading, Text } from '@/design-system/typography'
 import { PropertyForm } from '@/app/properties/components/PropertyForm'
 
@@ -7,6 +7,8 @@ export const Route = createFileRoute('/properties/new')({
 })
 
 function NewPropertyPage() {
+  const navigate = useNavigate()
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -15,7 +17,11 @@ function NewPropertyPage() {
           Completá los datos básicos para crear la propiedad.
         </Text>
       </div>
-      <PropertyForm />
+      <PropertyForm
+        onSuccess={(id) => {
+          if (id) navigate({ to: '/properties/$id/edit', params: { id } })
+        }}
+      />
     </div>
   )
 }

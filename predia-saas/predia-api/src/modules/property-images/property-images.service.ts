@@ -80,7 +80,8 @@ export class PropertyImagesService {
         url: uploadResult.secure_url,
         public_id: uploadResult.public_id,
         position: (maxPosition._max.position ?? -1) + 1,
-        is_cover: false,
+        // La primera imagen de la propiedad es la portada por defecto
+        is_cover: imageCount === 0,
       },
       select: PROPERTY_IMAGE_SELECT,
     });
@@ -96,7 +97,7 @@ export class PropertyImagesService {
 
     const image = await this.prisma.propertyImage.findFirst({
       where: { id: imageId, property_id: propertyId, tenant_id: tenantId },
-      select: { id: true, public_id: true },
+      select: { id: true, public_id: true, is_cover: true },
     });
 
     if (!image) {
@@ -105,6 +106,28 @@ export class PropertyImagesService {
 
     await this.cloudinary.destroy(image.public_id);
     await this.prisma.propertyImage.delete({ where: { id: image.id } });
+
+    // Si se eliminó la portada, promover la primera imagen restante
+    if (image.is_cover) {
+      const next = await this.prisma.propertyImage.findFirst({
+        where: { property_id: propertyId },
+        orderBy: { position: 'asc' },
+        select: { id: true },
+      });
+      if (next) {
+        await this.prisma.$transaction([
+          this.prisma.propertyImage.updateMany({
+            where: { property_id: propertyId, is_cover: true },
+            data: { is_cover: false },
+          }),
+          this.prisma.propertyImage.update({
+            where: { id: next.id },
+            data: { is_cover: true },
+            select: PROPERTY_IMAGE_SELECT,
+          }),
+        ]);
+      }
+    }
   }
 
   async setCover(
@@ -184,7 +207,8 @@ export class PropertyImagesService {
       dto.items.map((item) =>
         this.prisma.propertyImage.update({
           where: { id: item.id },
-          data: { position: item.position },
+          // La imagen en la primera posición (0) es la portada
+          data: { position: item.position, is_cover: item.position === 0 },
           select: PROPERTY_IMAGE_SELECT,
         }),
       ),

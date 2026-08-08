@@ -4,6 +4,7 @@ import type {
   CreatePropertyRequest,
   PaginatedResponse,
   Property,
+  PropertyDetail,
   PropertyFilters,
   UpdatePropertyRequest,
 } from '../types'
@@ -23,16 +24,16 @@ export const propertiesService = {
     return data as PaginatedResponse<Property>
   },
 
-  async getProperty(id: string): Promise<Property> {
+  async getProperty(id: string): Promise<PropertyDetail> {
     const { data, error } = await GET(`/api/v1/properties/${id}`)
     if (error) throw error
-    return data as Property
+    return data as PropertyDetail
   },
 
-  async getPropertyBySlug(slug: string): Promise<Property> {
+  async getPropertyBySlug(slug: string): Promise<PropertyDetail> {
     const { data, error } = await GET(`/api/v1/properties/slug/${slug}`)
     if (error) throw error
-    return data as Property
+    return data as PropertyDetail
   },
 
   async createProperty(payload: CreatePropertyRequest): Promise<Property> {
