@@ -9,31 +9,29 @@ import type {
   UpdatePropertyRequest,
 } from '../types'
 
-// GET /PATCH /DELETE for properties are not in the schema yet (backend pending).
-// Cast the client to bypass PathsWithMethod validation without using any.
-const { GET, PATCH, DELETE } = apiClient as unknown as {
-  GET: (url: string, options?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
-  PATCH: (url: string, options?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
-  DELETE: (url: string, options?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
-}
-
 export const propertiesService = {
   async getProperties(filters?: PropertyFilters): Promise<PaginatedResponse<Property>> {
-    const { data, error } = await GET('/api/v1/properties', { params: { query: filters } })
+    const { data, error } = await apiClient.GET('/api/v1/properties', {
+      params: { query: filters },
+    })
     if (error) throw error
-    return data as PaginatedResponse<Property>
+    return data as unknown as PaginatedResponse<Property>
   },
 
   async getProperty(id: string): Promise<PropertyDetail> {
-    const { data, error } = await GET(`/api/v1/properties/${id}`)
+    const { data, error } = await apiClient.GET('/api/v1/properties/{id}', {
+      params: { path: { id } },
+    })
     if (error) throw error
-    return data as PropertyDetail
+    return data as unknown as PropertyDetail
   },
 
   async getPropertyBySlug(slug: string): Promise<PropertyDetail> {
-    const { data, error } = await GET(`/api/v1/properties/slug/${slug}`)
+    const { data, error } = await apiClient.GET('/api/v1/properties/slug/{slug}', {
+      params: { path: { slug } },
+    })
     if (error) throw error
-    return data as PropertyDetail
+    return data as unknown as PropertyDetail
   },
 
   async createProperty(payload: CreatePropertyRequest): Promise<Property> {
@@ -47,15 +45,20 @@ export const propertiesService = {
   },
 
   async updateProperty(id: string, payload: UpdatePropertyRequest): Promise<Property> {
-    const { data, error } = await PATCH(`/api/v1/properties/${id}`, {
-      body: payload,
+    // UpdatePropertyDto en el schema declara currency/is_published como
+    // requeridos (quirk del DTO del backend) aunque el PATCH acepta partials.
+    const { data, error } = await apiClient.PATCH('/api/v1/properties/{id}', {
+      params: { path: { id } },
+      body: payload as components['schemas']['UpdatePropertyDto'],
     })
     if (error) throw error
-    return data as Property
+    return data as unknown as Property
   },
 
   async deleteProperty(id: string): Promise<void> {
-    const { error } = await DELETE(`/api/v1/properties/${id}`)
+    const { error } = await apiClient.DELETE('/api/v1/properties/{id}', {
+      params: { path: { id } },
+    })
     if (error) throw error
   },
 }

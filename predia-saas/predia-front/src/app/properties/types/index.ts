@@ -7,7 +7,7 @@ import type { Category } from '@/app/categories/types'
 type RawProperty = components['schemas']['PropertyResponseDto']
 
 export type OperationType = 'sale' | 'rent' | 'lease'
-export type PropertyStatus = 'draft' | 'active' | 'inactive' | 'sold' | 'rented'
+export type PropertyStatus = 'draft' | 'active' | 'inactive' | 'sold' | 'rented' | 'archived'
 export type CurrencyCode = 'CRC' | 'USD'
 
 export interface PropertyImage {
@@ -67,15 +67,27 @@ export type CreatePropertyRequest = Omit<components['schemas']['CreatePropertyDt
 }
 export type UpdatePropertyRequest = Partial<CreatePropertyRequest>
 
+export type PropertySortField = 'price' | 'created_at'
+export type SortOrder = 'asc' | 'desc'
+
+// Espejo del query de GET /api/v1/properties (FindPropertiesDto en el backend).
 export interface PropertyFilters {
   page?: number
   limit?: number
   operation_type?: OperationType
   status?: PropertyStatus
-  is_published?: boolean
-  category_id?: string
-  location_id?: string
+  currency?: CurrencyCode
+  subtype?: string
   search?: string
+  location_id?: string
+  price_min?: number
+  price_max?: number
+  lot_area_min?: number
+  lot_area_max?: number
+  built_area_min?: number
+  built_area_max?: number
+  sort_by?: PropertySortField
+  order?: SortOrder
 }
 
 export interface PaginatedResponse<T> {
