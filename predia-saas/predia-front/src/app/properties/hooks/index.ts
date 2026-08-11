@@ -25,6 +25,7 @@ export const useProperty = (id: string) => {
     enabled: !!id,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
+    placeholderData: (prev) => prev,
   })
 }
 

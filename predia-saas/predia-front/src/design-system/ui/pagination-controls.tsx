@@ -80,30 +80,33 @@ function NavBtn({
   )
 }
 
-export function PaginationControls({ page, pageCount, itemCount, onPageChange }: Props) {
+export function PaginationControls({ page, pageCount, itemCount, limit, onPageChange }: Props) {
   if (itemCount === 0) return null
 
   const pages = buildPages(page, pageCount)
+  const start = pageCount === 0 ? 0 : (page - 1) * limit + 1
+  const end = Math.min(page * limit, itemCount)
 
   return (
-    <div className="flex items-center justify-end px-1 py-2">
-      {pageCount > 1 && (
-        <div className="flex items-center gap-1.5">
-          <NavBtn direction="prev" disabled={page <= 1} onClick={() => onPageChange(page - 1)} />
+    <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-2">
+      <span className="text-sm text-ink-muted">
+        Mostrando {start}–{end} de {itemCount}
+      </span>
+      <div className="flex items-center gap-1.5">
+        <NavBtn direction="prev" disabled={page <= 1} onClick={() => onPageChange(page - 1)} />
 
-          {pages.map((p, i) => (
-            <PageBtn
-              key={p === 'ellipsis' ? `ellipsis-${i}` : p}
-              page={p}
-              active={p === page}
-              disabled={p === page}
-              onClick={p !== 'ellipsis' ? () => onPageChange(p as number) : undefined}
-            />
-          ))}
+        {pages.map((p, i) => (
+          <PageBtn
+            key={p === 'ellipsis' ? `ellipsis-${i}` : p}
+            page={p}
+            active={p === page}
+            disabled={p === page}
+            onClick={p !== 'ellipsis' ? () => onPageChange(p as number) : undefined}
+          />
+        ))}
 
-          <NavBtn direction="next" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)} />
-        </div>
-      )}
+        <NavBtn direction="next" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)} />
+      </div>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CurrencyCode, OperationType, PropertyStatus } from '@prisma/client';
+import { PropertyImageDto } from './property-image.dto';
 
 export class PropertyResponseDto {
   @ApiProperty()
@@ -58,6 +59,9 @@ export class PropertyResponseDto {
 
   @ApiProperty({ type: Object })
   attributes!: Record<string, unknown>;
+
+  @ApiPropertyOptional({ type: () => PropertyImageDto, nullable: true })
+  cover_image!: PropertyImageDto | null;
 
   @ApiProperty()
   is_published!: boolean;
