@@ -68,15 +68,6 @@ function DynamicAttributeFields({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div className="space-y-1 sm:col-span-2 border-t border-hairline pt-4">
-        <Text as="sm" className="font-semibold text-foreground">
-          Atributos específicos
-        </Text>
-        <Text as="caption" className="text-muted-foreground block mb-2">
-          Completá los detalles según el tipo de propiedad.
-        </Text>
-      </div>
-
       {Object.entries(properties).map(([key, prop]) => {
         const types = Array.isArray(prop.type) ? prop.type : [prop.type]
         const primaryType = types[0]

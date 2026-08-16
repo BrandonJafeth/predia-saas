@@ -68,6 +68,12 @@ const CATEGORIES = [
           enum: ['nuevo', 'excelente', 'bueno', 'regular', 'por_remodelar'],
           enumNames: ['Nuevo / Estreno', 'Excelente', 'Bueno', 'Regular', 'Por remodelar'],
         },
+        // NO agregar un campo "amenidades" acá — las amenidades son un catálogo
+        // relacional aparte (Amenity / CategoryAmenity / PropertyAmenity, ver
+        // seed-amenities.ts) gestionado desde el picker dedicado en el form de
+        // propiedad y en el admin de categorías. Un campo del attribute_schema
+        // con ese mismo título renderiza un segundo bloque "Amenidades" duplicado
+        // en DynamicAttributeFields (bug ya encontrado una vez, no lo reintroduzcas).
       },
     },
   },

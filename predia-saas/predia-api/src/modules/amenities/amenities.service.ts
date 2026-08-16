@@ -9,7 +9,9 @@ import { PropertyStatus, UserRole } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import type { CreateAmenityDto } from './dto/create-amenity.dto';
 import type { LinkAmenitiesDto } from './dto/link-amenities.dto';
+import type { UpdateAmenityDto } from './dto/update-amenity.dto';
 
 const AMENITY_SELECT = {
   id: true,
@@ -48,6 +50,111 @@ export class AmenitiesService {
       orderBy: { name: 'asc' },
       select: AMENITY_SELECT,
     });
+  }
+
+  async create(dto: CreateAmenityDto, caller: JwtPayload) {
+    const baseSlug = this.slugify(dto.name);
+    const slug = await this.resolveAmenitySlug(baseSlug);
+
+    const amenity = await this.prisma.amenity.create({
+      data: { name: dto.name, slug, icon: dto.icon ?? slug },
+      select: AMENITY_SELECT,
+    });
+
+    void this.auditLog
+      .log({
+        actor_id: caller.sub,
+        actor_role: caller.role,
+        action: 'CREATE',
+        entity: 'amenity',
+        entity_id: amenity.id,
+        payload: { name: amenity.name, slug: amenity.slug },
+        tenant_id: caller.tenantId,
+      })
+      .catch((err: unknown) => {
+        this.logger.error('Audit log failed', err);
+      });
+
+    return amenity;
+  }
+
+  async update(id: string, dto: UpdateAmenityDto, caller: JwtPayload) {
+    const existing = await this.assertAmenityExists(id);
+
+    // Renombrar recalcula el slug (identificador estable de ícono/URL) solo si
+    // el nombre realmente cambió — evita reslugificar en cada guardado.
+    const slug =
+      dto.name !== undefined && dto.name !== existing.name
+        ? await this.resolveAmenitySlug(this.slugify(dto.name), id)
+        : undefined;
+
+    const amenity = await this.prisma.amenity.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        icon: dto.icon,
+        is_active: dto.is_active,
+        slug,
+      },
+      select: AMENITY_SELECT,
+    });
+
+    void this.auditLog
+      .log({
+        actor_id: caller.sub,
+        actor_role: caller.role,
+        action: 'UPDATE',
+        entity: 'amenity',
+        entity_id: amenity.id,
+        payload: { name: amenity.name, slug: amenity.slug, is_active: amenity.is_active },
+        tenant_id: caller.tenantId,
+      })
+      .catch((err: unknown) => {
+        this.logger.error('Audit log failed', err);
+      });
+
+    return amenity;
+  }
+
+  // Soft-delete (is_active: false) — no DROP: Amenity tiene FKs con onDelete
+  // Cascade desde CategoryAmenity/PropertyAmenity, así que borrar la fila de
+  // verdad desvincularía en silencio la amenidad de cada categoría/propiedad
+  // que ya la tenía marcada, en cualquier tenant. findAll()/assertAmenitiesExist
+  // ya filtran is_active:true, así que desaparece de todo picker nuevo pero
+  // preserva el historial existente.
+  async remove(id: string, caller: JwtPayload): Promise<void> {
+    await this.assertAmenityExists(id);
+
+    const amenity = await this.prisma.amenity.update({
+      where: { id },
+      data: { is_active: false },
+      select: AMENITY_SELECT,
+    });
+
+    void this.auditLog
+      .log({
+        actor_id: caller.sub,
+        actor_role: caller.role,
+        action: 'DELETE',
+        entity: 'amenity',
+        entity_id: amenity.id,
+        payload: { name: amenity.name, slug: amenity.slug },
+        tenant_id: caller.tenantId,
+      })
+      .catch((err: unknown) => {
+        this.logger.error('Audit log failed', err);
+      });
+  }
+
+  private async assertAmenityExists(id: string) {
+    const amenity = await this.prisma.amenity.findUnique({
+      where: { id },
+      select: { id: true, name: true },
+    });
+    if (!amenity) {
+      throw new NotFoundException('Amenidad no encontrada');
+    }
+    return amenity;
   }
 
   // ─── Por categoría (catálogo del tipo de bien) ──────────────────────────────
@@ -226,6 +333,37 @@ export class AmenitiesService {
 
   private dedupe(ids: string[]): string[] {
     return [...new Set(ids)];
+  }
+
+  private slugify(name: string): string {
+    const slug = name
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    return slug || 'amenidad';
+  }
+
+  private async resolveAmenitySlug(baseSlug: string, excludeId?: string): Promise<string> {
+    const existing = await this.prisma.amenity.findMany({
+      where: {
+        slug: { startsWith: baseSlug },
+        ...(excludeId && { id: { not: excludeId } }),
+      },
+      select: { slug: true },
+    });
+
+    const slugSet = new Set(existing.map((a) => a.slug));
+    if (!slugSet.has(baseSlug)) return baseSlug;
+
+    let suffix = 1;
+    while (slugSet.has(`${baseSlug}-${suffix}`)) suffix++;
+    return `${baseSlug}-${suffix}`;
   }
 
   private audit(

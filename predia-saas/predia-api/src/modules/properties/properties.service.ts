@@ -269,6 +269,7 @@ export class PropertiesService {
       address: dto.address,
       lat: dto.lat,
       lng: dto.lng,
+      status: dto.status,
       is_published: dto.is_published,
       attributes: dto.attributes as Prisma.InputJsonValue | undefined,
       category: dto.category_id ? { connect: { id: dto.category_id } } : undefined,

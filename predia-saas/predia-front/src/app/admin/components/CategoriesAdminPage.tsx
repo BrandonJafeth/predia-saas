@@ -6,6 +6,7 @@ import { Button } from '@/design-system/ui/button'
 import { Input } from '@/design-system/ui/input'
 import { FormSheet } from '@/design-system/ui/form-sheet'
 import { FormField } from '@/shared/components/form-field'
+import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import {
   Select,
   SelectContent,
@@ -26,7 +27,17 @@ import {
   useRemoveCategoryAmenities,
 } from '@/app/amenities/hooks'
 import { AmenityPicker } from '@/app/amenities/components/AmenityPicker'
+import { notify } from '@/shared/lib/notifications'
 import type { Category, JSONSchema, JSONSchemaProperty } from '@/app/categories/types'
+
+// "amenidades" ya es un concepto propio (catálogo Amenity/CategoryAmenity, ver
+// el picker de más abajo) — un campo de schema con esta clave o título arma un
+// segundo bloque "Amenidades" duplicado y desconectado del catálogo real.
+const RESERVED_FIELD_NAMES = new Set(['amenidades', 'amenities'])
+
+function isReservedFieldName(value: string): boolean {
+  return RESERVED_FIELD_NAMES.has(value.trim().toLowerCase())
+}
 
 const categoryMetaSchema = z.object({
   name: z.string().trim().min(1, 'El nombre es requerido'),
@@ -156,6 +167,7 @@ function FieldRow({ field, onChange, onRemove }: FieldRowProps) {
   const [optionsRaw, setOptionsRaw] = useState(field.options.join(', '))
   const [optionLabelsRaw, setOptionLabelsRaw] = useState(field.optionLabels.join(', '))
   const hasEnumSupport = field.type === 'string' || field.type === 'integer' || field.type === 'array'
+  const isReserved = isReservedFieldName(field.key) || isReservedFieldName(field.title)
 
   function applyOptions(raw: string, labels: string) {
     const opts = raw.split(',').map(s => s.trim()).filter(Boolean)
@@ -243,6 +255,13 @@ function FieldRow({ field, onChange, onRemove }: FieldRowProps) {
               </button>
             </div>
           </div>
+
+          {isReserved && (
+            <p className="text-[11px] font-medium text-destructive">
+              &quot;Amenidades&quot; ya es el catálogo de comodidades (picker debajo) — este campo
+              quedaría duplicado y no se guardaría en él. Cambiá la clave o el título.
+            </p>
+          )}
 
           {/* Conditional Options & Labels Grid */}
           {hasEnumSupport && (
@@ -490,6 +509,17 @@ function CategoryForm({ open, onOpenChange, editing }: {
     } satisfies MetaValues,
     validators: { onSubmit: categoryMetaSchema },
     onSubmit: ({ value }: { value: MetaValues }) => {
+      const collision = Object.entries(schema.properties ?? {}).find(
+        ([key, prop]) => isReservedFieldName(key) || isReservedFieldName(prop.title ?? ''),
+      )
+      if (collision) {
+        notify.error({
+          title: 'Campo reservado',
+          description: `"${collision[1].title ?? collision[0]}" ya existe como catálogo de amenidades — usá el picker de Amenidades más abajo en vez de un campo de formulario.`,
+        })
+        return
+      }
+
       const payload = {
         name: value.name.trim(),
         slug: value.slug.trim(),
@@ -599,15 +629,16 @@ function CategoryForm({ open, onOpenChange, editing }: {
 
 function CategoriesAdminPage() {
   const { data: categories, isLoading } = useCategories()
-  const { mutate: deleteCategory } = useDeleteCategory()
+  const { mutate: deleteCategory, isPending: isDeleting } = useDeleteCategory()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<Category | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
 
   function openCreate() { setEditing(null); setSheetOpen(true) }
   function openEdit(cat: Category) { setEditing(cat); setSheetOpen(true) }
-  function handleDelete(cat: Category) {
-    if (!confirm(`¿Eliminar "${cat.name}"? Esta acción no se puede deshacer.`)) return
-    deleteCategory(cat.id)
+  function handleConfirmDelete() {
+    if (!deleteTarget) return
+    deleteCategory(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })
   }
 
   return (
@@ -638,12 +669,21 @@ function CategoriesAdminPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4">
           {categories.map(cat => (
-            <CategoryCard key={cat.id} category={cat} onEdit={openEdit} onDelete={handleDelete} />
+            <CategoryCard key={cat.id} category={cat} onEdit={openEdit} onDelete={setDeleteTarget} />
           ))}
         </div>
       )}
 
       <CategoryForm key={editing?.id ?? 'new'} open={sheetOpen} onOpenChange={setSheetOpen} editing={editing} />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => { if (!v) setDeleteTarget(null) }}
+        title="Eliminar categoría"
+        description={`¿Eliminar "${deleteTarget?.name}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleConfirmDelete}
+        isPending={isDeleting}
+      />
     </div>
   )
 }
