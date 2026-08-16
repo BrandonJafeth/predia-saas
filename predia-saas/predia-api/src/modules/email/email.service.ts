@@ -11,7 +11,7 @@ import { paymentReceivedTemplate } from './templates/payment-received.template';
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private readonly resend: Resend;
+  private readonly resend: Resend | null;
   private readonly from: string;
   private readonly enabled: boolean;
 
@@ -19,13 +19,15 @@ export class EmailService {
     const apiKey = config.get<string>('RESEND_API_KEY') ?? '';
     const fromEmail = config.get<string>('EMAIL_FROM') ?? 'noreply@predia.com';
     const fromName = config.get<string>('EMAIL_FROM_NAME') ?? 'Predia';
-    this.resend = new Resend(apiKey);
+    // Resend() throws on an empty key even if never used — evitar construirlo
+    // en entornos sin key real (tests, CI) donde EMAIL_ENABLED ya lo desactiva.
+    this.resend = apiKey ? new Resend(apiKey) : null;
     this.from = `${fromName} <${fromEmail}>`;
-    this.enabled = config.get<string>('EMAIL_ENABLED') !== 'false';
+    this.enabled = config.get<string>('EMAIL_ENABLED') !== 'false' && this.resend !== null;
   }
 
   private async send(to: string, template: { subject: string; html: string }): Promise<void> {
-    if (!this.enabled) {
+    if (!this.enabled || !this.resend) {
       this.logger.debug(`[email disabled] skipping "${template.subject}" → ${to}`);
       return;
     }
