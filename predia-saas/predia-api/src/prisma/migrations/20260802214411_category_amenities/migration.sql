@@ -3,18 +3,6 @@
 -- Migramos las asociaciones existentes hacia la categoría antes de dropearla,
 -- para no perder datos (muchos-a-muchos global category_amenities).
 
--- DropForeignKey
-ALTER TABLE "property_amenities" DROP CONSTRAINT "property_amenities_amenity_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "property_amenities" DROP CONSTRAINT "property_amenities_property_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "property_amenities" DROP CONSTRAINT "property_amenities_tenant_id_fkey";
-
--- DropTable
-DROP TABLE "property_amenities";
-
 -- CreateTable
 CREATE TABLE "category_amenities" (
     "category_id" TEXT NOT NULL,
@@ -32,9 +20,22 @@ ALTER TABLE "category_amenities" ADD CONSTRAINT "category_amenities_category_id_
 -- AddForeignKey
 ALTER TABLE "category_amenities" ADD CONSTRAINT "category_amenities_amenity_id_fkey" FOREIGN KEY ("amenity_id") REFERENCES "amenities"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- Mover amenidades que ya estaban asociadas a propiedades hacia su categoría.
+-- Mover amenidades que ya estaban asociadas a propiedades hacia su categoría
+-- (antes de dropear la tabla pivote vieja).
 INSERT INTO "category_amenities" ("category_id", "amenity_id")
 SELECT DISTINCT p."category_id", pa."amenity_id"
 FROM "property_amenities" pa
 JOIN "properties" p ON p."id" = pa."property_id"
 ON CONFLICT ("category_id", "amenity_id") DO NOTHING;
+
+-- DropForeignKey
+ALTER TABLE "property_amenities" DROP CONSTRAINT "property_amenities_amenity_id_fkey";
+
+-- DropForeignKey
+ALTER TABLE "property_amenities" DROP CONSTRAINT "property_amenities_property_id_fkey";
+
+-- DropForeignKey
+ALTER TABLE "property_amenities" DROP CONSTRAINT "property_amenities_tenant_id_fkey";
+
+-- DropTable
+DROP TABLE "property_amenities";

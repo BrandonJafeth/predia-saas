@@ -30,7 +30,19 @@
       "Bash(powershell -NoProfile -Command \"Stop-Process -Id 11144 -Force -ErrorAction SilentlyContinue\")",
       "Bash(echo \"port check exit: $?\")",
       "Bash(node_modules/.bin/nest start *)",
-      "Bash(powershell -NoProfile -Command ' *)"
+      "Bash(powershell -NoProfile -Command ' *)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts,null,2\\)\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('pg:', p.dependencies.pg, p.devDependencies?.pg\\); console.log\\('nestjs/jwt:', p.dependencies['@nestjs/jwt']\\); console.log\\('supertest:', p.devDependencies.supertest\\);\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(p.devDependencies['@types/pg']||'no @types/pg'\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./src/prisma/schema.prisma'\\)\\)\")",
+      "Bash(node_modules/.bin/jest --config ./test/jest-e2e.json tenant-isolation)",
+      "Bash(node_modules/.bin/jest --config ./test/jest-e2e.json app.e2e-spec)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\),null,2\\)\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./predia-api/package.json'\\).engines\\)\")",
+      "Bash(mkdir -p \"C:/SAAS Bienes Raices/.github/workflows\")",
+      "Bash(node_modules/.bin/eslint \"test/tenant-isolation.e2e-spec.ts\" \"test/utils/tenant-isolation.fixture.ts\")",
+      "Bash(gh auth *)",
+      "Bash(gh api *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\infra\\postgres",
@@ -41,7 +53,8 @@
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\services",
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\hooks",
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\components",
-      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\routes"
+      "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\routes",
+      "C:\\SAAS Bienes Raices\\.github"
     ]
   }
 }

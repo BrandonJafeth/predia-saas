@@ -19,6 +19,7 @@ ALTER TABLE "property_amenities" ADD CONSTRAINT "property_amenities_amenity_id_f
 ALTER TABLE "property_amenities" ADD CONSTRAINT "property_amenities_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 ALTER TABLE "property_amenities" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "tenant_isolation" ON "property_amenities";
 CREATE POLICY "tenant_isolation" ON "property_amenities"
   USING (tenant_id = current_setting('app.current_tenant_id', true));
 

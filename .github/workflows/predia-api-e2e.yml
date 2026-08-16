@@ -1,0 +1,84 @@
+name: predia-api e2e
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'predia-saas/predia-api/**'
+      - 'predia-saas/infra/postgres/**'
+      - 'predia-saas/pnpm-lock.yaml'
+      - 'predia-saas/pnpm-workspace.yaml'
+  pull_request:
+    paths:
+      - 'predia-saas/predia-api/**'
+      - 'predia-saas/infra/postgres/**'
+      - 'predia-saas/pnpm-lock.yaml'
+      - 'predia-saas/pnpm-workspace.yaml'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: predia
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d predia"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://predia_app:predia_app@localhost:5432/predia
+      SYSTEM_DATABASE_URL: postgresql://predia_system:predia_system@localhost:5432/predia
+      MIGRATION_URL: postgresql://postgres:postgres@localhost:5432/predia
+      JWT_SECRET: ci-only-secret-value-min-32-characters
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-min-32-chars
+      NODE_ENV: test
+      EMAIL_ENABLED: 'false'
+
+    defaults:
+      run:
+        working-directory: predia-saas
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: predia-saas/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Mismo orden que un setup Docker local (infra/postgres/init.sql +
+      # post-migrate.sql): roles + event trigger ANTES de migrar, grants
+      # y overrides de audit_log/property_amenities DESPUÉS.
+      - name: Roles + event trigger de RLS (pre-migración)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d predia -v ON_ERROR_STOP=1 -f infra/postgres/init.sql
+
+      - name: Migrar schema
+        working-directory: predia-saas/predia-api
+        run: node_modules/.bin/prisma migrate deploy
+
+      - name: Grants + overrides de RLS (post-migración)
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -d predia -v ON_ERROR_STOP=1 -f infra/postgres/post-migrate.sql
+
+      # app.e2e-spec.ts es un stub del scaffold de Nest sin controller
+      # registrado — roto desde antes de este workflow, fuera de alcance
+      # acá. Solo corremos la suite de aislamiento entre tenants.
+      - name: Tests e2e — aislamiento entre tenants
+        working-directory: predia-saas/predia-api
+        run: node_modules/.bin/jest --config ./test/jest-e2e.json tenant-isolation
