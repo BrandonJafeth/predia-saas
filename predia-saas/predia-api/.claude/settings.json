@@ -42,7 +42,12 @@
       "Bash(mkdir -p \"C:/SAAS Bienes Raices/.github/workflows\")",
       "Bash(node_modules/.bin/eslint \"test/tenant-isolation.e2e-spec.ts\" \"test/utils/tenant-isolation.fixture.ts\")",
       "Bash(gh auth *)",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "Bash(awk -F'=' '/^RESEND_API_KEY=/{print length\\($2\\)}' .env)",
+      "Bash(RESEND_API_KEY= node_modules/.bin/jest --config ./test/jest-e2e.json tenant-isolation)",
+      "Bash(env -u RESEND_API_KEY node_modules/.bin/jest --config ./test/jest-e2e.json tenant-isolation)",
+      "Bash(node_modules/.bin/eslint src/modules/email/email.service.ts)",
+      "Bash(gh repo *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\infra\\postgres",
