@@ -15,6 +15,51 @@ export const useAmenities = () => {
   })
 }
 
+export const useCreateAmenity = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (name: string) => amenitiesService.create(name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: amenityKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al crear amenidad', description: extractApiError(err) })
+    },
+  })
+}
+
+export const useRenameAmenity = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => amenitiesService.rename(id, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: amenityKeys.lists() })
+      // Los nombres viajan embebidos en category/property amenities también.
+      queryClient.invalidateQueries({ queryKey: categoryKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al renombrar amenidad', description: extractApiError(err) })
+    },
+  })
+}
+
+export const useDeleteAmenity = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => amenitiesService.remove(id),
+    onSuccess: () => {
+      notify.success({ title: 'Amenidad eliminada' })
+      queryClient.invalidateQueries({ queryKey: amenityKeys.lists() })
+    },
+    onError: (err) => {
+      notify.error({ title: 'Error al eliminar amenidad', description: extractApiError(err) })
+    },
+  })
+}
+
 interface CategoryAmenityMutation {
   categoryId: string
   amenityIds: string[]

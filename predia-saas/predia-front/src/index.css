@@ -94,6 +94,19 @@
   --shadow-raised: 0 2px 8px rgba(15, 17, 21, 0.06), 0 1px 3px rgba(15, 17, 21, 0.04);
 }
 
+/* Sheet/Dialog (design-system/ui/sheet.tsx, dialog.tsx) usan z-50 y Radix los
+   porta a document.body — por orden de aparición en el DOM terminan pintando
+   arriba del toaster de sileo, que también usa z-50.
+   !important es necesario acá: sileo NO solo trae sileo/styles.css (import
+   estático) — el paquete también inyecta una copia idéntica de su CSS vía JS
+   (__insertCSS en node_modules/sileo/dist/index.js, corre como side-effect
+   la primera vez que se importa `sileo`/`notify`). Esa segunda copia se
+   appendea a <head> en tiempo de ejecución, en un momento que no controlamos
+   — a veces después de este archivo — y sin !important gana el empate. */
+[data-sileo-viewport] {
+  z-index: 70 !important;
+}
+
 /* ── State colors ── */
 :root {
   --sileo-state-success: oklch(0.696 0.168 162.5);
@@ -231,6 +244,26 @@
 @keyframes dot-pulse {
   0%, 80%, 100% { opacity: 0.25; transform: scale(0.8); }
   40%           { opacity: 1;    transform: scale(1); }
+}
+
+/* design-system/ui/accordion.tsx — altura real vía la CSS var que expone
+   Radix Collapsible, para que el panel colapse/expanda suave en vez de saltar. */
+@keyframes accordion-down {
+  from { height: 0; }
+  to   { height: var(--radix-collapsible-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-collapsible-content-height); }
+  to   { height: 0; }
+}
+
+@utility animate-accordion-down {
+  animation: accordion-down 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@utility animate-accordion-up {
+  animation: accordion-up 180ms cubic-bezier(0.4, 0, 1, 1);
 }
 
 /* cubic-bezier(0.22, 1, 0.36, 1) = spring suave: arranca rápido, decelera orgánicamente */

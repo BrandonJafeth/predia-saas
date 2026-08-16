@@ -65,7 +65,9 @@ export interface PropertyDetail extends Property {
 export type CreatePropertyRequest = Omit<components['schemas']['CreatePropertyDto'], 'attributes'> & {
   attributes?: Record<string, unknown>
 }
-export type UpdatePropertyRequest = Partial<CreatePropertyRequest>
+// status no está en CreatePropertyDto (no se elige al crear, arranca en
+// draft) — solo es editable después, ver UpdatePropertyDto en el backend.
+export type UpdatePropertyRequest = Partial<CreatePropertyRequest> & { status?: PropertyStatus }
 
 export type PropertySortField = 'price' | 'created_at'
 export type SortOrder = 'asc' | 'desc'

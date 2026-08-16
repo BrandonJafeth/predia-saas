@@ -32,12 +32,23 @@ export async function refreshAccessToken(): Promise<string | null> {
 
 export const apiClient = createApiClient(BASE_URL)
 
+// A Request's body stream can only be read once. By the time onResponse runs,
+// the real fetch has already consumed it — reconstructing a retry `new
+// Request(request, ...)` straight from that spent object throws "Request
+// object that has already been used" for any body-bearing call (PATCH/POST).
+// Only surfaces once the access token expires (401 → retry), so it hid until
+// a body request happened to land after the 15min token lifetime. Fix: stash
+// an unconsumed clone the moment the request is built, before fetch touches it.
+const pristineClones = new WeakMap<Request, Request>()
+
 apiClient.use({
   onRequest({ request }) {
     const token = tokenStorage.getAccessToken()
     const headers = new Headers(request.headers)
     if (token) headers.set('Authorization', `Bearer ${token}`)
-    return new Request(request, { credentials: 'include', headers })
+    const authedRequest = new Request(request, { credentials: 'include', headers })
+    pristineClones.set(authedRequest, authedRequest.clone())
+    return authedRequest
   },
 
   async onResponse({ request, response }) {
@@ -54,9 +65,11 @@ apiClient.use({
       return response
     }
 
-    // Retry original request with the new token
-    const headers = new Headers(request.headers)
+    // Retry original request with the new token, from the untouched clone —
+    // `request` itself is already spent (its body was sent over the wire).
+    const pristine = pristineClones.get(request) ?? request
+    const headers = new Headers(pristine.headers)
     headers.set('Authorization', `Bearer ${newToken}`)
-    return fetch(new Request(request, { credentials: 'include', headers }))
+    return fetch(new Request(pristine, { credentials: 'include', headers }))
   },
 })

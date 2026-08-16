@@ -1,8 +1,20 @@
 import { useMemo, useState } from 'react'
 import { getRouteApi } from '@tanstack/react-router'
-import { AlertTriangle, Eye, Image as ImageIcon, Loader2, MapPin, MoreHorizontal, PencilLine, Plus, Trash2 } from 'lucide-react'
-import { Display, Text, Heading } from '@/design-system/typography'
-import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/ui/card'
+import {
+  Check,
+  ChevronDown,
+  Eye,
+  Image as ImageIcon,
+  Loader2,
+  MapPin,
+  MoreHorizontal,
+  PencilLine,
+  Plus,
+  Ruler,
+  Trash2,
+} from 'lucide-react'
+import { Display, Text } from '@/design-system/typography'
+import { Card } from '@/design-system/ui/card'
 import { Badge } from '@/design-system/ui/badge'
 import { Button } from '@/design-system/ui/button'
 import { Skeleton } from '@/design-system/ui/skeleton'
@@ -13,15 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/design-system/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/design-system/ui/popover'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/design-system/ui/dialog'
+import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,18 +36,39 @@ import {
 } from '@/design-system/ui/dropdown-menu'
 import { useLocationsTree } from '@/app/locations/hooks'
 import type { LocationNode } from '@/app/locations/types'
-import { useDeleteProperty, useProperties } from '../hooks'
+import { useDeleteProperty, useProperties, useUpdateProperty } from '../hooks'
 import {
-  CURRENCY_LABEL,
   DEFAULT_PAGE_LIMIT,
   OPERATION_LABEL,
   PAGE_LIMIT_OPTIONS,
+  PROPERTY_STATUSES,
   STATUS_LABEL,
-  STATUS_VARIANT,
 } from '../constants'
-import type { CurrencyCode, Property } from '../types'
+import type { CurrencyCode, Property, PropertyStatus } from '../types'
 import PropertiesFilterBar from './PropertiesFilterBar'
 import { PropertyFormSheet } from './PropertyFormSheet'
+
+// Color sólido por estado — el badge usa su versión tenue (10% opacity), acá
+// necesitamos el punto lleno para la lista del popover.
+const STATUS_DOT_CLASS: Record<PropertyStatus, string> = {
+  draft: 'bg-ink-soft',
+  active: 'bg-badge-emerald',
+  inactive: 'bg-ink-soft',
+  sold: 'bg-badge-violet',
+  rented: 'bg-badge-orange',
+  archived: 'bg-badge-pink',
+}
+
+// Tailwind no puede resolver `text-badge-${variant}-strong` armado en runtime
+// (su scanner necesita ver el string completo en el source) — mapa explícito.
+const STATUS_TEXT_CLASS: Record<PropertyStatus, string> = {
+  draft: 'text-ink-body',
+  active: 'text-badge-emerald-strong',
+  inactive: 'text-ink-body',
+  sold: 'text-badge-violet-strong',
+  rented: 'text-badge-orange-strong',
+  archived: 'text-badge-pink-strong',
+}
 
 const routeApi = getRouteApi('/properties')
 
@@ -57,19 +84,21 @@ function formatPrice(price: string, currency: CurrencyCode) {
 
 function PropertyCardSkeleton() {
   return (
-    <Card className="overflow-hidden">
-      <Skeleton className="aspect-video w-full" />
-      <CardHeader>
-        <Skeleton className="h-5 w-3/4" />
-        <Skeleton className="mt-1 h-4 w-1/2" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="mt-4 h-6 w-1/3" />
-      </CardContent>
+    <Card className="overflow-hidden rounded-2xl border-hairline/70">
+      <Skeleton className="aspect-[4/3] w-full rounded-none" />
+      <div className="p-4 space-y-2">
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3.5 w-1/2" />
+        <Skeleton className="mt-3 h-5 w-2/5" />
+      </div>
     </Card>
   )
 }
+
+// Estados que ya no están "en el mercado" — la imagen se apaga un poco para
+// que se note de un vistazo que esa unidad no está disponible, sin tener que
+// leer el badge.
+const UNAVAILABLE_STATUSES: ReadonlySet<Property['status']> = new Set(['sold', 'rented', 'inactive'])
 
 interface PropertyCardProps {
   property: Property
@@ -80,14 +109,28 @@ interface PropertyCardProps {
 }
 
 function PropertyCard({ property: p, locationNameById, onView, onEdit, onDelete }: PropertyCardProps) {
+  const isUnavailable = UNAVAILABLE_STATUSES.has(p.status)
+  const [statusOpen, setStatusOpen] = useState(false)
+  const { mutate: updateProperty, isPending: isChangingStatus } = useUpdateProperty()
+
+  function handleStatusChange(status: PropertyStatus) {
+    if (status === p.status) { setStatusOpen(false); return }
+    updateProperty({ id: p.id, status }, { onSuccess: () => setStatusOpen(false) })
+  }
+
   return (
-    <Card className="overflow-hidden">
-      <div className="relative aspect-video w-full bg-surface-card">
+    <Card
+      className="group overflow-hidden rounded-2xl border-hairline/70 cursor-pointer transition-all duration-300 hover:shadow-raised hover:-translate-y-0.5"
+      onClick={() => onView(p)}
+    >
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface-card">
         {p.cover_image ? (
           <img
             src={p.cover_image.url}
             alt={p.title}
-            className="h-full w-full object-cover"
+            className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04] ${
+              isUnavailable ? 'grayscale-[35%] opacity-80' : ''
+            }`}
             loading="lazy"
           />
         ) : (
@@ -96,13 +139,50 @@ function PropertyCard({ property: p, locationNameById, onView, onEdit, onDelete 
           </div>
         )}
 
-        <div className="absolute right-2.5 top-2.5">
+        {/* Estado: badge interactivo, cambia sin abrir el form completo */}
+        <div className="absolute left-2.5 top-2.5" onClick={(e) => e.stopPropagation()}>
+          <Popover open={statusOpen} onOpenChange={setStatusOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                disabled={isChangingStatus}
+                className="inline-flex items-center gap-1 rounded-full border-0 bg-canvas/90 backdrop-blur-sm px-2.5 py-1 text-caption font-body shadow-sm transition-colors hover:bg-canvas disabled:opacity-70"
+              >
+                <span className={`size-1.5 rounded-full ${STATUS_DOT_CLASS[p.status]}`} />
+                <span className={STATUS_TEXT_CLASS[p.status]}>
+                  {STATUS_LABEL[p.status]}
+                </span>
+                {isChangingStatus ? (
+                  <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="size-3 text-muted-foreground" />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-44 p-1">
+              {PROPERTY_STATUSES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => handleStatusChange(s)}
+                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-surface-soft transition-colors"
+                >
+                  <span className={`size-1.5 rounded-full shrink-0 ${STATUS_DOT_CLASS[s]}`} />
+                  <span className="flex-1">{STATUS_LABEL[s]}</span>
+                  {s === p.status && <Check className="size-3.5 text-primary shrink-0" />}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="absolute right-2.5 top-2.5" onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-8 rounded-full bg-canvas/80 backdrop-blur-sm hover:bg-canvas"
+                className="size-8 rounded-full bg-canvas/90 backdrop-blur-sm shadow-sm hover:bg-canvas"
               >
                 <MoreHorizontal className="size-4" />
                 <span className="sr-only">Acciones</span>
@@ -129,52 +209,44 @@ function PropertyCard({ property: p, locationNameById, onView, onEdit, onDelete 
         </div>
       </div>
 
-      <CardHeader>
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="truncate text-base">{p.title}</CardTitle>
-          <Badge variant={STATUS_VARIANT[p.status] ?? undefined}>{STATUS_LABEL[p.status]}</Badge>
+      <div className="p-4 space-y-2.5">
+        <div>
+          <Text as="sm" className="font-semibold text-foreground truncate leading-tight">
+            {p.title}
+          </Text>
+          <div className="flex items-center gap-1 text-muted-foreground mt-1">
+            <MapPin className="size-3.5 shrink-0" />
+            <span className="truncate text-[13px] font-body">
+              {p.location_id
+                ? (locationNameById.get(p.location_id) ?? 'Ubicación desconocida')
+                : 'Sin ubicación'}
+            </span>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          <Badge variant="pink">{OPERATION_LABEL[p.operation_type]}</Badge>
-          {p.subtype && <Badge>{p.subtype}</Badge>}
-          <Badge variant="default">{CURRENCY_LABEL[p.currency]}</Badge>
-        </div>
-      </CardHeader>
 
-      <CardContent>
-        <div className="space-y-1.5 text-sm text-muted-foreground">
-          {p.location_id ? (
-            <div className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">
-                {locationNameById.get(p.location_id) ?? 'Ubicación desconocida'}
+        {/* Meta compacta, estilo Airbnb: "Casa · 500 m² lote · 200 m² const." */}
+        {(p.lot_area_m2 ?? p.built_area_m2 ?? p.subtype) && (
+          <div className="flex flex-wrap items-center gap-x-1.5 text-[13px] font-body text-muted-foreground">
+            {p.subtype && <span>{p.subtype}</span>}
+            {p.subtype && (p.lot_area_m2 ?? p.built_area_m2) && <span className="text-hairline">·</span>}
+            {p.lot_area_m2 && (
+              <span className="inline-flex items-center gap-1">
+                <Ruler className="size-3" />
+                {parseFloat(p.lot_area_m2).toLocaleString('es-CR')} m² lote
               </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5 shrink-0" />
-              <Badge variant="default">Sin ubicación</Badge>
-            </div>
-          )}
-          {p.address && <span className="block truncate">{p.address}</span>}
-          {(p.lot_area_m2 ?? p.built_area_m2) && (
-            <div className="flex gap-3">
-              {p.lot_area_m2 && (
-                <span>{parseFloat(p.lot_area_m2).toLocaleString('es-CR')} m² lote</span>
-              )}
-              {p.built_area_m2 && (
-                <span>{parseFloat(p.built_area_m2).toLocaleString('es-CR')} m² const.</span>
-              )}
-            </div>
-          )}
-          <span className="block">
-            {new Date(p.created_at).toLocaleDateString('es-CR')}
+            )}
+            {p.lot_area_m2 && p.built_area_m2 && <span className="text-hairline">·</span>}
+            {p.built_area_m2 && <span>{parseFloat(p.built_area_m2).toLocaleString('es-CR')} m² const.</span>}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-hairline-soft">
+          <span className="text-xl font-display font-bold text-foreground tabular-nums truncate pt-1.5">
+            {formatPrice(p.price, p.currency)}
           </span>
+          <Badge variant="pink" className="shrink-0 font-medium px-3">{OPERATION_LABEL[p.operation_type]}</Badge>
         </div>
-        <div className="mt-4 flex items-center justify-between">
-          <Heading as="sm">{formatPrice(p.price, p.currency)}</Heading>
-        </div>
-      </CardContent>
+      </div>
     </Card>
   )
 }
@@ -272,28 +344,14 @@ function PropertiesPage() {
         onLocationIdChange={(v) => updateSearch({ location_id: v })}
       />
 
-      <Dialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null) }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="size-5 text-destructive" />
-              Eliminar propiedad
-            </DialogTitle>
-            <DialogDescription>
-              ¿Seguro que deseas eliminar {deleteTarget?.title}? Dejará de aparecer en el listado.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={isDeleting}>
-              {isDeleting && <Loader2 className="size-4 animate-spin" />}
-              Eliminar
-            </Button>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
-              Cancelar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => { if (!v) setDeleteTarget(null) }}
+        title="Eliminar propiedad"
+        description={`¿Seguro que deseas eliminar ${deleteTarget?.title}? Dejará de aparecer en el listado.`}
+        onConfirm={handleConfirmDelete}
+        isPending={isDeleting}
+      />
 
       {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4">

@@ -47,7 +47,38 @@
       "Bash(RESEND_API_KEY= node_modules/.bin/jest --config ./test/jest-e2e.json tenant-isolation)",
       "Bash(env -u RESEND_API_KEY node_modules/.bin/jest --config ./test/jest-e2e.json tenant-isolation)",
       "Bash(node_modules/.bin/eslint src/modules/email/email.service.ts)",
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Bash(xargs -I{} echo {})",
+      "Bash(node_modules/.bin/eslint src/modules/amenities/amenities.service.ts src/modules/amenities/amenities.controller.ts src/modules/amenities/dto/create-amenity.dto.ts)",
+      "Bash(node_modules/.bin/tsc --noEmit -p tsconfig.json)",
+      "Bash(node_modules/.bin/eslint src/app/admin/components/CategoriesAdminPage.tsx src/app/amenities/components/AmenityPicker.tsx src/app/amenities/hooks/index.ts src/app/amenities/services/amenities.service.ts)",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(node -e \"console.log\\(require\\('./package.json'\\).scripts\\)\")",
+      "Bash(node_modules/.bin/tsc -b --noEmit)",
+      "Bash(node_modules/.bin/tsc -b --noEmit --force)",
+      "Bash(node_modules/.bin/eslint src/app/properties/components/PropertyForm.tsx src/app/properties/components/DynamicAttributeFields.tsx src/shared/components/form-section.tsx)",
+      "Bash(curl -s -o /dev/null -w \"front: %{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s http://localhost:3000/api/v1/amenities -i)",
+      "Bash(node_modules/.bin/eslint src/modules/amenities/amenities.controller.ts)",
+      "Bash(node_modules/.bin/eslint src/modules/amenities/amenities.controller.ts src/modules/amenities/amenities.service.ts src/modules/amenities/dto/update-amenity.dto.ts)",
+      "Bash(echo \"LINT EXIT: $?\")",
+      "Bash(echo \"TSC EXIT: $?\")",
+      "Bash(node_modules/.bin/eslint src/app/amenities/components/AmenityPicker.tsx src/app/amenities/hooks/index.ts src/app/amenities/services/amenities.service.ts)",
+      "Bash(curl -s -X POST http://localhost:3000/api/v1/amenities -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Content-Type: application/json' -d '{\"name\":\"Test Delete Me\"}')",
+      "Bash(node -e \"console.log\\(require.resolve\\('jsonwebtoken'\\)\\)\")",
+      "Bash(node_modules/.bin/eslint src/app/amenities/components/AmenityPicker.tsx src/app/amenities/hooks/index.ts src/app/admin/components/CategoriesAdminPage.tsx src/app/properties/components/PropertiesPage.tsx src/shared/components/confirm-dialog.tsx)",
+      "Bash(curl -s \"http://localhost:5173/src/index.css\")",
+      "Bash(curl -s \"http://localhost:5173/src/index.css\" -o /tmp/idx.css -w \"%{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:5173/src/index.css -o C:/Users/brand/AppData/Local/Temp/claude/c--SAAS-Bienes-Raices-predia-saas-predia-api/8ea9147a-d9f6-44b0-b1cd-bfa88322af9e/scratchpad/idx.css)",
+      "Bash(curl -s http://localhost:5173/src/index.css -o C:/Users/brand/AppData/Local/Temp/claude/c--SAAS-Bienes-Raices-predia-saas-predia-api/8ea9147a-d9f6-44b0-b1cd-bfa88322af9e/scratchpad/idx2.css)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(Object.keys\\(p.dependencies\\).filter\\(k=>k.includes\\('radix'\\)\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./package.json'\\).dependencies['@tanstack/react-form']\\)\")",
+      "Bash(node_modules/.bin/eslint src/app/properties/components/PropertyForm.tsx src/app/properties/components/DynamicAttributeFields.tsx src/design-system/ui/accordion.tsx)",
+      "Bash(node_modules/.bin/eslint src/modules/properties/dto/update-property.dto.ts src/modules/properties/properties.service.ts)",
+      "Bash(node_modules/.bin/eslint src/app/properties/components/PropertiesPage.tsx src/app/properties/components/PropertyForm.tsx src/app/properties/types/index.ts)",
+      "Bash(node_modules/.bin/eslint src/app/properties/components/PropertiesPage.tsx)",
+      "Bash(node_modules/.bin/eslint src/app/properties/components/PropertiesPage.tsx src/shared/lib/api.ts)",
+      "Bash(node_modules/.bin/eslint src/app/properties/components/PropertyForm.tsx)"
     ],
     "additionalDirectories": [
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\infra\\postgres",
@@ -59,7 +90,12 @@
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\hooks",
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\app\\leads\\components",
       "c:\\Users\\kathe\\OneDrive\\Documentos\\OneOut\\predia-saas\\predia-saas\\predia-front\\src\\routes",
-      "C:\\SAAS Bienes Raices\\.github"
+      "C:\\SAAS Bienes Raices\\.github",
+      "c:\\SAAS Bienes Raices\\predia-saas\\predia-front\\src\\app\\amenities\\services",
+      "c:\\SAAS Bienes Raices\\predia-saas\\predia-front\\src\\app\\amenities\\hooks",
+      "c:\\SAAS Bienes Raices\\predia-saas\\predia-front\\src\\app\\amenities\\components",
+      "c:\\SAAS Bienes Raices\\predia-saas\\predia-front\\src",
+      "c:\\SAAS Bienes Raices\\predia-saas\\predia-front\\src\\shared\\lib"
     ]
   }
 }
