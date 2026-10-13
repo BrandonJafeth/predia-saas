@@ -30,9 +30,17 @@ describe('CreateLeadActivityDto', () => {
     const errors = await validateDto({ ...validBase, type: 'sms' });
     const typeError = errors.find((e) => e.property === 'type');
 
-    expect(typeError?.constraints?.isEnum).toContain('call');
-    expect(typeError?.constraints?.isEnum).toContain('email');
-    expect(typeError?.constraints?.isEnum).toContain('status_change');
+    expect(typeError?.constraints?.isIn).toContain('call');
+    expect(typeError?.constraints?.isIn).toContain('email');
+    expect(typeError?.constraints?.isIn).not.toContain('status_change');
+  });
+
+  it('rechaza status_change: solo lo genera el backend', async () => {
+    const errors = await validateDto({
+      ...validBase,
+      type: LeadActivityType.status_change,
+    });
+    expect(errors.some((e) => e.property === 'type')).toBe(true);
   });
 
   it('requiere description', async () => {

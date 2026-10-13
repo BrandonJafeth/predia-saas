@@ -246,6 +246,60 @@ describe('LeadsService', () => {
     ).resolves.toEqual({ id: LEAD_ID, status: LeadStatus.won });
   });
 
+  it('un agente no puede reasignar ni desasignar un lead', async () => {
+    await expect(
+      service.update(LEAD_ID, { assigned_to: adminCaller.sub }, TENANT_ID, caller),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.update(LEAD_ID, { assigned_to: null as never }, TENANT_ID, caller),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.lead.update).not.toHaveBeenCalled();
+  });
+
+  it('solo asigna a usuarios activos del CRM y propiedades no archivadas', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: USER_ID });
+    prisma.property.findFirst.mockResolvedValue({ id: 'prop-id' });
+    prisma.lead.create.mockResolvedValue({ id: LEAD_ID });
+
+    await service.create(
+      { name: 'Lead', assigned_to: USER_ID, property_id: 'prop-id' },
+      TENANT_ID,
+      adminCaller,
+    );
+
+    expect(prisma.user.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: 'active',
+          role: { in: [UserRole.admin, UserRole.agent] },
+        }),
+      }),
+    );
+    expect(prisma.property.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { not: 'archived' } }),
+      }),
+    );
+  });
+
+  it('stats agrupa por status con la visibilidad del caller', async () => {
+    (prisma.lead as Record<string, jest.Mock>).groupBy = jest.fn().mockResolvedValue([
+      { status: LeadStatus.new, _count: { _all: 3 } },
+      { status: LeadStatus.won, _count: { _all: 1 } },
+    ]);
+
+    const stats = await service.getStats({}, TENANT_ID, caller);
+
+    expect(stats).toEqual({ total: 4, by_status: { new: 3, won: 1 } });
+    expect((prisma.lead as Record<string, jest.Mock>).groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([{ assigned_to: USER_ID }]),
+        }),
+      }),
+    );
+  });
+
   it('rechaza null en campos obligatorios con 400 (no 500)', async () => {
     await expect(
       service.update(LEAD_ID, { name: null as never }, TENANT_ID, caller),

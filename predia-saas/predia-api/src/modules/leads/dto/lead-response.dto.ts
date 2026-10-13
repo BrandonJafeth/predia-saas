@@ -2,6 +2,28 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LeadSource, LeadStatus } from '@prisma/client';
 import { LeadActivityResponseDto } from './lead-activity-response.dto';
 
+export class LeadAssigneeDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  first_name!: string;
+
+  @ApiProperty()
+  last_name!: string;
+}
+
+export class LeadPropertyDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty()
+  slug!: string;
+}
+
 export class LeadResponseDto {
   @ApiProperty()
   id!: string;
@@ -32,6 +54,14 @@ export class LeadResponseDto {
 
   @ApiPropertyOptional({ nullable: true })
   notes!: string | null;
+
+  // Se resuelven en el backend: antes el front buscaba el nombre en las
+  // primeras 100 entradas de /users y /properties y mostraba "Desconocida".
+  @ApiPropertyOptional({ type: () => LeadAssigneeDto, nullable: true })
+  assignee!: LeadAssigneeDto | null;
+
+  @ApiPropertyOptional({ type: () => LeadPropertyDto, nullable: true })
+  property!: LeadPropertyDto | null;
 
   @ApiProperty()
   created_at!: Date;

@@ -27,6 +27,7 @@ import { CreateLeadActivityDto } from './dto/create-lead-activity.dto';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { FilterLeadActivitiesDto } from './dto/filter-lead-activities.dto';
 import { FilterLeadsDto } from './dto/filter-leads.dto';
+import { LeadStatsQueryDto, LeadStatsResponseDto } from './dto/lead-stats.dto';
 import { RequireLeadVisibility } from './decorators/require-lead-visibility.decorator';
 import { LeadVisibilityGuard } from './guards/lead-visibility.guard';
 import { LeadActivityResponseDto } from './dto/lead-activity-response.dto';
@@ -64,6 +65,18 @@ export class LeadsController {
     @CurrentUser() caller: JwtPayload,
   ) {
     return this.leadsService.findAll(filters, tenantId, caller);
+  }
+
+  // Declarado antes de ':id' para que no lo capture ParseUUIDPipe.
+  @Get('stats')
+  @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: LeadStatsResponseDto })
+  getStats(
+    @Query() filters: LeadStatsQueryDto,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() caller: JwtPayload,
+  ) {
+    return this.leadsService.getStats(filters, tenantId, caller);
   }
 
   @Get(':id')

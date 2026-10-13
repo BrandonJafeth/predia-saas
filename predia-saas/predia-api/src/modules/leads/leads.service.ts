@@ -4,7 +4,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LeadActivityType, LeadStatus, Prisma, UserRole } from '@prisma/client';
+import {
+  LeadActivityType,
+  LeadStatus,
+  Prisma,
+  PropertyStatus,
+  UserRole,
+  UserStatus,
+} from '@prisma/client';
 import { PageDto } from '../../common/dto/page.dto';
 import { assertNoNullFields } from '../../common/utils/assert-no-null-fields';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
@@ -14,6 +21,7 @@ import { CreateLeadActivityDto } from './dto/create-lead-activity.dto';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { FilterLeadActivitiesDto } from './dto/filter-lead-activities.dto';
 import { FilterLeadsDto } from './dto/filter-leads.dto';
+import { LeadStatsQueryDto } from './dto/lead-stats.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { LeadVisibilityService } from './lead-visibility.service';
 
@@ -30,6 +38,8 @@ const LEAD_SELECT = {
   notes: true,
   created_at: true,
   updated_at: true,
+  assignee: { select: { id: true, first_name: true, last_name: true } },
+  property: { select: { id: true, title: true, slug: true } },
 } satisfies Prisma.LeadSelect;
 
 const LEAD_DETAIL_SELECT = {
@@ -112,28 +122,7 @@ export class LeadsService {
   }
 
   async findAll(filters: FilterLeadsDto, tenantId: string, caller: JwtPayload) {
-    const where: Prisma.LeadWhereInput = {
-      tenant_id: tenantId,
-      AND: [
-        { status: { not: LeadStatus.archived } },
-        this.leadVisibility.getVisibleLeadWhere(caller),
-        ...(filters.status !== undefined ? [{ status: filters.status }] : []),
-        ...(filters.assigned_to !== undefined
-          ? [{ assigned_to: filters.assigned_to }]
-          : []),
-        ...(filters.search
-          ? [
-              {
-                OR: [
-                  { name: { contains: filters.search, mode: 'insensitive' as const } },
-                  { email: { contains: filters.search, mode: 'insensitive' as const } },
-                  { phone: { contains: filters.search, mode: 'insensitive' as const } },
-                ],
-              },
-            ]
-          : []),
-      ],
-    };
+    const where = this.buildListWhere(filters, tenantId, caller);
 
     const orderBy: Prisma.LeadOrderByWithRelationInput = {
       [filters.sortBy ?? 'created_at']: filters.sortOrder ?? 'desc',
@@ -154,6 +143,23 @@ export class LeadsService {
     return new PageDto(items, meta);
   }
 
+  /**
+   * Conteo por status con los mismos filtros y visibilidad que el listado.
+   * El kanban trae como máximo 100 leads: sin esto, con más leads los
+   * contadores de las columnas (y el dashboard) quedaban mal.
+   */
+  async getStats(filters: LeadStatsQueryDto, tenantId: string, caller: JwtPayload) {
+    const rows = await this.prisma.lead.groupBy({
+      by: ['status'],
+      where: this.buildListWhere(filters, tenantId, caller),
+      _count: { _all: true },
+    });
+    return {
+      total: rows.reduce((sum, row) => sum + row._count._all, 0),
+      by_status: Object.fromEntries(rows.map((row) => [row.status, row._count._all])),
+    };
+  }
+
   async findOne(id: string, tenantId: string, caller: JwtPayload) {
     const lead = await this.prisma.lead.findFirst({
       where: this.buildVisibleLeadWhere(id, tenantId, caller),
@@ -171,6 +177,16 @@ export class LeadsService {
     caller: JwtPayload,
   ) {
     assertNoNullFields(dto, ['name', 'source', 'status']);
+
+    // Igual que en propiedades, la asignación la decide un admin: un agente
+    // que se desasignaba o pasaba el lead a otro lo perdía de vista.
+    if (
+      caller.role === UserRole.agent &&
+      dto.assigned_to !== undefined &&
+      dto.assigned_to !== caller.sub
+    ) {
+      throw new ForbiddenException('Solo un admin puede reasignar leads');
+    }
 
     const lead = await this.findExistingLead(id, tenantId, caller);
 
@@ -314,6 +330,35 @@ export class LeadsService {
     return lead;
   }
 
+  private buildListWhere(
+    filters: Pick<FilterLeadsDto, 'status' | 'assigned_to' | 'search'>,
+    tenantId: string,
+    caller: JwtPayload,
+  ): Prisma.LeadWhereInput {
+    return {
+      tenant_id: tenantId,
+      AND: [
+        { status: { not: LeadStatus.archived } },
+        this.leadVisibility.getVisibleLeadWhere(caller),
+        ...(filters.status !== undefined ? [{ status: filters.status }] : []),
+        ...(filters.assigned_to !== undefined
+          ? [{ assigned_to: filters.assigned_to }]
+          : []),
+        ...(filters.search
+          ? [
+              {
+                OR: [
+                  { name: { contains: filters.search, mode: 'insensitive' as const } },
+                  { email: { contains: filters.search, mode: 'insensitive' as const } },
+                  { phone: { contains: filters.search, mode: 'insensitive' as const } },
+                ],
+              },
+            ]
+          : []),
+      ],
+    };
+  }
+
   private buildVisibleLeadWhere(
     id: string,
     tenantId: string,
@@ -335,8 +380,14 @@ export class LeadsService {
   ) {
     if (!assignedTo) return;
 
+    // Solo usuarios activos del CRM (no suspendidos ni super_admin).
     const user = await this.prisma.user.findFirst({
-      where: { id: assignedTo, tenant_id: tenantId },
+      where: {
+        id: assignedTo,
+        tenant_id: tenantId,
+        status: UserStatus.active,
+        role: { in: [UserRole.admin, UserRole.agent] },
+      },
       select: { id: true },
     });
 
@@ -353,8 +404,13 @@ export class LeadsService {
   ) {
     if (!propertyId) return;
 
+    // Una propiedad archivada (soft-delete) ya no se puede vincular.
     const property = await this.prisma.property.findFirst({
-      where: { id: propertyId, tenant_id: tenantId },
+      where: {
+        id: propertyId,
+        tenant_id: tenantId,
+        status: { not: PropertyStatus.archived },
+      },
       select: { id: true },
     });
 
