@@ -107,7 +107,7 @@ cd predia-api
 node_modules/.bin/prisma migrate deploy
 ```
 
-Esto aplica todas las migraciones, incluyendo la de RLS (`20260605220000_rls_tenant_isolation`).
+Esto aplica todas las migraciones, incluyendo las de RLS (`20260605220000_rls_tenant_isolation` y `20261013170000_explicit_tenant_rls`, que activa RLS en todas las tablas con `tenant_id` sin depender del event trigger).
 
 > **Nota:** Después de las migraciones, los permisos de tablas para `predia_system` se deben reasignar porque `GRANT ON ALL TABLES` solo aplica a tablas existentes en ese momento:
 > ```sql
@@ -120,7 +120,16 @@ Esto aplica todas las migraciones, incluyendo la de RLS (`20260605220000_rls_ten
 
 ---
 
-## 5. Seed: crear primer superadmin
+## 5. Seeds
+
+```bash
+cd predia-api
+
+# Catálogos globales (idempotentes): ubicaciones de CR → amenidades → categorías
+pnpm run seed
+```
+
+### Crear primer superadmin
 
 ```bash
 cd predia-api
@@ -138,11 +147,18 @@ pnpm run seed:superadmin
 
 El script crea automáticamente el tenant del sistema (`predia-saas`) si no existe.
 
-Para hacer login, usar `tenantSlug: predia-saas` en el endpoint de auth.
+Para entrar al CRM basta con email + contraseña: `POST /auth/lookup` devuelve las organizaciones donde esas credenciales son válidas (para el superadmin, `Predia SaaS`) y luego `POST /auth/login` recibe el `tenantId` elegido.
 
 ---
 
 ## 6. Levantar en desarrollo
+
+El CRM importa el cliente tipado `@predia/api-types`, que se genera desde el OpenAPI del API (no se versiona). Generarlo una vez, y de nuevo cada vez que cambien endpoints o DTOs:
+
+```bash
+# Desde la raíz del monorepo (no necesita la base levantada)
+pnpm generate:api
+```
 
 ```bash
 # Terminal 1 — API

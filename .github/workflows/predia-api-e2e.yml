@@ -76,9 +76,8 @@ jobs:
       - name: Grants + overrides de RLS (post-migración)
         run: PGPASSWORD=postgres psql -h localhost -U postgres -d predia -v ON_ERROR_STOP=1 -f infra/postgres/post-migrate.sql
 
-      # app.e2e-spec.ts es un stub del scaffold de Nest sin controller
-      # registrado — roto desde antes de este workflow, fuera de alcance
-      # acá. Solo corremos la suite de aislamiento entre tenants.
-      - name: Tests e2e — aislamiento entre tenants
+      # Aislamiento entre tenants + regresiones (transacciones, RLS, auth,
+      # rate-limit...). El stub app.e2e-spec.ts del scaffold se eliminó.
+      - name: Tests e2e
         working-directory: predia-saas/predia-api
-        run: node_modules/.bin/jest --config ./test/jest-e2e.json tenant-isolation
+        run: node_modules/.bin/jest --config ./test/jest-e2e.json

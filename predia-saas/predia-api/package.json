@@ -21,7 +21,12 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "generate:openapi": "ts-node --transpile-only -r tsconfig-paths/register src/scripts/generate-openapi.ts",
-    "seed:superadmin": "ts-node --transpile-only -r tsconfig-paths/register src/scripts/seed-superadmin.ts"
+    "seed:superadmin": "ts-node --transpile-only -r tsconfig-paths/register src/scripts/seed-superadmin.ts",
+    "seed:locations": "ts-node --transpile-only -r tsconfig-paths/register src/scripts/seed-locations.ts",
+    "seed:categories": "ts-node --transpile-only -r tsconfig-paths/register src/scripts/seed-categories.ts",
+    "seed:amenities": "ts-node --transpile-only -r tsconfig-paths/register src/scripts/seed-amenities.ts",
+    "seed": "pnpm run seed:locations && pnpm run seed:amenities && pnpm run seed:categories",
+    "lint:check": "eslint \"{src,apps,libs,test}/**/*.ts\""
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

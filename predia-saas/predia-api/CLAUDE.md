@@ -26,11 +26,13 @@ node_modules/.bin/prisma studio                      # GUI to browse DB
 
 Scripts:
 ```bash
-npx ts-node src/scripts/seed-superadmin.ts    # seed initial super_admin
-npx ts-node src/scripts/seed-locations.ts     # seed CR provinces/cantons/districts (idempotent)
-npx ts-node src/scripts/seed-categories.ts    # seed initial categories (idempotent, upsert by slug)
-npx ts-node src/scripts/seed-amenities.ts     # seed shared amenity catalog (idempotent, upsert by slug)
-npx ts-node src/scripts/generate-openapi.ts   # export OpenAPI JSON
+pnpm run seed                  # locations → amenities → categories (idempotent)
+pnpm run seed:superadmin <email> <password>   # seed initial super_admin
+pnpm run seed:locations        # seed CR provinces/cantons/districts (idempotent)
+pnpm run seed:amenities        # seed shared amenity catalog (idempotent, upsert by slug)
+pnpm run seed:categories       # seed categories (idempotent, upsert by slug; links amenities)
+pnpm run generate:openapi      # export OpenAPI JSON (no DB connection needed)
+pnpm run lint:check            # ESLint without --fix (what CI runs)
 ```
 
 ## Architecture
@@ -143,16 +145,24 @@ Row-level isolation via PostgreSQL `set_config`:
 2. `PrismaService.$extends` wraps every query in a transaction: runs `SELECT set_config('app.current_tenant_id', tenantId, true)` before the actual query
 3. PostgreSQL RLS policies read `current_setting('app.current_tenant_id')` to filter rows
 
+**Transactions:** `PrismaService.$transaction` (batch `[...]` and interactive `async tx => ...`) is tenant-aware: it runs `set_config` once at the start and marks the ALS context (`inTransaction`) so the queries inside do NOT open their own transaction. Without that, each query ran in a separate transaction and `$transaction` was not atomic. Always use `this.prisma.$transaction(...)`; never nest `base.$transaction` manually.
+
+RLS policies for every table with `tenant_id` live in the migrations (`20260605220000_rls_tenant_isolation`, `20260802230000_readd_property_amenities`, `20261013170000_explicit_tenant_rls`). The event trigger in `infra/postgres/init.sql` / `rls-setup.sql` is a safety net for new tables, but **every new tenant-scoped table must also get its policy in its own migration** (managed Postgres often can't install event triggers).
+
 `SystemPrismaService` connects via `SYSTEM_DATABASE_URL` (role `predia_system`, `BYPASSRLS`) — no ALS, no tenant scoping. Used by `SystemModule` and `TenantsModule`.
 
 > **RLS gotcha:** `PrismaService` sets `app.current_tenant_id` from the caller's JWT. If an operation inserts rows with a `tenant_id` different from the caller's (e.g. super_admin creating a new tenant + admin user), the RLS policy blocks the INSERT with code `42501`. Use `SystemPrismaService` for those operations.
 
 ## Auth flow
 
-- **Access token**: short-lived JWT in `Authorization: Bearer` header; payload = `{ sub, tenantId, role }`
-- **Refresh token**: long-lived JWT in `refreshToken` httpOnly cookie (7 days)
-- `POST /auth/refresh` — reads cookie, issues new pair
-- `POST /auth/logout` — clears cookie
+- **Access token**: short-lived JWT (15 min) in `Authorization: Bearer` header; payload = `{ sub, tenantId, role }`
+- **Refresh token**: JWT in `refreshToken` httpOnly cookie; payload adds `sid` = id of an `auth_sessions` row (7-day sliding expiry)
+- `POST /auth/lookup` — `{ email, password }` → tenants where those credentials are valid (never reveals whether an email exists)
+- `POST /auth/login` — `{ email, password, tenantId }` → creates an `AuthSession`
+- `POST /auth/refresh` — reads cookie, checks the session (not revoked/expired, user active), issues new pair
+- `POST /auth/logout` — revokes the session + clears cookie
+- `POST /auth/reset-password` — also revokes every session of the user
+- Emails are normalized (trim + lowercase, `@NormalizeEmail()`) and compared case-insensitively
 
 ## Global guards & decorators
 
@@ -163,7 +173,7 @@ All routes protected by `JwtAuthGuard` by default. Opt out with `@Public()`.
 `UserRole` enum (from Prisma): `super_admin | admin | agent`
 
 `UserStatus` enum (from Prisma): `active | suspended | invited | deactivated`
-- Suspended users are blocked at every layer: lookup, login, refresh, and per-request guard check.
+- Only `active` users get in: suspended/deactivated/invited are blocked at lookup, login, refresh, and per-request guard check.
 - Auth errors always return generic messages — never reveal whether an account exists or its status.
 - `PATCH /api/v1/users/:id/suspend` and `PATCH /api/v1/users/:id/activate` require `admin` or `super_admin`.
 - When caller is `super_admin`, these endpoints use `SystemPrismaService` (bypasses RLS) to operate on users of any tenant.
@@ -250,6 +260,8 @@ location: dto.location_id === undefined
 - [ ] Paginación: recibir `PageOptionsDto`, devolver `PageDto<T>` con `PageMetaDto`
 - [ ] Errores: lanzar `NotFoundException`, `ConflictException`, etc. de `@nestjs/common` — nunca exponer errores internos
 - [ ] `update()`: asignación directa en `data` (no spread condicional `...(x !== undefined && {...})`) — ver [Prisma partial update pattern](#prisma-partial-update-pattern)
+- [ ] `update()`: `assertNoNullFields(dto, [...campos NOT NULL])` al inicio — `@IsOptional()` deja pasar `null` y Prisma respondería 500
+- [ ] `remove()`: si la tabla tiene FKs `RESTRICT` apuntándole, capturar `P2003` → `ConflictException` (409), nunca dejar el 500
 
 #### Module
 - [ ] Registrar en `app.module.ts`
@@ -296,12 +308,13 @@ Cualquier endpoint que **cree, modifique o elimine** un recurso persistente.
 | `PropertyImagesController` | `POST /api/v1/properties/:propertyId/images` | `CREATE` | `property_image` |
 | `PropertyImagesController` | `DELETE /api/v1/properties/:propertyId/images/:imageId` | `DELETE` | `property_image` |
 | `PropertyImagesController` | `PATCH /api/v1/properties/:propertyId/images/:imageId/cover` | `UPDATE` | `property_image` |
+| `AmenitiesController` | `POST/PATCH/DELETE /api/v1/amenities` | `CREATE`/`UPDATE`/`DELETE` | `amenity` (logged by `AmenitiesService`, see note) |
 | `CategoryAmenitiesController` | `POST /api/v1/categories/:categoryId/amenities` | `CREATE` | `category_amenity` |
 | `CategoryAmenitiesController` | `DELETE /api/v1/categories/:categoryId/amenities` | `DELETE` | `category_amenity` |
 | `PropertyAmenitiesController` | `POST /api/v1/properties/:propertyId/amenities` | `CREATE` | `property_amenity` |
 | `PropertyAmenitiesController` | `DELETE /api/v1/properties/:propertyId/amenities` | `DELETE` | `property_amenity` |
 
-> **Nota:** `CategoryAmenitiesController` y `PropertyAmenitiesController` NO usan el decorador `@AuditLog()`. La respuesta es un array y el param es `:categoryId`/`:propertyId` (no `:id`), así que el interceptor dejaría `entity_id: 'unknown'`. En su lugar, `AmenitiesService` llama `auditLogService.log()` directamente con `entity_id = categoryId/propertyId` (patrón documentado en [Limitación del interceptor: entity_id](#limitación-del-interceptor-entity_id)).
+> **Nota:** `AmenitiesController`, `CategoryAmenitiesController` y `PropertyAmenitiesController` NO usan el decorador `@AuditLog()` (en amenities tenerlo además del log manual duplicaba las filas). La respuesta es un array y el param es `:categoryId`/`:propertyId` (no `:id`), así que el interceptor dejaría `entity_id: 'unknown'`. En su lugar, `AmenitiesService` llama `auditLogService.log()` directamente con `entity_id = categoryId/propertyId` (patrón documentado en [Limitación del interceptor: entity_id](#limitación-del-interceptor-entity_id)).
 
 ### Endpoints que NO usan @AuditLog (y por qué)
 
