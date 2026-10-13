@@ -13,6 +13,7 @@ import { EmailService } from 'src/modules/email/email.service';
 import { PageOptionsDto } from '../../common/dto/page-options.dto';
 import { PageDto } from '../../common/dto/page.dto';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
+import { assertNoNullFields } from '../../common/utils/assert-no-null-fields';
 
 @Injectable()
 export class TenantsService {
@@ -105,6 +106,7 @@ export class TenantsService {
   }
 
   async update(id: string, updatedto: UpdateTenantDto) {
+    assertNoNullFields(updatedto, ['name', 'slug', 'max_images_per_property']);
     if (updatedto.slug) {
       const exist = await this.prisma.tenant.findUnique({
         where: { slug: updatedto.slug },
@@ -139,6 +141,16 @@ export class TenantsService {
         error.code === 'P2025'
       ) {
         throw new NotFoundException('Tenant no encontrado');
+      }
+      // Las FK hacia Tenant son ON DELETE RESTRICT (usuarios, propiedades,
+      // leads...): un tenant con datos no se borra en cascada por accidente.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictException(
+          'El tenant tiene datos asociados (usuarios, propiedades, leads...) y no se puede eliminar.',
+        );
       }
       throw error;
     }

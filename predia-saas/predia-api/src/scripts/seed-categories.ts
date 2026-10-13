@@ -2,6 +2,13 @@ import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
+// Límites de año relativos a la fecha en que se corre el seed (antes estaban
+// fijos en 2030 / 2026: un vehículo modelo 2027 ya no se podía registrar).
+// Re-correr el seed actualiza el attribute_schema de las categorías.
+const CURRENT_YEAR = new Date().getFullYear();
+const MAX_BUILD_YEAR = CURRENT_YEAR + 5; // preventa / en construcción
+const MAX_MODEL_YEAR = CURRENT_YEAR + 1; // año-modelo de vehículos
+
 const CATEGORIES = [
   {
     name: 'Bienes Raíces',
@@ -54,7 +61,7 @@ const CATEGORIES = [
           type: 'integer',
           title: 'Año de construcción',
           minimum: 1800,
-          maximum: 2030,
+          maximum: MAX_BUILD_YEAR,
         },
         amueblado: {
           type: 'string',
@@ -106,7 +113,7 @@ const CATEGORIES = [
           type: 'integer',
           title: 'Año',
           minimum: 1900,
-          maximum: 2026,
+          maximum: MAX_MODEL_YEAR,
         },
         version: {
           type: 'string',

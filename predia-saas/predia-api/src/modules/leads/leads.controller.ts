@@ -47,8 +47,12 @@ export class LeadsController {
   @Roles(UserRole.admin, UserRole.agent)
   @AuditLog({ action: 'CREATE', entity: 'lead' })
   @ApiCreatedResponse({ type: LeadResponseDto })
-  create(@Body() dto: CreateLeadDto, @CurrentTenant() tenantId: string) {
-    return this.leadsService.create(dto, tenantId);
+  create(
+    @Body() dto: CreateLeadDto,
+    @CurrentTenant() tenantId: string,
+    @CurrentUser() caller: JwtPayload,
+  ) {
+    return this.leadsService.create(dto, tenantId, caller);
   }
 
   @Get()

@@ -29,7 +29,10 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { PropertyImageResponseDto } from './dto/property-image-response.dto';
 import { ReorderImagesDto } from './dto/reorder-images.dto';
-import { PropertyImagesService } from './property-images.service';
+import {
+  MAX_FILE_SIZE_BYTES,
+  PropertyImagesService,
+} from './property-images.service';
 
 @ApiTags('Property Images')
 @ApiBearerAuth()
@@ -39,7 +42,11 @@ export class PropertyImagesController {
 
   @Post()
   @Roles(UserRole.admin, UserRole.agent)
-  @UseInterceptors(FileInterceptor('file'))
+  // limits.fileSize corta la subida en multer (413) en vez de bufferear el
+  // archivo completo en memoria antes del chequeo del service.
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: MAX_FILE_SIZE_BYTES, files: 1 } }),
+  )
   @AuditLog({ action: 'CREATE', entity: 'property_image' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({

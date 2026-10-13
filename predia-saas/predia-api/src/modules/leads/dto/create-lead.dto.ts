@@ -24,7 +24,7 @@ export class CreateLeadDto {
   )
   name!: string;
 
-  @ApiPropertyOptional({ example: 'maria.fernandez@example.com' })
+  @ApiPropertyOptional({ example: 'maria.fernandez@example.com', nullable: true })
   @IsOptional()
   @IsEmail({}, { message: 'email debe ser un correo válido' })
   @MaxLength(254, { message: 'email no puede superar 254 caracteres' })
@@ -33,7 +33,7 @@ export class CreateLeadDto {
   )
   email?: string;
 
-  @ApiPropertyOptional({ example: '+50688887777' })
+  @ApiPropertyOptional({ example: '+50688887777', nullable: true })
   @IsOptional()
   @IsString({ message: 'phone debe ser texto' })
   @MaxLength(50, { message: 'phone no puede superar 50 caracteres' })
@@ -55,7 +55,8 @@ export class CreateLeadDto {
   @ApiPropertyOptional({
     example: '550e8400-e29b-41d4-a716-446655440000',
     description:
-      'UUID del agente asignado. Si no se envía, el service decide la asignación.',
+      'UUID del agente asignado. Solo lo usa un admin: si el caller es agent, el lead se le autoasigna. En PATCH, null lo desasigna.',
+    nullable: true,
   })
   @IsOptional()
   @IsUUID(4, { message: 'assigned_to debe ser un UUID v4 válido' })
@@ -64,6 +65,7 @@ export class CreateLeadDto {
   @ApiPropertyOptional({
     example: '550e8400-e29b-41d4-a716-446655440001',
     description: 'UUID de la propiedad de interés.',
+    nullable: true,
   })
   @IsOptional()
   @IsUUID(4, { message: 'property_id debe ser un UUID v4 válido' })
@@ -71,6 +73,7 @@ export class CreateLeadDto {
 
   @ApiPropertyOptional({
     example: 'Busca casa en condominio con 3 habitaciones.',
+    nullable: true,
   })
   @IsOptional()
   @IsString({ message: 'notes debe ser texto' })

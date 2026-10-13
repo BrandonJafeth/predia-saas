@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PropertyStatus, UserRole } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { assertNoNullFields } from '../../common/utils/assert-no-null-fields';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import type { CreateAmenityDto } from './dto/create-amenity.dto';
@@ -79,6 +80,7 @@ export class AmenitiesService {
   }
 
   async update(id: string, dto: UpdateAmenityDto, caller: JwtPayload) {
+    assertNoNullFields(dto, ['name', 'is_active']);
     const existing = await this.assertAmenityExists(id);
 
     // Renombrar recalcula el slug (identificador estable de ícono/URL) solo si
