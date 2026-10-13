@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
-import { OperationType, UserRole } from '@prisma/client';
+import { LeadActivityType, OperationType, UserRole } from '@prisma/client';
 import { SystemPrismaService } from '../../src/prisma/system-prisma.service';
 import { JwtPayload } from '../../src/modules/auth/interfaces/jwt-payload.interface';
 
@@ -8,8 +8,13 @@ export interface SeededTenant {
   tenant: { id: string; slug: string };
   admin: { id: string; token: string };
   agent: { id: string; token: string };
+  // Segundo agente del mismo tenant: sin leads asignados, para probar que un
+  // agente no ve los leads de otro.
+  agent2: { id: string; token: string };
   property: { id: string; slug: string };
   image: { id: string };
+  lead: { id: string };
+  activity: { id: string };
 }
 
 export interface TenantIsolationFixture {
@@ -48,10 +53,29 @@ export async function seedTenantIsolationFixture(
     },
   });
 
-  const tenantA = await buildTenant(systemPrisma, jwt, 'a', suffix, category.id, amenity.id);
-  const tenantB = await buildTenant(systemPrisma, jwt, 'b', suffix, category.id, amenity.id);
+  const tenantA = await buildTenant(
+    systemPrisma,
+    jwt,
+    'a',
+    suffix,
+    category.id,
+    amenity.id,
+  );
+  const tenantB = await buildTenant(
+    systemPrisma,
+    jwt,
+    'b',
+    suffix,
+    category.id,
+    amenity.id,
+  );
 
-  return { category: { id: category.id }, amenity: { id: amenity.id }, tenantA, tenantB };
+  return {
+    category: { id: category.id },
+    amenity: { id: amenity.id },
+    tenantA,
+    tenantB,
+  };
 }
 
 export async function teardownTenantIsolationFixture(
@@ -60,12 +84,28 @@ export async function teardownTenantIsolationFixture(
 ): Promise<void> {
   const tenantIds = [fixture.tenantA.tenant.id, fixture.tenantB.tenant.id];
 
-  await systemPrisma.propertyAmenity.deleteMany({ where: { tenant_id: { in: tenantIds } } });
-  await systemPrisma.propertyImage.deleteMany({ where: { tenant_id: { in: tenantIds } } });
-  await systemPrisma.property.deleteMany({ where: { tenant_id: { in: tenantIds } } });
-  await systemPrisma.user.deleteMany({ where: { tenant_id: { in: tenantIds } } });
+  await systemPrisma.leadActivity.deleteMany({
+    where: { tenant_id: { in: tenantIds } },
+  });
+  await systemPrisma.lead.deleteMany({
+    where: { tenant_id: { in: tenantIds } },
+  });
+  await systemPrisma.propertyAmenity.deleteMany({
+    where: { tenant_id: { in: tenantIds } },
+  });
+  await systemPrisma.propertyImage.deleteMany({
+    where: { tenant_id: { in: tenantIds } },
+  });
+  await systemPrisma.property.deleteMany({
+    where: { tenant_id: { in: tenantIds } },
+  });
+  await systemPrisma.user.deleteMany({
+    where: { tenant_id: { in: tenantIds } },
+  });
   await systemPrisma.tenant.deleteMany({ where: { id: { in: tenantIds } } });
-  await systemPrisma.categoryAmenity.deleteMany({ where: { category_id: fixture.category.id } });
+  await systemPrisma.categoryAmenity.deleteMany({
+    where: { category_id: fixture.category.id },
+  });
   await systemPrisma.category.delete({ where: { id: fixture.category.id } });
   await systemPrisma.amenity.delete({ where: { id: fixture.amenity.id } });
 }
@@ -107,6 +147,17 @@ async function buildTenant(
     },
   });
 
+  const agent2 = await systemPrisma.user.create({
+    data: {
+      tenant_id: tenant.id,
+      email: `agent2-${label}-${suffix}@e2e.test`,
+      password_hash: 'unused-in-e2e',
+      role: UserRole.agent,
+      first_name: 'Agent2',
+      last_name: label.toUpperCase(),
+    },
+  });
+
   const property = await systemPrisma.property.create({
     data: {
       tenant_id: tenant.id,
@@ -132,21 +183,56 @@ async function buildTenant(
   });
 
   await systemPrisma.propertyAmenity.create({
-    data: { property_id: property.id, amenity_id: amenityId, tenant_id: tenant.id },
+    data: {
+      property_id: property.id,
+      amenity_id: amenityId,
+      tenant_id: tenant.id,
+    },
   });
 
-  const adminToken = jwt.sign(
-    { sub: admin.id, tenantId: tenant.id, role: admin.role } satisfies JwtPayload,
-  );
-  const agentToken = jwt.sign(
-    { sub: agent.id, tenantId: tenant.id, role: agent.role } satisfies JwtPayload,
-  );
+  const lead = await systemPrisma.lead.create({
+    data: {
+      tenant_id: tenant.id,
+      name: `Lead ${label.toUpperCase()} ${suffix}`,
+      assigned_to: agent.id,
+      property_id: property.id,
+    },
+  });
+
+  const activity = await systemPrisma.leadActivity.create({
+    data: {
+      lead_id: lead.id,
+      tenant_id: tenant.id,
+      type: LeadActivityType.note,
+      description: `Nota ${label}`,
+      created_by: agent.id,
+    },
+  });
+
+  const adminToken = jwt.sign({
+    sub: admin.id,
+    tenantId: tenant.id,
+    role: admin.role,
+  } satisfies JwtPayload);
+  const agentToken = jwt.sign({
+    sub: agent.id,
+    tenantId: tenant.id,
+    role: agent.role,
+  } satisfies JwtPayload);
+  const agent2Token = jwt.sign({
+    sub: agent2.id,
+    tenantId: tenant.id,
+    role: agent2.role,
+  } satisfies JwtPayload);
 
   return {
     tenant: { id: tenant.id, slug: tenant.slug },
     admin: { id: admin.id, token: adminToken },
     agent: { id: agent.id, token: agentToken },
+    agent2: { id: agent2.id, token: agent2Token },
     property: { id: property.id, slug: property.slug },
     image: { id: image.id },
+    lead: { id: lead.id },
+    activity: { id: activity.id },
   };
 }

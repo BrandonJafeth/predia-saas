@@ -32,7 +32,11 @@ describe('Tenant isolation (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
     );
     await app.init();
 
@@ -41,7 +45,9 @@ describe('Tenant isolation (e2e)', () => {
     fixture = await seedTenantIsolationFixture(systemPrisma, jwt);
 
     const config = moduleFixture.get(ConfigService);
-    pool = new Pool({ connectionString: config.getOrThrow<string>('DATABASE_URL') });
+    pool = new Pool({
+      connectionString: config.getOrThrow<string>('DATABASE_URL'),
+    });
   }, 30_000);
 
   afterAll(async () => {
@@ -110,7 +116,9 @@ describe('Tenant isolation (e2e)', () => {
 
     it('agent A cannot delete an image of a tenant B property (404)', () => {
       return request(server())
-        .delete(`/api/v1/properties/${fixture.tenantB.property.id}/images/${fixture.tenantB.image.id}`)
+        .delete(
+          `/api/v1/properties/${fixture.tenantB.property.id}/images/${fixture.tenantB.image.id}`,
+        )
         .set('Authorization', asAgentA())
         .expect(404);
     });
@@ -126,7 +134,9 @@ describe('Tenant isolation (e2e)', () => {
 
     it('agent A cannot reorder images of a tenant B property (404)', () => {
       return request(server())
-        .patch(`/api/v1/properties/${fixture.tenantB.property.id}/images/reorder`)
+        .patch(
+          `/api/v1/properties/${fixture.tenantB.property.id}/images/reorder`,
+        )
         .set('Authorization', asAgentA())
         .send({ items: [{ id: fixture.tenantB.image.id, position: 0 }] })
         .expect(404);
@@ -158,7 +168,139 @@ describe('Tenant isolation (e2e)', () => {
     });
   });
 
+  describe('Leads', () => {
+    const asAdminA = () => `Bearer ${fixture.tenantA.admin.token}`;
+    const leadB = () => fixture.tenantB.lead.id;
+
+    it('listing leads as agent A includes its lead and never tenant B leads', async () => {
+      const res = await request(server())
+        .get('/api/v1/leads')
+        .set('Authorization', asAgentA())
+        .expect(200);
+      const ids = (res.body.data as { id: string }[]).map((l) => l.id);
+      expect(ids).toContain(fixture.tenantA.lead.id);
+      expect(ids).not.toContain(leadB());
+    });
+
+    it('admin A cannot fetch a tenant B lead (404)', () => {
+      return request(server())
+        .get(`/api/v1/leads/${leadB()}`)
+        .set('Authorization', asAdminA())
+        .expect(404);
+    });
+
+    it('agent A cannot update a tenant B lead (404)', () => {
+      return request(server())
+        .patch(`/api/v1/leads/${leadB()}`)
+        .set('Authorization', asAgentA())
+        .send({ name: 'hijacked' })
+        .expect(404);
+    });
+
+    it('admin A cannot archive a tenant B lead (404)', () => {
+      return request(server())
+        .delete(`/api/v1/leads/${leadB()}`)
+        .set('Authorization', asAdminA())
+        .expect(404);
+    });
+
+    it('agent A cannot list activities of a tenant B lead (404)', () => {
+      return request(server())
+        .get(`/api/v1/leads/${leadB()}/activities`)
+        .set('Authorization', asAgentA())
+        .expect(404);
+    });
+
+    it('agent A cannot add an activity to a tenant B lead (404)', () => {
+      return request(server())
+        .post(`/api/v1/leads/${leadB()}/activities`)
+        .set('Authorization', asAgentA())
+        .send({ type: 'note', description: 'cross-tenant' })
+        .expect(404);
+    });
+
+    it('stats only count leads of the caller tenant', async () => {
+      const res = await request(server())
+        .get('/api/v1/leads/stats')
+        .set('Authorization', asAdminA())
+        .expect(200);
+      expect(res.body.total).toBe(1);
+    });
+  });
+
+  describe('Lead visibility between agents of the same tenant', () => {
+    const asAgent2A = () => `Bearer ${fixture.tenantA.agent2.token}`;
+    const leadA = () => fixture.tenantA.lead.id;
+
+    it('another agent does not see the lead in the list nor in stats', async () => {
+      const list = await request(server())
+        .get('/api/v1/leads')
+        .set('Authorization', asAgent2A())
+        .expect(200);
+      expect(
+        (list.body.data as { id: string }[]).map((l) => l.id),
+      ).not.toContain(leadA());
+
+      const stats = await request(server())
+        .get('/api/v1/leads/stats')
+        .set('Authorization', asAgent2A())
+        .expect(200);
+      expect(stats.body.total).toBe(0);
+    });
+
+    it('another agent gets 404 on detail, update and activities', async () => {
+      await request(server())
+        .get(`/api/v1/leads/${leadA()}`)
+        .set('Authorization', asAgent2A())
+        .expect(404);
+      await request(server())
+        .patch(`/api/v1/leads/${leadA()}`)
+        .set('Authorization', asAgent2A())
+        .send({ name: 'x' })
+        .expect(404);
+      await request(server())
+        .get(`/api/v1/leads/${leadA()}/activities`)
+        .set('Authorization', asAgent2A())
+        .expect(404);
+    });
+
+    it('the admin of the tenant sees the lead with its assignee and property', async () => {
+      const res = await request(server())
+        .get(`/api/v1/leads/${leadA()}`)
+        .set('Authorization', `Bearer ${fixture.tenantA.admin.token}`)
+        .expect(200);
+      expect(res.body.assignee.id).toBe(fixture.tenantA.agent.id);
+      expect(res.body.property.id).toBe(fixture.tenantA.property.id);
+    });
+  });
+
   describe('Row Level Security (direct DB query, bypassing the application layer)', () => {
+    it.each(['leads', 'lead_activities'])(
+      'blocks a cross-tenant SELECT on %s with a raw query',
+      async (table) => {
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          await client.query('SELECT set_config($1, $2, true)', [
+            'app.current_tenant_id',
+            fixture.tenantA.tenant.id,
+          ]);
+          const id =
+            table === 'leads'
+              ? fixture.tenantB.lead.id
+              : fixture.tenantB.activity.id;
+          const result = await client.query(
+            `SELECT id FROM ${table} WHERE id = $1`,
+            [id],
+          );
+          expect(result.rows).toHaveLength(0);
+        } finally {
+          await client.query('ROLLBACK');
+          client.release();
+        }
+      },
+    );
+
     it('blocks a cross-tenant SELECT even with a raw query', async () => {
       const client = await pool.connect();
       try {
@@ -167,9 +309,10 @@ describe('Tenant isolation (e2e)', () => {
           'app.current_tenant_id',
           fixture.tenantA.tenant.id,
         ]);
-        const result = await client.query('SELECT id FROM properties WHERE id = $1', [
-          fixture.tenantB.property.id,
-        ]);
+        const result = await client.query(
+          'SELECT id FROM properties WHERE id = $1',
+          [fixture.tenantB.property.id],
+        );
         expect(result.rows).toHaveLength(0);
       } finally {
         await client.query('ROLLBACK');
@@ -185,9 +328,10 @@ describe('Tenant isolation (e2e)', () => {
           'app.current_tenant_id',
           fixture.tenantA.tenant.id,
         ]);
-        const result = await client.query('SELECT id FROM properties WHERE id = $1', [
-          fixture.tenantA.property.id,
-        ]);
+        const result = await client.query(
+          'SELECT id FROM properties WHERE id = $1',
+          [fixture.tenantA.property.id],
+        );
         expect(result.rows).toHaveLength(1);
       } finally {
         await client.query('ROLLBACK');

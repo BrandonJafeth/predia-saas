@@ -289,6 +289,39 @@ describe('Regresiones (e2e)', () => {
         .expect(400);
     });
 
+    it('no se puede registrar a mano una actividad status_change (400)', async () => {
+      const lead = await sys.lead.create({
+        data: {
+          tenant_id: tenantA.id,
+          name: 'fake status',
+          assigned_to: agentA.id,
+        },
+      });
+      await request(server())
+        .post(`/api/v1/leads/${lead.id}/activities`)
+        .set(bearer(agentA.token))
+        .send({
+          type: 'status_change',
+          description: 'Status changed from new to won',
+        })
+        .expect(400);
+    });
+
+    it('un agente no puede reasignar su lead (403)', async () => {
+      const lead = await sys.lead.create({
+        data: {
+          tenant_id: tenantA.id,
+          name: 'reasignar',
+          assigned_to: agentA.id,
+        },
+      });
+      await request(server())
+        .patch(`/api/v1/leads/${lead.id}`)
+        .set(bearer(agentA.token))
+        .send({ assigned_to: adminA.id })
+        .expect(403);
+    });
+
     it('cambio de status crea la actividad en la misma transacción', async () => {
       const lead = await sys.lead.create({
         data: { tenant_id: tenantA.id, name: 'status', assigned_to: agentA.id },
