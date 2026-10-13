@@ -1,79 +1,112 @@
 ---
-// Static-generated from the mock for now. Once public-api ships, this becomes a
-// server-rendered route (Astro `output: 'server'` + `Astro.params.slug` fetch) —
-// the template below does not change, only how `property` is obtained.
-import Layout from '../../layouts/Layout.astro';
-import CTABanner from '../../components/CTABanner.astro';
-import { getAllProperties, formatPrice, formatAttributes, getAmenities } from '../../lib/properties';
-import { whatsappLink } from '../../lib/site-config';
-import { amenityIcons, DEFAULT_AMENITY_ICON } from '../../lib/amenity-icons';
-import { attributeIcons, DEFAULT_ATTRIBUTE_ICON } from '../../lib/attribute-icons';
+// Generada en el build desde la API pública (key de portal, solo servidor).
+// La ruta lleva la inmobiliaria porque el slug de una propiedad es único
+// dentro de su inmobiliaria, no en todo el portal.
+import Layout from '../../../layouts/Layout.astro';
+import CTABanner from '../../../components/CTABanner.astro';
+import LeadForm from '../../../components/LeadForm.astro';
+import {
+  formatAttributes,
+  formatLocation,
+  formatPrice,
+  getAllPropertyDetails,
+} from '../../../lib/properties';
+import type { PropertyDetail } from '../../../lib/types/property';
+import { whatsappLink } from '../../../lib/site-config';
+import { amenityIcons, DEFAULT_AMENITY_ICON } from '../../../lib/amenity-icons';
+import { attributeIcons, DEFAULT_ATTRIBUTE_ICON } from '../../../lib/attribute-icons';
 
 export async function getStaticPaths() {
-  const properties = await getAllProperties();
-  return properties.map((property) => ({ params: { slug: property.slug }, props: { property } }));
+  const properties = await getAllPropertyDetails();
+  return properties.map((property) => ({
+    params: { agencia: property.agency.slug, slug: property.slug },
+    props: { property },
+  }));
+}
+
+interface Props {
+  property: PropertyDetail;
 }
 
 const { property } = Astro.props;
 const attributes = formatAttributes(property);
-const amenities = getAmenities(property);
-const images = [...property.images].sort((a, b) => a.position - b.position);
+const images = property.images;
+const total = images.length;
 const operationLabel = { sale: 'Venta', rent: 'Alquiler', lease: 'Arrendamiento' }[property.operation_type];
 const agentName = property.agent ? `${property.agent.first_name} ${property.agent.last_name}` : null;
-const contactMessage = `Hola${agentName ? ` ${agentName}` : ''}, vi "${property.title}" en Predia y quiero más información.`;
-const agentWhatsapp = property.agent?.whatsapp
-  ? `https://wa.me/${property.agent.whatsapp}?text=${encodeURIComponent(contactMessage)}`
-  : whatsappLink(contactMessage);
+const locationLabel = formatLocation(property);
+const contactMessage = `Hola, vi "${property.title}" en Predia y quiero más información.`;
+const siteWhatsapp = whatsappLink(contactMessage);
+const photoAlt = (i: number) => `${property.title}: foto ${i + 1} de ${total}`;
 ---
 
 <Layout title={property.title} description={property.description ?? undefined}>
-	<div class="mx-auto max-w-6xl px-6 pt-8 md:px-10">
-		<a href="/propiedades" class="text-[0.8rem] text-muted transition-colors hover:text-ink">&larr; Volver a propiedades</a>
-	</div>
+	<nav aria-label="Ruta de navegación" class="mx-auto max-w-6xl px-6 pt-8 md:px-10">
+		<ol class="flex flex-wrap items-center gap-1.5 text-[0.8rem] text-muted-dark">
+			<li><a href="/propiedades" class="underline-offset-4 hover:text-ink hover:underline">Propiedades</a></li>
+			<li aria-hidden="true">/</li>
+			<li><span>{property.agency.name}</span></li>
+			<li aria-hidden="true">/</li>
+			<li><a href={Astro.url.pathname} aria-current="page" class="text-ink">{property.title}</a></li>
+		</ol>
+	</nav>
 
-	<!-- GALLERY -->
-	<section class="mx-auto mt-5 max-w-6xl px-6 md:px-10">
-		<div id="gallery" class="relative aspect-4/3 overflow-hidden rounded-xl bg-ink sm:aspect-16/10 md:aspect-21/9" data-count={images.length}>
-			<div class="carousel-track" id="gallery-track">
-				{images.map((img) => (
-					<div class="carousel-frame">
-						<img src={img.url} alt={property.title} class="h-full w-full cursor-zoom-in object-cover" data-open-lightbox loading="eager" />
-					</div>
-				))}
-			</div>
+	<!-- GALERÍA -->
+	<section aria-label="Fotos de la propiedad" class="mx-auto mt-5 max-w-6xl px-6 md:px-10">
+		<div id="gallery" class="relative aspect-4/3 overflow-hidden rounded-xl bg-ink sm:aspect-16/10 md:aspect-21/9" data-count={total}>
+			{total === 0 ? (
+				<p class="flex h-full items-center justify-center text-sm text-bg/80">Sin fotos publicadas</p>
+			) : (
+				<div class="carousel-track" id="gallery-track">
+					{images.map((img, i) => (
+						<div class="carousel-frame" aria-hidden={i === 0 ? undefined : 'true'} data-frame={i}>
+							<button type="button" class="block h-full w-full cursor-zoom-in" data-open-lightbox tabindex={i === 0 ? undefined : '-1'} aria-label={`Ampliar foto ${i + 1} de ${total}`}>
+								<img src={img.url} alt={photoAlt(i)} class="h-full w-full object-cover" loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
+							</button>
+						</div>
+					))}
+				</div>
+			)}
 
-			<button type="button" class="carousel-btn left-4" data-dir="-1" aria-label="Foto anterior">
-				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7" /></svg>
-			</button>
-			<button type="button" class="carousel-btn right-4" data-dir="1" aria-label="Foto siguiente">
-				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg>
-			</button>
+			{total > 1 && (
+				<>
+					<button type="button" class="carousel-btn left-4" data-dir="-1" aria-label="Foto anterior" aria-controls="gallery-track">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+					</button>
+					<button type="button" class="carousel-btn right-4" data-dir="1" aria-label="Foto siguiente" aria-controls="gallery-track">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+					</button>
 
-			<div class="carousel-counter absolute bottom-4 right-4 rounded-full bg-ink/60 px-3 py-1 text-[0.72rem] text-bg backdrop-blur-sm">
-				<span id="gallery-current">1</span> / {images.length}
-			</div>
+					<p class="carousel-counter absolute bottom-4 right-4 rounded-full bg-ink/70 px-3 py-1 text-[0.72rem] text-bg" aria-live="polite">
+						Foto <span id="gallery-current">1</span> de {total}
+					</p>
+				</>
+			)}
 			<span class="absolute left-4 top-4 rounded-full bg-bg/95 px-3.5 py-1.5 text-[0.72rem] font-semibold uppercase tracking-wide text-ink">
 				{operationLabel}
 			</span>
 		</div>
 
-		{images.length > 1 && (
-			<div class="carousel-thumbs mt-3 flex gap-2.5 overflow-x-auto pb-1">
+		{total > 1 && (
+			<ul class="carousel-thumbs mt-3 flex gap-2.5 overflow-x-auto pb-1" aria-label="Miniaturas">
 				{images.map((img, i) => (
-					<button type="button" class="thumb-btn h-16 w-20 shrink-0 overflow-hidden rounded-lg" data-thumb={i} data-active={i === 0 ? 'true' : 'false'} aria-label={`Ver foto ${i + 1}`}>
-						<img src={img.url} alt="" class="h-full w-full object-cover" loading="lazy" />
-					</button>
+					<li class="shrink-0">
+						<button type="button" class="thumb-btn h-16 w-20 overflow-hidden rounded-lg" data-thumb={i} aria-current={i === 0 ? 'true' : 'false'} aria-label={`Ver foto ${i + 1} de ${total}`}>
+							<img src={img.thumbnail_url} alt="" class="h-full w-full object-cover" loading="lazy" decoding="async" />
+						</button>
+					</li>
 				))}
-			</div>
+			</ul>
 		)}
 	</section>
 
-	<!-- HEADER: title + price -->
+	<!-- TÍTULO + PRECIO -->
 	<section class="mx-auto mt-10 max-w-6xl px-6 md:px-10">
 		<div class="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
 			<div>
 				<h1 class="max-w-xl text-3xl font-semibold leading-tight tracking-[-0.02em] text-ink md:text-4xl">{property.title}</h1>
-				{property.location && <p class="mt-2 text-sm text-muted-dark">{property.location.name}, Costa Rica</p>}
+				{locationLabel && <p class="mt-2 text-sm text-muted-dark">{locationLabel}, Costa Rica</p>}
+				<p class="mt-1 text-sm text-muted-dark">Publicada por <strong class="font-medium text-ink">{property.agency.name}</strong></p>
 			</div>
 			<div class="shrink-0 md:text-right">
 				<p class="eyebrow">{operationLabel}</p>
@@ -85,61 +118,67 @@ const agentWhatsapp = property.agent?.whatsapp
 	<div class="mx-auto grid max-w-6xl gap-16 px-6 py-12 md:grid-cols-[1.6fr_1fr] md:px-10">
 		<div>
 			{attributes.length > 0 && (
-				<div>
-					<p class="eyebrow">Detalles</p>
-					<div class="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+				<section aria-labelledby="detalles">
+					<h2 id="detalles" class="eyebrow">Detalles</h2>
+					<dl class="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
 						{attributes.map((a) => (
 							<div class="flex items-center gap-3 border-b border-border/70 py-2.5">
-								<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
+								<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" aria-hidden="true">
 									<path d={attributeIcons[a.key] ?? DEFAULT_ATTRIBUTE_ICON} />
 								</svg>
-								<span class="text-sm text-muted-dark">{a.label}</span>
-								<span class="ml-auto text-sm font-medium text-ink">{a.value}</span>
+								<dt class="text-sm text-muted-dark">{a.label}</dt>
+								<dd class="ml-auto text-sm font-medium text-ink">{a.value}</dd>
 							</div>
 						))}
-					</div>
-				</div>
+					</dl>
+				</section>
 			)}
 
 			{property.description && (
-				<div class="mt-12">
-					<p class="eyebrow">Descripción</p>
+				<section aria-labelledby="descripcion" class="mt-12">
+					<h2 id="descripcion" class="eyebrow">Descripción</h2>
 					<p class="mt-4 whitespace-pre-line text-[1.02rem] leading-relaxed text-muted-dark">{property.description}</p>
-				</div>
+				</section>
 			)}
 
-			{amenities.length > 0 && (
-				<div class="mt-12">
-					<p class="eyebrow">Amenidades</p>
-					<div class="mt-5 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
-						{amenities.map((a) => (
-							<div class="flex items-center gap-3">
-								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C2028" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
-									<path d={amenityIcons[a.key] ?? DEFAULT_AMENITY_ICON} />
+			{property.amenities.length > 0 && (
+				<section aria-labelledby="amenidades" class="mt-12">
+					<h2 id="amenidades" class="eyebrow">Amenidades</h2>
+					<ul class="mt-5 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3">
+						{property.amenities.map((a) => (
+							<li class="flex items-center gap-3">
+								<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1C2028" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" aria-hidden="true">
+									<path d={amenityIcons[a.slug] ?? DEFAULT_AMENITY_ICON} />
 								</svg>
-								<span class="text-sm text-ink">{a.label}</span>
-							</div>
+								<span class="text-sm text-ink">{a.name}</span>
+							</li>
 						))}
-					</div>
-				</div>
+					</ul>
+				</section>
 			)}
 		</div>
 
-		<aside class="h-fit rounded-xl border border-border bg-surface p-7 shadow-soft md:sticky md:top-24">
-			<p class="eyebrow">Agente responsable</p>
-			<p class="mt-3 text-xl font-semibold tracking-[-0.01em] text-ink">{agentName ?? 'Predia'}</p>
-			{property.agent && <p class="mt-1 text-sm text-muted-dark">{property.agent.email}</p>}
+		<aside aria-labelledby="contacto-propiedad-title" class="h-fit rounded-xl border border-border bg-surface p-7 shadow-soft md:sticky md:top-24">
+			<p class="eyebrow">{agentName ? 'Agente responsable' : 'Inmobiliaria'}</p>
+			<p class="mt-3 text-xl font-semibold tracking-[-0.01em] text-ink">{agentName ?? property.agency.name}</p>
+			{agentName && <p class="mt-1 text-sm text-muted-dark">{property.agency.name}</p>}
 
-			{agentWhatsapp ? (
-				<a href={agentWhatsapp} target="_blank" rel="noopener" class="sweep mt-6 flex items-center justify-center rounded-lg bg-ink px-6 py-3.5 text-sm font-medium text-bg">
-					<span>Contactar al agente</span>
-				</a>
-			) : (
-				<a href="/contacto" class="sweep mt-6 flex items-center justify-center rounded-lg bg-ink px-6 py-3.5 text-sm font-medium text-bg">
-					<span>Contactar por este anuncio</span>
+			<div class="mt-6 border-t border-border pt-6">
+				<LeadForm
+					id="contacto-propiedad"
+					title="Consultar por esta propiedad"
+					description="Tu consulta le llega directo a la inmobiliaria que la publica."
+					propertySlug={property.slug}
+					tenantSlug={property.agency.slug}
+					defaultMessage={contactMessage}
+				/>
+			</div>
+
+			{siteWhatsapp && (
+				<a href={siteWhatsapp} target="_blank" rel="noopener noreferrer" class="mt-4 flex items-center justify-center rounded-lg border border-border px-6 py-3 text-sm font-medium text-ink hover:border-ink">
+					Escribir por WhatsApp<span class="sr-only"> (se abre en otra pestaña)</span>
 				</a>
 			)}
-			<p class="mt-3 text-center text-xs text-muted">Respuesta directa, sin intermediarios.</p>
 		</aside>
 	</div>
 
@@ -151,53 +190,69 @@ const agentWhatsapp = property.agent?.whatsapp
 		ctaHref="/para-agencias"
 	/>
 
-	<!-- LIGHTBOX -->
-	<div id="lightbox" class="fixed inset-0 z-50 hidden bg-ink/97 backdrop-blur-sm">
-		<button type="button" id="lightbox-close" class="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-full bg-bg/10 text-bg hover:bg-bg/20" aria-label="Cerrar">
-			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
-		</button>
-		<div class="relative flex h-full items-center justify-center px-4 md:px-20">
-			<div class="carousel-track h-[78vh] w-full" id="lightbox-track">
-				{images.map((img) => (
-					<div class="carousel-frame flex items-center justify-center">
-						<img src={img.url} alt={property.title} class="max-h-full max-w-full rounded-lg object-contain" />
+	<!-- LIGHTBOX: <dialog> nativo (foco atrapado, Esc y fondo inerte los da el navegador). -->
+	{total > 0 && (
+		<dialog id="lightbox" aria-labelledby="lightbox-title" class="lightbox">
+			<h2 id="lightbox-title" class="sr-only">Fotos de {property.title}</h2>
+			<button type="button" id="lightbox-close" class="absolute right-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-bg/10 text-bg hover:bg-bg/20" aria-label="Cerrar galería">
+				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+			</button>
+			<div class="relative flex h-full items-center justify-center px-4 md:px-20">
+				<div class="h-[78vh] w-full overflow-hidden">
+					<div class="carousel-track" id="lightbox-track">
+						{images.map((img, i) => (
+							<div class="carousel-frame flex items-center justify-center" aria-hidden={i === 0 ? undefined : 'true'} data-frame={i}>
+								<img src={img.url} alt={photoAlt(i)} class="max-h-full max-w-full rounded-lg object-contain" loading="lazy" decoding="async" />
+							</div>
+						))}
 					</div>
-				))}
+				</div>
+				{total > 1 && (
+					<>
+						<button type="button" class="carousel-btn left-2 md:left-6" data-dir="-1" aria-label="Foto anterior" aria-controls="lightbox-track">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+						</button>
+						<button type="button" class="carousel-btn right-2 md:right-6" data-dir="1" aria-label="Foto siguiente" aria-controls="lightbox-track">
+							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+						</button>
+					</>
+				)}
+				<p class="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-bg/10 px-3 py-1 text-[0.72rem] text-bg" aria-live="polite">
+					Foto <span id="lightbox-current">1</span> de {total}
+				</p>
 			</div>
-			{images.length > 1 && (
-				<>
-					<button type="button" class="carousel-btn left-2 md:left-6" data-lightbox-dir="-1" aria-label="Foto anterior">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7" /></svg>
-					</button>
-					<button type="button" class="carousel-btn right-2 md:right-6" data-lightbox-dir="1" aria-label="Foto siguiente">
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7" /></svg>
-					</button>
-				</>
-			)}
-			<div class="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-bg/10 px-3 py-1 text-[0.72rem] text-bg">
-				<span id="lightbox-current">1</span> / {images.length}
-			</div>
-		</div>
-	</div>
+		</dialog>
+	)}
 
 	<script>
 		const count = Number(document.getElementById('gallery')?.dataset.count ?? '0');
 		let index = 0;
 
-		const mainTrack = document.getElementById('gallery-track') as HTMLElement | null;
-		const lightboxTrack = document.getElementById('lightbox-track') as HTMLElement | null;
-		const currentLabel = document.getElementById('gallery-current');
-		const lightboxLabel = document.getElementById('lightbox-current');
+		const tracks = ['gallery-track', 'lightbox-track']
+			.map((id) => document.getElementById(id))
+			.filter((el): el is HTMLElement => el !== null);
+		const counters = ['gallery-current', 'lightbox-current']
+			.map((id) => document.getElementById(id))
+			.filter((el): el is HTMLElement => el !== null);
 		const thumbs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-thumb]'));
-		const lightbox = document.getElementById('lightbox');
+		const lightbox = document.getElementById('lightbox') as HTMLDialogElement | null;
 
 		function render() {
-			const offset = `translateX(-${index * 100}%)`;
-			if (mainTrack) mainTrack.style.transform = offset;
-			if (lightboxTrack) lightboxTrack.style.transform = offset;
-			if (currentLabel) currentLabel.textContent = String(index + 1);
-			if (lightboxLabel) lightboxLabel.textContent = String(index + 1);
-			thumbs.forEach((t, i) => t.dataset.active = i === index ? 'true' : 'false');
+			for (const track of tracks) {
+				track.style.transform = `translateX(-${index * 100}%)`;
+				// Solo la foto visible queda expuesta a lectores de pantalla y al teclado.
+				track.querySelectorAll<HTMLElement>('[data-frame]').forEach((frame) => {
+					const current = Number(frame.dataset.frame) === index;
+					if (current) frame.removeAttribute('aria-hidden');
+					else frame.setAttribute('aria-hidden', 'true');
+					frame.querySelectorAll<HTMLElement>('button').forEach((btn) => {
+						if (current) btn.removeAttribute('tabindex');
+						else btn.setAttribute('tabindex', '-1');
+					});
+				});
+			}
+			for (const counter of counters) counter.textContent = String(index + 1);
+			thumbs.forEach((t, i) => t.setAttribute('aria-current', i === index ? 'true' : 'false'));
 		}
 
 		function go(delta: number) {
@@ -209,9 +264,6 @@ const agentWhatsapp = property.agent?.whatsapp
 		document.querySelectorAll<HTMLButtonElement>('[data-dir]').forEach((btn) => {
 			btn.addEventListener('click', () => go(Number(btn.dataset.dir)));
 		});
-		document.querySelectorAll<HTMLButtonElement>('[data-lightbox-dir]').forEach((btn) => {
-			btn.addEventListener('click', () => go(Number(btn.dataset.lightboxDir)));
-		});
 		thumbs.forEach((btn) => {
 			btn.addEventListener('click', () => {
 				index = Number(btn.dataset.thumb);
@@ -219,27 +271,21 @@ const agentWhatsapp = property.agent?.whatsapp
 			});
 		});
 
-		function openLightbox() {
-			lightbox?.classList.remove('hidden');
-			document.body.style.overflow = 'hidden';
-		}
-		function closeLightbox() {
-			lightbox?.classList.add('hidden');
-			document.body.style.overflow = '';
-		}
-		document.querySelectorAll('[data-open-lightbox]').forEach((img) => img.addEventListener('click', openLightbox));
-		document.getElementById('lightbox-close')?.addEventListener('click', closeLightbox);
+		document.querySelectorAll('[data-open-lightbox]').forEach((btn) =>
+			btn.addEventListener('click', () => lightbox?.showModal()),
+		);
+		document.getElementById('lightbox-close')?.addEventListener('click', () => lightbox?.close());
+		// Clic en el fondo (fuera de la foto) cierra; Esc lo maneja el propio <dialog>.
 		lightbox?.addEventListener('click', (e) => {
-			if (e.target === lightbox) closeLightbox();
+			if (e.target === lightbox) lightbox.close();
 		});
-
-		document.addEventListener('keydown', (e) => {
-			if (e.key === 'Escape') closeLightbox();
+		// Flechas solo dentro de la galería ampliada: fuera de ella sirven para hacer scroll.
+		lightbox?.addEventListener('keydown', (e) => {
 			if (e.key === 'ArrowLeft') go(-1);
 			if (e.key === 'ArrowRight') go(1);
 		});
 
-		// Touch swipe for the main gallery frame.
+		// Swipe en la galería principal.
 		const galleryEl = document.getElementById('gallery');
 		let touchStartX = 0;
 		galleryEl?.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });

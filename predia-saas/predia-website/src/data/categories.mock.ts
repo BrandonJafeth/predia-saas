@@ -1,7 +1,7 @@
 // Copied verbatim from predia-api/src/scripts/seed-categories.ts — same ids/slugs/
 // attribute_schema the real DB seed inserts, so components built against this today
 // keep working unchanged once /propiedades reads from the real API.
-import type { PropertyCategory } from '../lib/types/property';
+import type { PropertyCategory } from './mock-types';
 
 export const categories: PropertyCategory[] = [
   {

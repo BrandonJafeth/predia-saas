@@ -6,7 +6,7 @@ import { getAllProperties } from '../lib/properties';
 
 const all = await getAllProperties();
 const featured = all.slice(0, 3);
-const heroImage = featured[0]?.images.find((img) => img.is_cover)?.url ?? featured[0]?.images[0]?.url;
+const heroImage = featured[0]?.cover_image?.url;
 
 const categoryTiles = [
   {
@@ -70,7 +70,7 @@ const steps = [
 
 		<div class="mt-12 grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3">
 			{featured.map((p, i) => (
-				<div data-reveal style={`transition-delay:${i * 90}ms`}>
+				<div data-reveal data-reveal-step={i}>
 					<PropertyCard property={p} />
 				</div>
 			))}
@@ -84,7 +84,7 @@ const steps = [
 				<a
 					href={c.href}
 					data-reveal
-					style={`transition-delay:${i * 90}ms`}
+					data-reveal-step={i}
 					class="group relative flex aspect-[5/3] flex-col justify-end overflow-hidden rounded-xl"
 				>
 					<img src={c.image} alt="" class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" loading="lazy" />
@@ -110,8 +110,8 @@ const steps = [
 
 		<div class="mt-14 grid gap-10 md:grid-cols-3">
 			{steps.map((s, i) => (
-				<div data-reveal style={`transition-delay:${i * 90}ms`} class:list={['relative', i > 0 && 'md:border-l md:border-border md:pl-10']}>
-					<span class="text-5xl font-semibold tracking-[-0.03em] text-border">{s.n}</span>
+				<div data-reveal data-reveal-step={i} class:list={['relative', i > 0 && 'md:border-l md:border-border md:pl-10']}>
+					<span class="text-5xl font-semibold tracking-[-0.03em] text-muted">{s.n}</span>
 					<h3 class="mt-4 text-lg font-semibold text-ink">{s.title}</h3>
 					<p class="mt-2 text-[0.92rem] leading-relaxed text-muted-dark">{s.text}</p>
 				</div>

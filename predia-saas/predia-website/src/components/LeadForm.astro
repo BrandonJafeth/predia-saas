@@ -1,0 +1,314 @@
+---
+// Formulario de contacto → POST /public/v1/leads (crea un lead en el CRM).
+// Va desde el navegador con la key PUBLISHABLE del portal (pk_): el API solo la
+// acepta desde los orígenes registrados, solo puede crear leads (5 envíos cada
+// 10 min) y nunca lee datos privados. La key secreta jamás llega acá.
+//
+// Accesibilidad (WCAG 2.2 AA): <label> visible en cada campo, autocomplete
+// (1.3.5), errores en texto unidos con aria-describedby + aria-invalid y foco
+// al primer error (3.3.1/3.3.3), resultado anunciado por role="status"/"alert"
+// (4.1.3), y sin JS no se muestra un formulario que no puede funcionar.
+import { site } from '../lib/site-config';
+
+interface Props {
+  /** Prefijo de ids (único por página). */
+  id: string;
+  title: string;
+  description?: string;
+  /** Lead sobre una propiedad: va a la inmobiliaria que la publica. */
+  propertySlug?: string;
+  tenantSlug?: string;
+  defaultMessage?: string;
+  /** Selector de motivo (página de contacto general). */
+  reasons?: string[];
+  messageRequired?: boolean;
+}
+
+const {
+  id,
+  title,
+  description,
+  propertySlug,
+  tenantSlug,
+  defaultMessage = '',
+  reasons,
+  messageRequired = false,
+} = Astro.props;
+
+const f = (name: string) => `${id}-${name}`;
+const fallbackContact = site.contact.email ?? site.contact.phone;
+---
+
+<section aria-labelledby={f('title')} class="lead-form-section">
+	<h2 id={f('title')} class="text-xl font-semibold tracking-[-0.01em] text-ink">{title}</h2>
+	{description && <p id={f('desc')} class="mt-2 text-sm leading-relaxed text-muted-dark">{description}</p>}
+
+	<noscript>
+		<p class="mt-4 rounded-lg border border-border bg-bg p-4 text-sm text-muted-dark">
+			El formulario necesita JavaScript.
+			{fallbackContact ? <>Escribinos a <strong>{fallbackContact}</strong>.</> : 'Activalo para enviarnos tu consulta.'}
+		</p>
+	</noscript>
+
+	<form
+		id={id}
+		class="lead-form mt-6 space-y-5"
+		novalidate
+		hidden
+		aria-describedby={description ? f('desc') : undefined}
+		data-property-slug={propertySlug}
+		data-tenant-slug={tenantSlug}
+	>
+		<p id={f('summary')} class="lead-error hidden rounded-lg border border-red-700/30 bg-red-50 p-3 text-sm text-red-800" role="alert" tabindex="-1"></p>
+
+		<div>
+			<label for={f('name')} class="field-label">Nombre <span class="text-red-700" aria-hidden="true">*</span></label>
+			<input id={f('name')} name="name" type="text" required minlength="2" maxlength="120" autocomplete="name" class="field-input" />
+			<p id={f('name-error')} class="field-error" hidden></p>
+		</div>
+
+		<fieldset aria-describedby={f('contact-hint')}>
+			<legend class="field-label">¿Cómo te contactamos? <span class="text-red-700" aria-hidden="true">*</span></legend>
+			<p id={f('contact-hint')} class="mt-1 text-xs text-muted-dark">Al menos un email o un teléfono.</p>
+			<div class="mt-3 grid gap-5 sm:grid-cols-2">
+				<div>
+					<label for={f('email')} class="field-label">Email</label>
+					<input id={f('email')} name="email" type="email" maxlength="254" autocomplete="email" inputmode="email" spellcheck="false" class="field-input" />
+					<p id={f('email-error')} class="field-error" hidden></p>
+				</div>
+				<div>
+					<label for={f('phone')} class="field-label">Teléfono</label>
+					<input id={f('phone')} name="phone" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" class="field-input" />
+					<p id={f('phone-error')} class="field-error" hidden></p>
+				</div>
+			</div>
+		</fieldset>
+
+		{reasons && (
+			<div>
+				<label for={f('reason')} class="field-label">Motivo</label>
+				<select id={f('reason')} name="reason" class="field-input">
+					{reasons.map((r) => <option value={r}>{r}</option>)}
+				</select>
+			</div>
+		)}
+
+		<div>
+			<label for={f('message')} class="field-label">
+				Mensaje
+				{messageRequired ? <span class="text-red-700" aria-hidden="true">*</span> : <span class="font-normal text-muted-dark">(opcional)</span>}
+			</label>
+			<textarea id={f('message')} name="message" rows="4" maxlength="2000" required={messageRequired} class="field-input">{defaultMessage}</textarea>
+			<p id={f('message-error')} class="field-error" hidden></p>
+		</div>
+
+		<!-- Trampa para bots: invisible y fuera del orden de tabulación. Un humano nunca la completa. -->
+		<div class="hp-field" aria-hidden="true">
+			<label for={f('website')}>No completar este campo</label>
+			<input id={f('website')} name="website" type="text" tabindex="-1" autocomplete="off" />
+		</div>
+
+		<div>
+			<div class="flex items-start gap-3">
+				<input id={f('consent')} name="consent" type="checkbox" required class="mt-0.5 size-5 shrink-0 accent-ink" />
+				<label for={f('consent')} class="text-sm leading-relaxed text-muted-dark">
+					Autorizo a Predia y a la inmobiliaria responsable a usar estos datos solo para responder esta
+					consulta (Ley 8968 de Protección de la Persona frente al Tratamiento de sus Datos Personales).
+					<span class="text-red-700" aria-hidden="true">*</span>
+				</label>
+			</div>
+			<p id={f('consent-error')} class="field-error" hidden></p>
+		</div>
+
+		<p class="text-xs text-muted-dark"><span class="text-red-700" aria-hidden="true">*</span> Obligatorio</p>
+
+		<button type="submit" class="sweep w-full rounded-lg bg-ink px-6 py-3.5 text-sm font-medium text-bg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-wait disabled:opacity-70">
+			<span class="lead-submit-label">Enviar consulta</span>
+		</button>
+
+		<p id={f('status')} class="lead-status hidden rounded-lg border border-emerald-700/30 bg-emerald-50 p-3 text-sm text-emerald-900" role="status" tabindex="-1"></p>
+	</form>
+</section>
+
+<script>
+	import { PUBLIC_PREDIA_API_URL, PUBLIC_PREDIA_PUBLISHABLE_KEY } from 'astro:env/client';
+
+	// Mismas reglas que CreatePublicLeadDto (predia-api): el servidor vuelve a validar.
+	const PHONE = /^\+?[0-9 ()-]{7,20}$/;
+	const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+	type FieldName = 'name' | 'email' | 'phone' | 'message' | 'consent';
+
+	function setup(form: HTMLFormElement) {
+		const prefix = form.id;
+		const el = <T extends HTMLElement>(name: string) => document.getElementById(`${prefix}-${name}`) as T | null;
+		const summary = el<HTMLParagraphElement>('summary');
+		const status = el<HTMLParagraphElement>('status');
+		const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+		const submitLabel = form.querySelector<HTMLSpanElement>('.lead-submit-label');
+
+		function input(name: FieldName) {
+			return el<HTMLInputElement | HTMLTextAreaElement>(name);
+		}
+
+		function setError(name: FieldName, message: string | null) {
+			const field = input(name);
+			const error = el<HTMLParagraphElement>(`${name}-error`);
+			if (!field || !error) return;
+			const describedBy = new Set((field.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean));
+			if (message) {
+				error.textContent = message;
+				error.hidden = false;
+				field.setAttribute('aria-invalid', 'true');
+				describedBy.add(error.id);
+			} else {
+				error.textContent = '';
+				error.hidden = true;
+				field.removeAttribute('aria-invalid');
+				describedBy.delete(error.id);
+			}
+			if (describedBy.size) field.setAttribute('aria-describedby', [...describedBy].join(' '));
+			else field.removeAttribute('aria-describedby');
+		}
+
+		function showSummary(message: string | null) {
+			if (!summary) return;
+			summary.textContent = message ?? '';
+			summary.classList.toggle('hidden', !message);
+		}
+
+		function validate(): FieldName[] {
+			const name = input('name')?.value.trim() ?? '';
+			const email = input('email')?.value.trim() ?? '';
+			const phone = input('phone')?.value.trim() ?? '';
+			const messageEl = input('message');
+			const message = messageEl?.value.trim() ?? '';
+			const consent = (input('consent') as HTMLInputElement | null)?.checked ?? false;
+			const invalid: FieldName[] = [];
+			const check = (field: FieldName, error: string | null) => {
+				setError(field, error);
+				if (error) invalid.push(field);
+			};
+
+			check('name', name.length < 2 ? 'Escribí tu nombre (al menos 2 caracteres).' : null);
+			check(
+				'email',
+				email && !EMAIL.test(email)
+					? 'Revisá el email: debe tener la forma nombre@correo.com.'
+					: !email && !phone
+						? 'Dejanos un email o un teléfono para poder responderte.'
+						: null,
+			);
+			check(
+				'phone',
+				phone && !PHONE.test(phone) ? 'Usá solo números, espacios, +, guiones o paréntesis (7 a 20 caracteres).' : null,
+			);
+			check('message', messageEl?.required && !message ? 'Contanos en qué te podemos ayudar.' : null);
+			check('consent', consent ? null : 'Necesitamos tu autorización para usar estos datos.');
+			return invalid;
+		}
+
+		function setBusy(busy: boolean) {
+			if (!submit || !submitLabel) return;
+			submit.disabled = busy;
+			form.setAttribute('aria-busy', String(busy));
+			submitLabel.textContent = busy ? 'Enviando…' : 'Enviar consulta';
+		}
+
+		function retryMinutes(res: Response): number | null {
+			const raw = res.headers.get('Retry-After-public') ?? res.headers.get('Retry-After');
+			const seconds = raw ? Number(raw) : NaN;
+			return Number.isFinite(seconds) ? Math.max(1, Math.ceil(seconds / 60)) : null;
+		}
+
+		// Los errores se limpian mientras se corrigen, no recién al reenviar.
+		for (const name of ['name', 'email', 'phone', 'message', 'consent'] as FieldName[]) {
+			input(name)?.addEventListener(name === 'consent' ? 'change' : 'input', () => {
+				if (input(name)?.getAttribute('aria-invalid') === 'true') validate();
+			});
+		}
+
+		form.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			showSummary(null);
+			status?.classList.add('hidden');
+
+			const invalid = validate();
+			if (invalid.length > 0) {
+				showSummary(
+					invalid.length === 1 ? 'Hay 1 campo para revisar.' : `Hay ${invalid.length} campos para revisar.`,
+				);
+				input(invalid[0])?.focus();
+				return;
+			}
+
+			if (!PUBLIC_PREDIA_API_URL || !PUBLIC_PREDIA_PUBLISHABLE_KEY) {
+				showSummary('El formulario todavía no está conectado. Escribinos por los otros medios de contacto.');
+				summary?.focus();
+				return;
+			}
+
+			const data = new FormData(form);
+			const text = (key: string) => String(data.get(key) ?? '').trim();
+			const reason = text('reason');
+			const message = [reason && `Motivo: ${reason}`, text('message')].filter(Boolean).join('\n\n');
+			const payload = {
+				name: text('name'),
+				...(text('email') && { email: text('email') }),
+				...(text('phone') && { phone: text('phone') }),
+				...(message && { message }),
+				...(form.dataset.propertySlug && { property_slug: form.dataset.propertySlug }),
+				...(form.dataset.tenantSlug && { tenant_slug: form.dataset.tenantSlug }),
+				consent: true,
+				website: text('website'),
+			};
+
+			setBusy(true);
+			try {
+				const res = await fetch(new URL('/public/v1/leads', PUBLIC_PREDIA_API_URL), {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-API-Key': PUBLIC_PREDIA_PUBLISHABLE_KEY },
+					body: JSON.stringify(payload),
+					credentials: 'omit',
+					referrerPolicy: 'strict-origin',
+				});
+
+				if (res.ok) {
+					form.reset();
+					if (status) {
+						status.textContent = '¡Gracias! Recibimos tu consulta y te vamos a contactar pronto.';
+						status.classList.remove('hidden');
+						status.focus();
+					}
+					return;
+				}
+
+				if (res.status === 429) {
+					const minutes = retryMinutes(res);
+					showSummary(
+						`Recibimos varios envíos seguidos. Probá de nuevo en ${minutes ? `${minutes} min` : 'unos minutos'}.`,
+					);
+				} else if (res.status === 400) {
+					const body = (await res.json().catch(() => null)) as { message?: string | string[] } | null;
+					const detail = Array.isArray(body?.message) ? body.message.join(' ') : body?.message;
+					showSummary(detail ? `Revisá los datos: ${detail}` : 'Revisá los datos del formulario.');
+				} else if (res.status === 404) {
+					showSummary('Esta propiedad ya no está publicada. Podés escribirnos desde la página de contacto.');
+				} else {
+					showSummary('No pudimos enviar tu consulta. Probá de nuevo en unos minutos.');
+				}
+				summary?.focus();
+			} catch {
+				showSummary('No pudimos conectar. Revisá tu conexión e intentá de nuevo.');
+				summary?.focus();
+			} finally {
+				setBusy(false);
+			}
+		});
+
+		// Mejora progresiva: el formulario solo aparece si este script corre.
+		form.hidden = false;
+	}
+
+	document.querySelectorAll<HTMLFormElement>('form.lead-form').forEach(setup);
+</script>

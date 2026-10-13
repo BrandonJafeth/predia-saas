@@ -12,6 +12,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@predia/api-types": "workspace:*",
     "@tailwindcss/vite": "^4.3.2",
     "astro": "^6.4.4",
     "tailwindcss": "^4.3.2",

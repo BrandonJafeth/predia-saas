@@ -2,7 +2,7 @@
 // codes = PCCDD per INEC). Codes below are illustrative, not the exact INEC digits —
 // once predia-api runs its real seed against ubicaciones.paginasweb.cr, swap this file
 // for a fetch and drop it; the Property.location shape does not change.
-import type { PropertyLocation } from '../lib/types/property';
+import type { PropertyLocation } from './mock-types';
 
 export const locations: PropertyLocation[] = [
   { id: 'loc_sj', name: 'San José', code: '10000', type: 'province', parent_id: null },

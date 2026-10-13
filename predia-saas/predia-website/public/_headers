@@ -1,0 +1,11 @@
+# Cabeceras de seguridad para el hosting estático (formato Netlify / Cloudflare
+# Pages). La CSP con hashes la genera Astro en un <meta> por página; acá va lo
+# que un <meta> no puede expresar.
+/*
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin

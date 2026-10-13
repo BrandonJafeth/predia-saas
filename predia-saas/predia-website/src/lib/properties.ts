@@ -1,39 +1,92 @@
-// Single seam between pages/components and the data source. Every function here
-// reads the local mock today; swapping to the real public-api later means editing
-// only this file's bodies — callers and the Property/PropertyCategory/etc. types
-// (src/lib/types/property.ts) do not change.
-import type { Property } from './types/property';
-import { properties as mockProperties } from '../data/properties.mock';
+// Única costura entre las páginas y la fuente de datos. Con PREDIA_API_URL +
+// PREDIA_API_SECRET_KEY lee la API pública de predia-api (key de portal: todas
+// las inmobiliarias con suscripción vigente); sin ellas usa los datos de
+// ejemplo de src/data. Todo corre en el build: el navegador recibe HTML.
+import type {
+  Category,
+  LocationNode,
+  PropertyDetail,
+  PropertyLike,
+  PropertyPage,
+  PropertySummary,
+} from './types/property';
+import { apiGet, isApiConfigured, mapLimit } from './predia-api';
+import { mockCategories, mockDetail, mockLocationTree, mockSummaries } from '../data/mock-catalog';
 
-export interface PropertyFilters {
-  categorySlug?: string;
-  operationType?: Property['operation_type'];
-  locationId?: string;
-  minPrice?: number;
-  maxPrice?: number;
+export const usingSampleData = !isApiConfigured;
+
+if (usingSampleData) {
+  console.warn(
+    '[predia-website] PREDIA_API_URL / PREDIA_API_SECRET_KEY sin configurar: se usan datos de ejemplo.',
+  );
 }
 
-export async function getAllProperties(filters: PropertyFilters = {}): Promise<Property[]> {
-  return mockProperties.filter((p) => {
-    if (filters.categorySlug && p.category.slug !== filters.categorySlug) return false;
-    if (filters.operationType && p.operation_type !== filters.operationType) return false;
-    if (filters.locationId && p.location_id !== filters.locationId) return false;
-    const price = Number(p.price);
-    if (filters.minPrice !== undefined && price < filters.minPrice) return false;
-    if (filters.maxPrice !== undefined && price > filters.maxPrice) return false;
-    return true;
-  });
+const PAGE_SIZE = 50; // máximo que acepta el API
+const MAX_PAGES = 200; // tope defensivo: 10.000 propiedades
+
+// Un build pide lo mismo desde varias páginas (home, listado, detalle):
+// una sola request por recurso.
+let summariesPromise: Promise<PropertySummary[]> | null = null;
+let categoriesPromise: Promise<Category[]> | null = null;
+let locationsPromise: Promise<LocationNode[]> | null = null;
+const detailCache = new Map<string, Promise<PropertyDetail | null>>();
+
+async function fetchAllSummaries(): Promise<PropertySummary[]> {
+  const all: PropertySummary[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = await apiGet<PropertyPage>('/public/v1/properties', { page, limit: PAGE_SIZE, sort: 'newest' });
+    if (!res) break;
+    all.push(...res.data);
+    if (!res.meta.hasNextPage) break;
+  }
+  return all;
 }
 
-export async function getPropertyBySlug(slug: string): Promise<Property | null> {
-  return mockProperties.find((p) => p.slug === slug) ?? null;
+export function getAllProperties(): Promise<PropertySummary[]> {
+  summariesPromise ??= usingSampleData ? Promise.resolve(mockSummaries) : fetchAllSummaries();
+  return summariesPromise;
 }
 
-export function getCoverImage(property: Property): string | null {
-  return property.images.find((img) => img.is_cover)?.url ?? property.images[0]?.url ?? null;
+export function getPropertyDetail(agency: string, slug: string): Promise<PropertyDetail | null> {
+  const key = `${agency}/${slug}`;
+  let cached = detailCache.get(key);
+  if (!cached) {
+    cached = usingSampleData
+      ? Promise.resolve(mockDetail(agency, slug))
+      : apiGet<PropertyDetail>(`/public/v1/properties/${encodeURIComponent(slug)}`, { tenant: agency });
+    detailCache.set(key, cached);
+  }
+  return cached;
 }
 
-export function formatPrice(property: Property): string {
+/** Detalle de todas las propiedades (para getStaticPaths), 4 requests a la vez. */
+export async function getAllPropertyDetails(): Promise<PropertyDetail[]> {
+  const summaries = await getAllProperties();
+  const details = await mapLimit(summaries, 4, (p) => getPropertyDetail(p.agency.slug, p.slug));
+  return details.filter((d): d is PropertyDetail => d !== null);
+}
+
+export function getCategories(): Promise<Category[]> {
+  categoriesPromise ??= usingSampleData
+    ? Promise.resolve(mockCategories)
+    : apiGet<Category[]>('/public/v1/categories').then((c) => c ?? []);
+  return categoriesPromise;
+}
+
+export function getLocationTree(): Promise<LocationNode[]> {
+  locationsPromise ??= usingSampleData
+    ? Promise.resolve(mockLocationTree)
+    : apiGet<LocationNode[]>('/public/v1/locations').then((l) => l ?? []);
+  return locationsPromise;
+}
+
+// ─── Presentación ──────────────────────────────────────────────────────────
+
+export function propertyPath(p: PropertyLike): string {
+  return `/propiedades/${p.agency.slug}/${p.slug}`;
+}
+
+export function formatPrice(property: PropertyLike): string {
   const amount = Number(property.price);
   const formatted = new Intl.NumberFormat('es-CR', { maximumFractionDigits: 0 }).format(amount);
   const symbol = property.currency === 'USD' ? '$' : '₡';
@@ -41,19 +94,22 @@ export function formatPrice(property: Property): string {
   return `${symbol}${formatted}${suffix}`;
 }
 
+/** "San Rafael, Escazú, San José" */
+export function formatLocation(property: PropertyLike): string | null {
+  if (!property.location) return null;
+  return [property.location.name, ...property.location.parents].join(', ');
+}
+
 interface JsonSchemaField {
   title?: string;
   enum?: (string | number)[];
   enumNames?: string[];
-  items?: JsonSchemaField;
 }
 
-// Renders property.attributes (raw jsonb values) as human labels using the owning
-// category's attribute_schema (JSON Schema draft-07, see seed-categories.ts) —
-// keeps display logic schema-driven instead of hardcoding per-category fields.
-// Array fields (amenidades/extras) are excluded here — see getAmenities below,
-// they get their own icon-grid treatment instead of a plain comma list.
-export function formatAttributes(property: Property): { key: string; label: string; value: string }[] {
+// attributes (jsonb) → etiquetas legibles con el attribute_schema de la
+// categoría (JSON Schema draft-07): la presentación depende del schema, no de
+// campos fijos por categoría.
+export function formatAttributes(property: PropertyDetail): { key: string; label: string; value: string }[] {
   const schemaProps = (property.category.attribute_schema as { properties?: Record<string, JsonSchemaField> })
     .properties;
   if (!schemaProps) return [];
@@ -62,34 +118,12 @@ export function formatAttributes(property: Property): { key: string; label: stri
   for (const [key, raw] of Object.entries(property.attributes)) {
     const field = schemaProps[key];
     if (!field || raw === null || raw === undefined || raw === '' || Array.isArray(raw)) continue;
-
     const label = field.title ?? key;
-    const value = field.enum && field.enumNames
-      ? field.enumNames[field.enum.indexOf(raw as string | number)] ?? String(raw)
-      : String(raw);
-
+    const value =
+      field.enum && field.enumNames
+        ? (field.enumNames[field.enum.indexOf(raw as string | number)] ?? String(raw))
+        : String(raw);
     entries.push({ key, label, value });
   }
   return entries;
-}
-
-// Array-type attributes (amenidades, extras) rendered Airbnb-style: icon + label
-// per item, using amenity-icons.ts keyed by the raw enum value (not the display name).
-export function getAmenities(property: Property): { key: string; label: string }[] {
-  const schemaProps = (property.category.attribute_schema as { properties?: Record<string, JsonSchemaField> })
-    .properties;
-  if (!schemaProps) return [];
-
-  const items: { key: string; label: string }[] = [];
-  for (const [fieldKey, raw] of Object.entries(property.attributes)) {
-    const field = schemaProps[fieldKey];
-    if (!field || !Array.isArray(raw) || !field.items?.enum) continue;
-
-    for (const value of raw as (string | number)[]) {
-      const idx = field.items.enum.indexOf(value);
-      const label = idx >= 0 && field.items.enumNames ? field.items.enumNames[idx] : String(value);
-      items.push({ key: String(value), label });
-    }
-  }
-  return items;
 }

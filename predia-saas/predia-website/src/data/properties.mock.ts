@@ -3,7 +3,7 @@
 // stand-ins until the agency's own banco de imágenes lands. Everything else (fields,
 // nesting, types) mirrors the real backend so src/lib/properties.ts is the only
 // file that changes when /propiedades starts fetching public-api instead of this.
-import type { Property } from '../lib/types/property';
+import type { Property } from './mock-types';
 import { categories } from './categories.mock';
 import { locations } from './locations.mock';
 

@@ -2,16 +2,18 @@
 import Layout from '../../layouts/Layout.astro';
 import PropertyCard from '../../components/PropertyCard.astro';
 import CTABanner from '../../components/CTABanner.astro';
-import { getAllProperties } from '../../lib/properties';
-import { categories } from '../../data/categories.mock';
-import { locations, resolveLocationChain, getLocationById } from '../../data/locations.mock';
+import { getAllProperties, getCategories, getLocationTree } from '../../lib/properties';
+import { flattenTree, resolveChain, usedLocations } from '../../lib/locations';
 
 // Static site (output: "static") — the same HTML is served regardless of query
 // string, so filtering can't happen at request time like on a server-rendered
 // page. Render every property once, tag it with data attributes, and filter in
 // the client script below by reading location.search on load and on every
 // filter interaction (intercepted, no full navigation).
-const properties = await getAllProperties();
+const [properties, categories, tree] = await Promise.all([getAllProperties(), getCategories(), getLocationTree()]);
+// Solo las ubicaciones que tienen propiedades: una opción vacía es un callejón sin salida.
+const locations = usedLocations(flattenTree(tree), properties.map((p) => p.location?.id ?? null));
+const locationsById = new Map(locations.map((l) => [l.id, l]));
 
 const operationFilters = [
   { label: 'Todas', operacion: '' },
@@ -19,10 +21,8 @@ const operationFilters = [
   { label: 'Alquiler', operacion: 'alquiler' },
 ];
 
-// Only provinces that actually have a property — an empty option is a guaranteed dead end.
-const provinceIds = new Set(properties.map((p) => resolveLocationChain(p.location_id).provinceId).filter(Boolean));
 const provinceOptions = locations
-  .filter((l) => l.type === 'province' && provinceIds.has(l.id))
+  .filter((l) => l.type === 'province')
   .sort((a, b) => a.name.localeCompare(b.name));
 
 // Price only makes sense to compare within the same currency, and only for sale
@@ -50,7 +50,7 @@ const locationsJson = JSON.stringify(locations);
 			Buscá por región, tipo y presupuesto.
 		</p>
 
-		<div class="mt-8 flex flex-wrap gap-2.5" id="filter-chips">
+		<nav aria-label="Tipo de operación" class="mt-8 flex flex-wrap gap-2.5" id="filter-chips">
 			{operationFilters.map((f) => (
 				<a
 					href={f.operacion ? `/propiedades?operacion=${f.operacion}` : '/propiedades'}
@@ -60,7 +60,7 @@ const locationsJson = JSON.stringify(locations);
 					{f.label}
 				</a>
 			))}
-		</div>
+		</nav>
 
 		<!-- Cascading region search — Provincia narrows Cantón, Cantón narrows Distrito. -->
 		<div class="mt-5 flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-raised sm:flex-row sm:divide-x sm:divide-border">
@@ -93,6 +93,7 @@ const locationsJson = JSON.stringify(locations);
 		</div>
 
 		<div class="mt-3 flex flex-wrap gap-3">
+			<label for="filter-precio" class="sr-only">Presupuesto</label>
 			<select id="filter-precio" class="rounded-lg border border-border bg-surface px-3.5 py-2 text-sm text-ink shadow-soft outline-none focus:border-ink">
 				<option value="">Cualquier presupuesto</option>
 				<optgroup label="Venta en dólares">
@@ -105,10 +106,11 @@ const locationsJson = JSON.stringify(locations);
 		</div>
 	</section>
 
-	<section class="mx-auto max-w-6xl px-6 pb-24 md:px-10">
+	<section aria-label="Resultados" class="mx-auto max-w-6xl px-6 pb-24 md:px-10">
+		<p id="results-count" class="mb-6 text-sm text-muted-dark" role="status">{properties.length} propiedades</p>
 		<div class="grid gap-x-8 gap-y-14 sm:grid-cols-2 lg:grid-cols-3" id="property-grid">
 			{properties.map((p) => {
-				const chain = resolveLocationChain(p.location_id);
+				const chain = resolveChain(locationsById, p.location?.id ?? null);
 				return (
 					<div
 						class="property-item"
@@ -120,7 +122,7 @@ const locationsJson = JSON.stringify(locations);
 						data-currency={p.currency}
 						data-price={p.price}
 					>
-						<PropertyCard property={p} />
+						<PropertyCard property={p} headingLevel="h2" />
 					</div>
 				);
 			})}
@@ -163,7 +165,11 @@ const locationsJson = JSON.stringify(locations);
 		const tipoSelect = document.getElementById('filter-tipo') as HTMLSelectElement | null;
 		const precioSelect = document.getElementById('filter-precio') as HTMLSelectElement | null;
 
+		const resultsCount = document.getElementById('results-count');
+
 		function styleChip(chip: HTMLAnchorElement, active: boolean) {
+			if (active) chip.setAttribute('aria-current', 'true');
+			else chip.removeAttribute('aria-current');
 			chip.classList.toggle('border-ink', active);
 			chip.classList.toggle('bg-ink', active);
 			chip.classList.toggle('text-bg', active);
@@ -277,6 +283,7 @@ const locationsJson = JSON.stringify(locations);
 			}
 
 			grid?.classList.toggle('hidden', visible === 0);
+			if (resultsCount) resultsCount.textContent = visible === 1 ? '1 propiedad' : `${visible} propiedades`;
 			emptyState?.classList.toggle('hidden', visible > 0);
 
 			for (const chip of chips) {

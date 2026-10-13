@@ -29,10 +29,12 @@ const jsonLd = {
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang="es-CR">
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Hacia otros sitios (y el API) viaja solo el origen, nunca la URL visitada. -->
+		<meta name="referrer" content="strict-origin-when-cross-origin" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<meta name="generator" content={Astro.generator} />
 
@@ -56,8 +58,9 @@ const jsonLd = {
 		<script type="application/ld+json" is:inline set:html={JSON.stringify(jsonLd)} />
 	</head>
 	<body class="bg-bg text-ink antialiased">
+		<a href="#contenido" class="skip-link">Saltar al contenido</a>
 		<Header />
-		<main>
+		<main id="contenido" tabindex="-1">
 			<slot />
 		</main>
 		<Footer />
