@@ -10,6 +10,8 @@ import {
   type LeadActivityFilters,
   type LeadDetail,
   type LeadFilters,
+  type LeadStats,
+  type LeadStatsFilters,
   type PaginatedResponse,
   type UpdateLeadRequest,
 } from '../types'
@@ -20,6 +22,15 @@ export const useLeads = (filters?: LeadFilters) => {
   return useQuery({
     queryKey: leadKeys.list(filters),
     queryFn: () => leadsService.findAll(filters),
+  })
+}
+
+// Conteo por status con los mismos filtros que el listado (kanban y
+// dashboard): el kanban trae como máximo 100 leads.
+export const useLeadStats = (filters?: LeadStatsFilters) => {
+  return useQuery({
+    queryKey: leadKeys.stats(filters),
+    queryFn: () => leadsService.getStats(filters),
   })
 }
 
@@ -39,6 +50,7 @@ export const useCreateLead = () => {
     onSuccess: () => {
       notify.success({ title: 'Lead creado' })
       queryClient.invalidateQueries({ queryKey: leadKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: leadKeys.statsAll() })
     },
     onError: (err) => {
       notify.error({ title: 'Error al crear lead', description: extractApiError(err) })
@@ -49,6 +61,7 @@ export const useCreateLead = () => {
 interface UpdateLeadContext {
   previousLead?: LeadDetail
   previousLists: Array<[readonly unknown[], PaginatedResponse<Lead> | undefined]>
+  previousStats: Array<[readonly unknown[], LeadStats | undefined]>
 }
 
 export const useUpdateLead = () => {
@@ -61,6 +74,7 @@ export const useUpdateLead = () => {
     onMutate: async ({ id, ...payload }): Promise<UpdateLeadContext> => {
       await queryClient.cancelQueries({ queryKey: leadKeys.detail(id) })
       await queryClient.cancelQueries({ queryKey: leadKeys.lists() })
+      await queryClient.cancelQueries({ queryKey: leadKeys.statsAll() })
 
       const previousLead = queryClient.getQueryData<LeadDetail>(leadKeys.detail(id))
       if (previousLead) {
@@ -70,6 +84,29 @@ export const useUpdateLead = () => {
       const previousLists = queryClient.getQueriesData<PaginatedResponse<Lead>>({
         queryKey: leadKeys.lists(),
       })
+      const previousStats = queryClient.getQueriesData<LeadStats>({ queryKey: leadKeys.statsAll() })
+
+      // Mover un lead de columna también mueve el contador (si no, el kanban
+      // mostraba un "+1 más" fantasma hasta que llegaba el refetch).
+      const previousStatus = previousLists
+        .flatMap(([, data]) => data?.data ?? [])
+        .find((lead) => lead.id === id)?.status
+      if (payload.status && previousStatus && payload.status !== previousStatus) {
+        const from = previousStatus
+        const to = payload.status
+        queryClient.setQueriesData<LeadStats>({ queryKey: leadKeys.statsAll() }, (old) =>
+          old
+            ? {
+                ...old,
+                by_status: {
+                  ...old.by_status,
+                  [from]: Math.max(0, (old.by_status[from] ?? 0) - 1),
+                  [to]: (old.by_status[to] ?? 0) + 1,
+                },
+              }
+            : old,
+        )
+      }
       queryClient.setQueriesData<PaginatedResponse<Lead>>(
         { queryKey: leadKeys.lists() },
         (old) =>
@@ -78,12 +115,13 @@ export const useUpdateLead = () => {
             : old,
       )
 
-      return { previousLead, previousLists }
+      return { previousLead, previousLists, previousStats }
     },
 
     onError: (err, { id }, context) => {
       if (context?.previousLead) queryClient.setQueryData(leadKeys.detail(id), context.previousLead)
       context?.previousLists.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data))
+      context?.previousStats.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data))
       notify.error({ title: 'Error al actualizar lead', description: extractApiError(err) })
     },
 
@@ -92,8 +130,11 @@ export const useUpdateLead = () => {
     },
 
     onSettled: (_data, _err, { id }) => {
+      // detail(id) es prefijo de activities(id): también refresca el historial
+      // (el cambio de status crea una actividad status_change).
       queryClient.invalidateQueries({ queryKey: leadKeys.detail(id) })
       queryClient.invalidateQueries({ queryKey: leadKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: leadKeys.statsAll() })
     },
   })
 }
@@ -103,9 +144,11 @@ export const useArchiveLead = () => {
 
   return useMutation({
     mutationFn: (id: string) => leadsService.remove(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       notify.success({ title: 'Lead archivado' })
       queryClient.invalidateQueries({ queryKey: leadKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: leadKeys.statsAll() })
+      queryClient.removeQueries({ queryKey: leadKeys.detail(id) })
     },
     onError: (err) => {
       notify.error({ title: 'Error al archivar lead', description: extractApiError(err) })

@@ -32,8 +32,10 @@ const ACTIVITY_ICON: Record<LeadActivityType, typeof Mail> = {
 }
 
 // El usuario solo puede registrar estos tipos manualmente — "status_change"
-// lo genera el backend automáticamente al actualizar el status del lead.
-const LOGGABLE_TYPES: LeadActivityType[] = ['call', 'email', 'meeting', 'note']
+// lo genera el backend automáticamente al actualizar el status del lead (y la
+// API ya rechaza crearlo a mano).
+type LoggableActivityType = Exclude<LeadActivityType, 'status_change'>
+const LOGGABLE_TYPES: LoggableActivityType[] = ['call', 'email', 'meeting', 'note']
 
 interface LeadActivityTimelineProps {
   leadId: string
@@ -77,7 +79,7 @@ function ActivityItem({ activity }: { activity: LeadActivity }) {
 }
 
 function LeadActivityTimeline({ leadId }: LeadActivityTimelineProps) {
-  const [type, setType] = useState<LeadActivityType>('note')
+  const [type, setType] = useState<LoggableActivityType>('note')
   const [description, setDescription] = useState('')
 
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -96,7 +98,7 @@ function LeadActivityTimeline({ leadId }: LeadActivityTimelineProps) {
   return (
     <div className="space-y-5">
       <form onSubmit={handleSubmit} className="space-y-2 rounded-lg border border-hairline bg-surface-soft p-3">
-        <Select value={type} onValueChange={(v: LeadActivityType) => setType(v)}>
+        <Select value={type} onValueChange={(v: LoggableActivityType) => setType(v)}>
           <SelectTrigger className="w-40">
             <SelectValue />
           </SelectTrigger>

@@ -14,7 +14,7 @@ import Text from '@/design-system/typography/text'
 import { extractApiError } from '@/shared/lib/notifications'
 import { SOURCE_LABEL, SOURCE_VARIANT, STATUS_LABEL, STATUS_VARIANT } from '@/app/leads/constants'
 import { useLead } from '@/app/leads/hooks'
-import type { Lead } from '@/app/leads/types'
+import { assigneeName, propertyTitle, type Lead } from '@/app/leads/types'
 import LeadActivityTimeline from '@/app/leads/components/LeadActivityTimeline'
 
 interface LeadDetailSheetProps {
@@ -79,11 +79,11 @@ function LeadDetailSheet({
               </div>
               <div className="flex items-center justify-between gap-3">
                 <Text as="sm" className="text-muted-foreground">Agente asignado</Text>
-                <Text as="sm">{lead.assigned_to ? agentNameById.get(lead.assigned_to) ?? 'Desconocido' : 'Sin asignar'}</Text>
+                <Text as="sm">{lead.assigned_to ? assigneeName(lead, agentNameById) ?? 'Desconocido' : 'Sin asignar'}</Text>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <Text as="sm" className="text-muted-foreground">Propiedad</Text>
-                <Text as="sm">{lead.property_id ? propertyNameById.get(lead.property_id) ?? 'Desconocida' : 'Ninguna'}</Text>
+                <Text as="sm">{lead.property_id ? propertyTitle(lead, propertyNameById) ?? 'Desconocida' : 'Ninguna'}</Text>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <Text as="sm" className="text-muted-foreground">Creado</Text>

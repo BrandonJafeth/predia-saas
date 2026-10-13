@@ -16,7 +16,7 @@ import Heading from '@/design-system/typography/heading'
 import Text from '@/design-system/typography/text'
 import { useUsers } from '@/app/users/hooks'
 import { useProperties } from '@/app/properties/hooks'
-import { useLeads, useCreateLead, useUpdateLead, useArchiveLead } from '@/app/leads/hooks'
+import { useLeads, useLeadStats, useCreateLead, useUpdateLead, useArchiveLead } from '@/app/leads/hooks'
 import type { Lead, LeadStatus } from '@/app/leads/types'
 import { leadKeys } from '@/app/leads/types'
 import { leadsService } from '@/app/leads/services/leads.service'
@@ -106,12 +106,18 @@ function TenantLeadsPage() {
           sortOrder,
         },
   )
+  // Conteos reales por columna del kanban (la vista trae como máximo 100).
+  const { data: stats } = useLeadStats(
+    effectiveView === 'kanban'
+      ? { status: search.status, assigned_to: search.assigned_to, search: search.search }
+      : undefined,
+  )
   const { data: agentsData } = useUsers({ limit: 100 })
   // Solo para resolver el nombre de la propiedad en el detalle de un lead —
   // el selector del formulario busca de forma independiente (PropertyCombobox).
   const { data: propertiesData } = useProperties({ limit: 100 })
   const { mutate: createLead, isPending: isCreating } = useCreateLead()
-  const { mutate: updateLead, isPending: isUpdating } = useUpdateLead()
+  const { mutate: updateLead, mutateAsync: updateLeadAsync, isPending: isUpdating } = useUpdateLead()
   const { mutate: archiveLead, isPending: isArchiving } = useArchiveLead()
 
   const agentOptions: AgentOption[] = (agentsData?.data ?? []).map((u) => ({
@@ -152,8 +158,10 @@ function TenantLeadsPage() {
     }
   }
 
+  // Devuelve la promesa para que el kanban mantenga la tarjeta en la columna
+  // destino hasta que la mutación termine (errores ya se notifican en el hook).
   function handleStatusChange(lead: Lead, status: LeadStatus) {
-    updateLead({ id: lead.id, status })
+    return updateLeadAsync({ id: lead.id, status })
   }
 
   const leads: Lead[] = data?.data ?? []
@@ -252,6 +260,10 @@ function TenantLeadsPage() {
           onEdit={setEditLead}
           onArchive={setArchiveTarget}
           onStatusChange={handleStatusChange}
+          totalByStatus={stats?.by_status}
+          onShowMore={(status) =>
+            navigate({ search: (prev) => ({ ...prev, view: 'table', status, page: 1 }) })
+          }
         />
       ) : (
         <LeadsTableView

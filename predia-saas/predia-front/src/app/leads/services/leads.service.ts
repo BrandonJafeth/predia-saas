@@ -7,6 +7,8 @@ import type {
   LeadActivityFilters,
   LeadDetail,
   LeadFilters,
+  LeadStats,
+  LeadStatsFilters,
   PaginatedResponse,
   UpdateLeadRequest,
 } from '../types'
@@ -18,6 +20,14 @@ export const leadsService = {
     })
     if (error) throw error
     return data as unknown as PaginatedResponse<Lead>
+  },
+
+  async getStats(filters?: LeadStatsFilters): Promise<LeadStats> {
+    const { data, error } = await apiClient.GET('/api/v1/leads/stats', {
+      params: { query: filters },
+    })
+    if (error) throw error
+    return data
   },
 
   async findOne(id: string): Promise<LeadDetail> {

@@ -267,8 +267,14 @@
 }
 
 /* cubic-bezier(0.22, 1, 0.36, 1) = spring suave: arranca rápido, decelera orgánicamente */
+/* fill-mode backwards (no both): con forwards el contenedor de la página se
+   quedaba con transform: translateY(0) scale(1) al terminar, y cualquier
+   transform convierte al elemento en el containing block de sus hijos
+   position: fixed. Eso desplazaba el overlay del drag & drop de leads (y las
+   páginas de error fixed inset-0) exactamente el ancho del sidebar y el alto
+   del navbar. */
 @utility animate-page-enter {
-  animation: page-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-enter 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @utility animate-fade-in {

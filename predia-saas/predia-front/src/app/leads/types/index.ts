@@ -26,7 +26,14 @@ export interface Lead {
   notes: string | null
   created_at: string
   updated_at: string
+  // Resueltos por el backend (antes se buscaban en las primeras 100 entradas
+  // de /users y /properties).
+  assignee: { id: string; first_name: string; last_name: string } | null
+  property: { id: string; title: string; slug: string } | null
 }
+
+export type LeadStats = components['schemas']['LeadStatsResponseDto']
+export type LeadStatsFilters = Pick<LeadFilters, 'status' | 'assigned_to' | 'search'>
 
 export type CreateLeadRequest = components['schemas']['CreateLeadDto']
 export type UpdateLeadRequest = Partial<components['schemas']['UpdateLeadDto']>
@@ -94,4 +101,22 @@ export const leadKeys = {
   activities: (leadId: string) => [...leadKeys.detail(leadId), 'activities'] as const,
   activityList: (leadId: string, filters?: LeadActivityFilters) =>
     [...leadKeys.activities(leadId), filters] as const,
+  statsAll: () => [...leadKeys.all, 'stats'] as const,
+  stats: (filters?: LeadStatsFilters) => [...leadKeys.statsAll(), filters] as const,
+}
+
+// Nombre del agente: el del backend si corresponde al assigned_to actual; si
+// no (p. ej. justo después de reasignar, con el cache optimista), el mapa.
+export function assigneeName(lead: Lead, agentNameById?: Map<string, string>): string | undefined {
+  if (!lead.assigned_to) return undefined
+  if (lead.assignee?.id === lead.assigned_to) {
+    return `${lead.assignee.first_name} ${lead.assignee.last_name}`
+  }
+  return agentNameById?.get(lead.assigned_to)
+}
+
+export function propertyTitle(lead: Lead, propertyNameById?: Map<string, string>): string | undefined {
+  if (!lead.property_id) return undefined
+  if (lead.property?.id === lead.property_id) return lead.property.title
+  return propertyNameById?.get(lead.property_id)
 }

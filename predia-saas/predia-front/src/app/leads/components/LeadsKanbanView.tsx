@@ -1,23 +1,27 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DndContext,
   DragOverlay,
   PointerSensor,
   closestCenter,
+  defaultDropAnimationSideEffects,
+  pointerWithin,
   useDraggable,
   useDroppable,
   useSensor,
   useSensors,
+  type CollisionDetection,
   type DragEndEvent,
   type DragStartEvent,
+  type DropAnimation,
 } from '@dnd-kit/core'
-import { CSS } from '@dnd-kit/utilities'
 import Text from '@/design-system/typography/text'
 import { Skeleton } from '@/design-system/ui/skeleton'
 import { Badge } from '@/design-system/ui/badge'
 import { cn } from '@/shared/lib/utils'
 import { PIPELINE_STATUSES, STATUS_HEADER_CLASS, STATUS_LABEL, STATUS_VARIANT } from '@/app/leads/constants'
-import type { Lead, LeadStatus } from '@/app/leads/types'
+import { assigneeName, type Lead, type LeadStatus } from '@/app/leads/types'
 import LeadCard from '@/app/leads/components/LeadCard'
 
 interface LeadsKanbanViewProps {
@@ -25,10 +29,32 @@ interface LeadsKanbanViewProps {
   isLoading?: boolean
   error?: boolean
   agentNameById: Map<string, string>
+  // Total real por status (GET /leads/stats). El tablero trae como máximo 100
+  // leads; con esto cada columna muestra su conteo real y cuántos faltan.
+  totalByStatus?: Record<string, number>
+  onShowMore?: (status: LeadStatus) => void
   onView: (lead: Lead) => void
   onEdit: (lead: Lead) => void
   onArchive: (lead: Lead) => void
-  onStatusChange: (lead: Lead, status: LeadStatus) => void
+  // Puede devolver la promesa de la mutación: mientras está pendiente el
+  // tablero mantiene la tarjeta en la columna destino.
+  onStatusChange: (lead: Lead, status: LeadStatus) => Promise<unknown> | void
+}
+
+// La columna destino es la que está bajo el puntero (no la más cercana al
+// centro de la tarjeta, que dependía de dónde la agarraste). Si el puntero
+// cae en el hueco entre columnas, se usa la más cercana.
+const collisionDetection: CollisionDetection = (args) => {
+  const underPointer = pointerWithin(args)
+  return underPointer.length > 0 ? underPointer : closestCenter(args)
+}
+
+// Animación corta hacia el lugar nuevo de la tarjeta (el default es 250ms
+// 'ease'). La tarjeta real queda oculta mientras el overlay aterriza.
+const dropAnimation: DropAnimation = {
+  duration: 180,
+  easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+  sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0' } } }),
 }
 
 function DraggableLeadCard(props: {
@@ -38,14 +64,15 @@ function DraggableLeadCard(props: {
   onEdit: (lead: Lead) => void
   onArchive: (lead: Lead) => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  // Sin transform: con DragOverlay lo que sigue al puntero es el overlay; la
+  // tarjeta original queda quieta como placeholder (antes se movían las dos).
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: props.lead.id,
   })
 
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform) }}
       {...listeners}
       {...attributes}
       className={cn('touch-none cursor-grab', isDragging && 'opacity-40')}
@@ -58,14 +85,18 @@ function DraggableLeadCard(props: {
 function KanbanColumn({
   status,
   leads,
+  hiddenCount,
   agentNameById,
+  onShowMore,
   onView,
   onEdit,
   onArchive,
 }: {
   status: LeadStatus
   leads: Lead[]
+  hiddenCount: number
   agentNameById: Map<string, string>
+  onShowMore?: (status: LeadStatus) => void
   onView: (lead: Lead) => void
   onEdit: (lead: Lead) => void
   onArchive: (lead: Lead) => void
@@ -82,20 +113,29 @@ function KanbanColumn({
     >
       <div className={cn('flex items-center justify-between gap-2 border-b px-3 py-2.5', STATUS_HEADER_CLASS[status])}>
         <Text as="sm" className="font-semibold">{STATUS_LABEL[status]}</Text>
-        <Badge variant={STATUS_VARIANT[status]}>{leads.length}</Badge>
+        <Badge variant={STATUS_VARIANT[status]}>{leads.length + hiddenCount}</Badge>
       </div>
       <div className="flex-1 space-y-2 p-2.5 min-h-[6rem]">
         {leads.map((lead) => (
           <DraggableLeadCard
             key={lead.id}
             lead={lead}
-            agentName={lead.assigned_to ? agentNameById.get(lead.assigned_to) : undefined}
+            agentName={assigneeName(lead, agentNameById)}
             onView={onView}
             onEdit={onEdit}
             onArchive={onArchive}
           />
         ))}
-        {leads.length === 0 && (
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={() => onShowMore?.(status)}
+            className="w-full rounded-lg border border-dashed border-hairline py-2 text-caption text-muted-foreground transition-colors hover:border-surface-strong hover:text-ink"
+          >
+            y {hiddenCount} más · ver en tabla
+          </button>
+        )}
+        {leads.length === 0 && hiddenCount === 0 && (
           <div className="flex items-center justify-center rounded-lg border border-dashed border-hairline py-6">
             <Text as="sm" className="text-muted-foreground">Sin leads</Text>
           </div>
@@ -110,21 +150,42 @@ function LeadsKanbanView({
   isLoading,
   error,
   agentNameById,
+  totalByStatus,
+  onShowMore,
   onView,
   onEdit,
   onArchive,
   onStatusChange,
 }: LeadsKanbanViewProps) {
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
+  // Movimientos ya soltados cuya mutación sigue en curso. Se aplican en el
+  // mismo render del drop: la actualización optimista de React Query llega
+  // unos ms después (onMutate es async), cuando dnd-kit ya midió la tarjeta en
+  // la columna vieja y animaba el overlay de vuelta al origen.
+  const [pendingStatus, setPendingStatus] = useState<Record<string, LeadStatus>>({})
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
   const leadsByStatus = useMemo(() => {
     const grouped = new Map<LeadStatus, Lead[]>(PIPELINE_STATUSES.map((s) => [s, []]))
     for (const lead of leads) {
-      grouped.get(lead.status)?.push(lead)
+      grouped.get(pendingStatus[lead.id] ?? lead.status)?.push(lead)
     }
     return grouped
-  }, [leads])
+  }, [leads, pendingStatus])
+
+  // Cuántos leads de cada status no vinieron en esta página: total del
+  // backend menos los que el cache tiene con ese status (sin contar los
+  // movimientos pendientes, que el stats optimista ya refleja).
+  const hiddenByStatus = useMemo(() => {
+    const loaded = new Map<string, number>()
+    for (const lead of leads) loaded.set(lead.status, (loaded.get(lead.status) ?? 0) + 1)
+    return new Map(
+      PIPELINE_STATUSES.map((s) => [
+        s,
+        Math.max(0, (totalByStatus?.[s] ?? loaded.get(s) ?? 0) - (loaded.get(s) ?? 0)),
+      ]),
+    )
+  }, [leads, totalByStatus])
 
   function handleDragStart(event: DragStartEvent) {
     const lead = leads.find((l) => l.id === event.active.id)
@@ -137,9 +198,20 @@ function LeadsKanbanView({
     if (!over) return
     const newStatus = over.id as LeadStatus
     const lead = leads.find((l) => l.id === active.id)
-    if (lead && lead.status !== newStatus) {
-      onStatusChange(lead, newStatus)
-    }
+    if (!lead || (pendingStatus[lead.id] ?? lead.status) === newStatus) return
+
+    setPendingStatus((prev) => ({ ...prev, [lead.id]: newStatus }))
+    // Al terminar la mutación el cache ya tiene el status real (o volvió al
+    // anterior si falló): se suelta el override.
+    void Promise.resolve(onStatusChange(lead, newStatus))
+      .catch(() => {})
+      .finally(() =>
+        setPendingStatus((prev) => {
+          const next = { ...prev }
+          delete next[lead.id]
+          return next
+        }),
+      )
   }
 
   if (isLoading) {
@@ -175,9 +247,10 @@ function LeadsKanbanView({
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCenter}
+      collisionDetection={collisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveLead(null)}
     >
       <div className="flex gap-3 overflow-x-auto scroll-x-visible pb-2">
         {PIPELINE_STATUSES.map((status) => (
@@ -185,26 +258,35 @@ function LeadsKanbanView({
             key={status}
             status={status}
             leads={leadsByStatus.get(status) ?? []}
+            hiddenCount={hiddenByStatus.get(status) ?? 0}
             agentNameById={agentNameById}
+            onShowMore={onShowMore}
             onView={onView}
             onEdit={onEdit}
             onArchive={onArchive}
           />
         ))}
       </div>
-      <DragOverlay>
-        {activeLead && (
-          <LeadCard
-            lead={activeLead}
-            agentName={activeLead.assigned_to ? agentNameById.get(activeLead.assigned_to) : undefined}
-            onView={onView}
-            onEdit={onEdit}
-            onArchive={onArchive}
-            dragging
-            className="w-72"
-          />
-        )}
-      </DragOverlay>
+      {/* Portal a <body>: el overlay es position: fixed y cualquier ancestro
+          con transform (p. ej. la animación de entrada de página) lo
+          desplazaba respecto del puntero y hacía caer la tarjeta en otra
+          columna. */}
+      {createPortal(
+        <DragOverlay dropAnimation={dropAnimation}>
+          {activeLead && (
+            <LeadCard
+              lead={activeLead}
+              agentName={assigneeName(activeLead, agentNameById)}
+              onView={onView}
+              onEdit={onEdit}
+              onArchive={onArchive}
+              dragging
+              className="w-72"
+            />
+          )}
+        </DragOverlay>,
+        document.body,
+      )}
     </DndContext>
   )
 }

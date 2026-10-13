@@ -11,7 +11,7 @@ import {
 import { DataTable, createSelectionColumn } from '@/shared/components/data-table'
 import { PaginationControls } from '@/design-system/ui/pagination-controls'
 import { SOURCE_LABEL, SOURCE_VARIANT, STATUS_LABEL, STATUS_VARIANT } from '@/app/leads/constants'
-import type { Lead } from '@/app/leads/types'
+import { assigneeName, type Lead } from '@/app/leads/types'
 
 const colHelper = createColumnHelper<Lead>()
 
@@ -80,10 +80,10 @@ function createColumns(
     header: 'Agente',
     enableSorting: false,
     cell: (info) => {
-      const id = info.getValue()
+      const lead = info.row.original
       return (
         <span className="text-muted-foreground">
-          {id ? agentNameById.get(id) ?? 'Agente desconocido' : 'Sin asignar'}
+          {lead.assigned_to ? assigneeName(lead, agentNameById) ?? 'Agente desconocido' : 'Sin asignar'}
         </span>
       )
     },

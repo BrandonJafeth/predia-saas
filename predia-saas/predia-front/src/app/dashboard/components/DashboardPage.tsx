@@ -6,6 +6,7 @@ import {
 } from 'recharts'
 import { Heading, Text } from '@/design-system/typography'
 import { usePropertyStats } from '@/app/properties/hooks'
+import { useLeadStats } from '@/app/leads/hooks'
 import { useUsers } from '@/app/users/hooks'
 import { useCurrentUser } from '@/app/auth/hooks'
 import { tokenStorage } from '@/shared/lib/tokens'
@@ -91,6 +92,7 @@ function DashboardPage() {
   // Conteos agregados en el backend: antes se pedían las primeras 100
   // propiedades y se contaba acá, así que con más de 100 los gráficos mentían.
   const { data: stats } = usePropertyStats()
+  const { data: leadStats } = useLeadStats()
   const { data: usersData } = useUsers({ limit: 1 })
 
   const totalProps = stats?.total ?? null
@@ -122,7 +124,7 @@ function DashboardPage() {
       {/* Module cards — horizontal scroll on mobile */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <ModuleCard title="Propiedades" subtitle="Gestiona tu inventario" url="/properties" icon={Building2} count={totalProps} />
-        <ModuleCard title="Leads" subtitle="Clientes potenciales" url="/leads" icon={Users} count={null} />
+        <ModuleCard title="Leads" subtitle="Clientes potenciales" url="/leads" icon={Users} count={leadStats?.total ?? null} />
         <ModuleCard title="Reportes" subtitle="Métricas y analítica" url="/reports" icon={BarChart3} count={null} />
         {isAdmin && (
           <ModuleCard title="Usuarios" subtitle="Miembros del equipo" url="/users" icon={UsersRound} count={totalUsers} />
