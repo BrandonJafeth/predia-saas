@@ -253,7 +253,7 @@ El desarrollo sigue un orden por dependencias, dejando las integraciones externa
 - [x] **Fase 1** — Tenancy + Auth (JWT, contexto de tenant, RLS).
 - [x] **Fase 2** — Datos de referencia: `locations` (seed CR) y `categories`.
 - [x] **Fase 3** — Propiedades (CRUD, imágenes, validación de `attributes`).
-- [ ] **Fase 4** — CRM (leads + actividades). *En curso: funcional, falta cerrar detalles.*
+- [x] **Fase 4** — CRM (leads + actividades).
 - [ ] **Fase 5** — API pública + API keys (portal y web white-label).
 - [ ] **Fase 6** — Facturación SINPE (pagos manuales + cron de vencimiento).
 - [ ] **Fase 7** — Optimización: Redis (cache, rate-limit) y BullMQ.

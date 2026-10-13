@@ -178,6 +178,14 @@ All routes protected by `JwtAuthGuard` by default. Opt out with `@Public()`.
 - `PATCH /api/v1/users/:id/suspend` and `PATCH /api/v1/users/:id/activate` require `admin` or `super_admin`.
 - When caller is `super_admin`, these endpoints use `SystemPrismaService` (bypasses RLS) to operate on users of any tenant.
 
+## Leads (CRM)
+
+- Visibility (`LeadVisibilityService`): admins see every lead of the tenant; agents only the ones `assigned_to` them. Cross-tenant and cross-agent access answers 404.
+- An agent creating a lead is auto-assigned; only admins can (re)assign (`403` for agents). Assignees must be `active` admin/agent users; linked properties can't be archived.
+- Status changes (PATCH or kanban drag & drop) create a `status_change` activity in the same transaction. Users can only log `call | email | meeting | note` manually.
+- `DELETE /leads/:id` archives (soft delete). `GET /leads/stats` returns counts per status with the same filters/visibility as the list (the kanban loads at most 100 leads).
+- Lead responses embed `assignee { id, first_name, last_name }` and `property { id, title, slug }`.
+
 ## Pagination pattern
 
 Controllers accept `@Query() pageOptionsDto: PageOptionsDto` → pass to service.  
