@@ -25,6 +25,7 @@ interface LeadFormProps {
   isSubmitting: boolean
   agentOptions: AgentOption[]
   isAdmin: boolean
+  showProperty?: boolean
   onCreate?: (values: CreateLeadRequest) => void
   onEdit?: (id: string, values: UpdateLeadRequest) => void
 }
@@ -37,6 +38,7 @@ function LeadForm({
   isSubmitting,
   agentOptions,
   isAdmin,
+  showProperty = true,
   onCreate,
   onEdit,
 }: LeadFormProps) {
@@ -212,18 +214,20 @@ function LeadForm({
             )}
           </form.Field>
         )}
-        <form.Field name="property_id">
-          {(field) => (
-            <FormField field={field} label="Propiedad de interés" optional>
-              <PropertyCombobox
-                id={field.name}
-                value={field.state.value}
-                onChange={field.handleChange}
-                onBlur={field.handleBlur}
-              />
-            </FormField>
-          )}
-        </form.Field>
+        {showProperty && (
+          <form.Field name="property_id">
+            {(field) => (
+              <FormField field={field} label="Propiedad de interés" optional>
+                <PropertyCombobox
+                  id={field.name}
+                  value={field.state.value}
+                  onChange={field.handleChange}
+                  onBlur={field.handleBlur}
+                />
+              </FormField>
+            )}
+          </form.Field>
+        )}
       </div>
 
       <form.Field name="notes">

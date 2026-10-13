@@ -76,7 +76,10 @@ function TenantLeadsPage() {
   const search = routeApi.useSearch()
   const navigate = routeApi.useNavigate()
   const isMobile = useIsMobile()
-  const isAdmin = tokenStorage.decodeAccessToken()?.role === 'admin'
+  const role = tokenStorage.decodeAccessToken()?.role
+  // super_admin trabaja los leads del portal (tenant del sistema, sin propiedades).
+  const isSuperAdmin = role === 'super_admin'
+  const isAdmin = role === 'admin' || isSuperAdmin
 
   const [open, setOpen] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
@@ -115,7 +118,7 @@ function TenantLeadsPage() {
   const { data: agentsData } = useUsers({ limit: 100 })
   // Solo para resolver el nombre de la propiedad en el detalle de un lead —
   // el selector del formulario busca de forma independiente (PropertyCombobox).
-  const { data: propertiesData } = useProperties({ limit: 100 })
+  const { data: propertiesData } = useProperties({ limit: 100 }, { enabled: !isSuperAdmin })
   const { mutate: createLead, isPending: isCreating } = useCreateLead()
   const { mutate: updateLead, mutateAsync: updateLeadAsync, isPending: isUpdating } = useUpdateLead()
   const { mutate: archiveLead, isPending: isArchiving } = useArchiveLead()
@@ -188,6 +191,7 @@ function TenantLeadsPage() {
         isSubmitting={isCreating}
         agentOptions={agentOptions}
         isAdmin={isAdmin}
+        showProperty={!isSuperAdmin}
         onCreate={(values) => createLead(values, { onSuccess: () => setOpen(false) })}
       />
 
@@ -200,6 +204,7 @@ function TenantLeadsPage() {
         isSubmitting={isUpdating}
         agentOptions={agentOptions}
         isAdmin={isAdmin}
+        showProperty={!isSuperAdmin}
         onEdit={(id, values) => updateLead({ id, ...values }, { onSuccess: () => setEditLead(null) })}
       />
 

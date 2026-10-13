@@ -23,6 +23,7 @@ import {
   Tags,
   ChevronLeft,
   LayoutDashboard,
+  KeyRound,
 } from 'lucide-react'
 import { tokenStorage } from '@/shared/lib/tokens'
 
@@ -36,6 +37,7 @@ const tenantItems = [
 const tenantTeamItems = [
   { title: 'Usuarios', url: '/users', icon: UsersRound },
   { title: 'Audit Log', url: '/audit-log', icon: ClipboardList },
+  { title: 'API keys', url: '/api-keys', icon: KeyRound },
 ]
 
 const tenantSecondaryItems = [
@@ -46,9 +48,12 @@ const tenantSecondaryItems = [
 const systemAdminItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Organizaciones', url: '/admin/tenants', icon: ShieldCheck },
+  // Leads de la web de Predia (formulario general del portal).
+  { title: 'Leads', url: '/leads', icon: Users },
   { title: 'Usuarios', url: '/admin/users', icon: UsersRound },
   { title: 'Categorías', url: '/admin/categories', icon: Tags },
   { title: 'Audit Log', url: '/admin/audit-log', icon: ClipboardList },
+  { title: 'API keys', url: '/admin/api-keys', icon: KeyRound },
 ]
 
 type NavItem = { title: string; url: string; icon: React.ElementType }

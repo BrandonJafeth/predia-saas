@@ -26,7 +26,8 @@ export const Route = createFileRoute('/leads')({
   validateSearch: searchSchema,
   beforeLoad: () => {
     const role = tokenStorage.decodeAccessToken()?.role
-    if (role !== 'admin' && role !== 'agent') {
+    // super_admin: leads del portal (tenant del sistema), vía RLS.
+    if (role !== 'admin' && role !== 'agent' && role !== 'super_admin') {
       throw redirect({ to: '/dashboard' })
     }
   },

@@ -9,9 +9,10 @@ import {
 } from '../types'
 import { notify, extractApiError } from '@/shared/lib/notifications'
 
-export const useProperties = (filters?: PropertyFilters) => {
+export const useProperties = (filters?: PropertyFilters, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: propertyKeys.list(filters),
+    enabled: options?.enabled ?? true,
     queryFn: () => propertiesService.getProperties(filters),
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 30,
