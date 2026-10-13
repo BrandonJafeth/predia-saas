@@ -9,6 +9,7 @@ import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PageDto } from '../../common/dto/page.dto';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
+import { assertNoNullFields } from '../../common/utils/assert-no-null-fields';
 import { AttributeValidationService } from './attribute-validation.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
@@ -164,6 +165,41 @@ export class PropertiesService {
     return new PageDto(items.map((item) => this.toResponse(item)), meta);
   }
 
+  /**
+   * Conteos agregados para el dashboard. Antes el front pedía las primeras 100
+   * propiedades y contaba en el cliente, así que con más de 100 los gráficos
+   * quedaban mal.
+   */
+  async getStats(tenantId: string) {
+    const where: Prisma.PropertyWhereInput = {
+      tenant_id: tenantId,
+      status: { not: PropertyStatus.archived },
+    };
+
+    const [byStatus, byOperation] = await Promise.all([
+      this.prisma.property.groupBy({
+        by: ['status'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.property.groupBy({
+        by: ['operation_type'],
+        where,
+        _count: { _all: true },
+      }),
+    ]);
+
+    return {
+      total: byStatus.reduce((sum, row) => sum + row._count._all, 0),
+      by_status: Object.fromEntries(
+        byStatus.map((row) => [row.status, row._count._all]),
+      ),
+      by_operation_type: Object.fromEntries(
+        byOperation.map((row) => [row.operation_type, row._count._all]),
+      ),
+    };
+  }
+
   async create(dto: CreatePropertyDto, tenantId: string, caller: JwtPayload) {
     const agentId = await this.resolveAgentId(dto, tenantId, caller);
     await this.assertValidAttributes(dto.category_id, dto.attributes ?? {});
@@ -227,8 +263,21 @@ export class PropertiesService {
     tenantId: string,
     caller: JwtPayload,
   ) {
+    assertNoNullFields(dto, [
+      'title',
+      'price',
+      'operation_type',
+      'currency',
+      'category_id',
+      'attributes',
+      'is_published',
+      'status',
+    ]);
+
+    // archived = soft-deleted: igual que findById/remove, no se puede editar
+    // (antes un PATCH con status la "resucitaba").
     const existing = await this.prisma.property.findFirst({
-      where: { id, tenant_id: tenantId },
+      where: { id, tenant_id: tenantId, status: { not: PropertyStatus.archived } },
       select: {
         id: true,
         title: true,
@@ -391,17 +440,20 @@ export class PropertiesService {
   ): Promise<void> {
     const category = await this.prisma.category.findUnique({
       where: { id: categoryId },
-      select: { id: true, attribute_schema: true },
+      select: { id: true, attribute_schema: true, updated_at: true },
     });
 
     if (!category) {
       throw new NotFoundException('category_id no existe en la base de datos');
     }
 
+    // updated_at en la key: si un super_admin edita el attribute_schema, el
+    // validador cacheado de la versión anterior deja de usarse al instante
+    // (antes seguía validando contra el schema viejo hasta reiniciar el API).
     this.attributeValidation.validate(
       attributes,
       category.attribute_schema as Record<string, unknown>,
-      category.id,
+      `${category.id}:${category.updated_at.getTime()}`,
     );
   }
 

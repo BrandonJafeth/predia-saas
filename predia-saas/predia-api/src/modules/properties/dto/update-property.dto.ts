@@ -5,7 +5,7 @@ import { CreatePropertyDto } from './create-property.dto';
 
 // archived queda afuera a propósito: es el estado del soft-delete (ver
 // PropertiesController#remove), no algo que se setee a mano desde el form de
-// edición — findById/findBySlug/update ya excluyen archived, así que
+// edición — findById/findBySlug/update excluyen archived, así que
 // permitirlo acá dejaría la property inalcanzable apenas se guarda.
 const EDITABLE_STATUSES = [
   PropertyStatus.draft,

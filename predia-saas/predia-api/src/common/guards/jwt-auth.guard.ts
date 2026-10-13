@@ -42,7 +42,8 @@ export class JwtAuthGuard implements CanActivate {
         select: { status: true },
       });
 
-      if (!user || user.status === UserStatus.suspended) {
+      // Solo `active`: suspended, deactivated e invited no operan.
+      if (!user || user.status !== UserStatus.active) {
         throw new UnauthorizedException('Token inválido o expirado');
       }
     } catch (err) {

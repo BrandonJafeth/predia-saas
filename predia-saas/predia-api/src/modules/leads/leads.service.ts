@@ -4,8 +4,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { LeadActivityType, LeadStatus, Prisma } from '@prisma/client';
+import { LeadActivityType, LeadStatus, Prisma, UserRole } from '@prisma/client';
 import { PageDto } from '../../common/dto/page.dto';
+import { assertNoNullFields } from '../../common/utils/assert-no-null-fields';
 import { PageMetaDto } from '../../common/dto/page-meta.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -81,12 +82,17 @@ export class LeadsService {
     private leadVisibility: LeadVisibilityService,
   ) {}
 
-  async create(dto: CreateLeadDto, tenantId: string) {
+  async create(dto: CreateLeadDto, tenantId: string, caller: JwtPayload) {
     if (dto.status === LeadStatus.archived) {
       throw new BadRequestException('No se puede crear un lead archivado');
     }
 
-    await this.validateAssignee(dto.assigned_to, tenantId);
+    // Un agente solo ve los leads asignados a él (LeadVisibilityService): si
+    // el lead quedara sin asignar, desaparecería de su lista apenas lo crea.
+    const assignedTo =
+      caller.role === UserRole.agent ? caller.sub : dto.assigned_to;
+
+    await this.validateAssignee(assignedTo, tenantId);
     await this.validateProperty(dto.property_id, tenantId);
 
     return this.prisma.lead.create({
@@ -97,7 +103,7 @@ export class LeadsService {
         phone: dto.phone ?? null,
         source: dto.source,
         status: dto.status ?? LeadStatus.new,
-        assigned_to: dto.assigned_to ?? null,
+        assigned_to: assignedTo ?? null,
         property_id: dto.property_id ?? null,
         notes: dto.notes ?? null,
       },
@@ -164,6 +170,8 @@ export class LeadsService {
     tenantId: string,
     caller: JwtPayload,
   ) {
+    assertNoNullFields(dto, ['name', 'source', 'status']);
+
     const lead = await this.findExistingLead(id, tenantId, caller);
 
     if (dto.status === LeadStatus.archived) {

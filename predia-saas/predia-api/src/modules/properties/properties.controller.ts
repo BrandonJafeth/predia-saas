@@ -29,6 +29,7 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { FindPropertiesDto } from './dto/find-properties.dto';
 import { PropertyDetailResponseDto } from './dto/property-detail-response.dto';
 import { PropertyResponseDto } from './dto/property-response.dto';
+import { PropertyStatsResponseDto } from './dto/property-stats-response.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertiesService } from './properties.service';
 
@@ -46,6 +47,14 @@ export class PropertiesController {
     @CurrentTenant() tenantId: string,
   ) {
     return this.propertiesService.findAll(filters, tenantId);
+  }
+
+  // Declarado antes de ':id' para que Express no lo matchee como un id.
+  @Get('stats')
+  @Roles(UserRole.admin, UserRole.agent)
+  @ApiOkResponse({ type: PropertyStatsResponseDto })
+  getStats(@CurrentTenant() tenantId: string) {
+    return this.propertiesService.getStats(tenantId);
   }
 
   @Get(':id')

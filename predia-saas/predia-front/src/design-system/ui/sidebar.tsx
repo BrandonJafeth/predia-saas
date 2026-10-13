@@ -582,9 +582,10 @@ const SidebarMenuSkeleton = React.forwardRef<
     showIcon?: boolean
   }
 >(({ className, showIcon = false, ...props }, ref) => {
-  const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
-  }, [])
+  // Ancho "aleatorio" pero determinista (derivado del id del componente):
+  // Math.random() durante el render es impuro y rompe el React Compiler.
+  const id = React.useId()
+  const width = `${50 + ([...id].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 40)}%`
 
   return (
     <div

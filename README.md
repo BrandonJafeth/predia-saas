@@ -79,13 +79,18 @@ flowchart LR
 
 ## Estructura del monorepo
 
+El monorepo pnpm vive dentro de la carpeta `predia-saas/` del repositorio:
+
 ```
-predia-saas/
-├── predia-api/            # API en NestJS (módulos por feature)
-├── predia-front/          # CRM en React + Vite (carpetas por feature)
-├── predia-website/        # Web pública / white-label en Astro
-├── pnpm-workspace.yaml
-└── README.md
+predia-saas/                 # raíz del repo
+└── predia-saas/             # raíz del monorepo pnpm
+    ├── predia-api/          # API en NestJS (módulos por feature)
+    ├── predia-front/        # CRM en React + Vite (carpetas por feature)
+    ├── predia-website/      # Web pública / white-label en Astro
+    ├── packages/api-types/  # cliente tipado generado desde el OpenAPI del API
+    ├── infra/postgres/      # init.sql / post-migrate.sql para Docker
+    ├── docker-compose.yml
+    └── pnpm-workspace.yaml
 ```
 
 ### Módulos del API (NestJS)
@@ -93,21 +98,27 @@ predia-saas/
 ```
 predia-api/src/
 ├── modules/
-│   ├── auth/
+│   ├── auth/              # login, refresh con sesiones revocables, reset de contraseña
+│   ├── system/            # operaciones de super_admin (cross-tenant)
 │   ├── tenants/
+│   ├── tenant-sites/      # configuración white-label por tenant
 │   ├── users/
 │   ├── properties/
+│   ├── property-images/   # Cloudinary
+│   ├── amenities/
 │   ├── categories/
 │   ├── locations/
 │   ├── leads/
-│   ├── subscriptions/
-│   ├── payments/
-│   └── public-api/        # feed con API key + captura pública de leads
-├── common/                # guards, interceptors, decorators, filters
-│   ├── guards/            # JwtGuard, TenantGuard, ApiKeyGuard
-│   └── decorators/        # @CurrentTenant(), @CurrentUser()
+│   ├── audit-log/
+│   ├── email/             # Resend
+│   ├── subscriptions/     # (Fase 6, pendiente)
+│   ├── payments/          # (Fase 6, pendiente)
+│   └── public-api/        # (Fase 5, pendiente) feed con API key + captura pública de leads
+├── common/                # guards, interceptors, decorators, utils
+│   ├── guards/            # JwtAuthGuard, RolesGuard (ApiKeyGuard en Fase 5)
+│   └── decorators/        # @CurrentTenant(), @CurrentUser(), @Roles(), @Public()
 ├── config/
-└── prisma/
+└── prisma/                # schema.prisma, migraciones, PrismaService (tenant-aware)
 ```
 
 ---
@@ -127,7 +138,7 @@ Cada tenant tiene una o varias API keys (almacenadas **hasheadas**, nunca en tex
 SINPE no tiene API ni webhooks, así que la confirmación de pago es manual: el cliente paga, se registra un `payment` con su comprobante y se extiende el `current_period_end` de la suscripción. Un cron marca como `past_due` las suscripciones vencidas y el `ApiKeyGuard` corta el acceso.
 
 ### Modelo de datos
-El esquema completo (16 tablas) está documentado en [`docs/schema.dbml`](docs/schema.dbml). Dominios principales: tenancy y accesos, facturación, web white-label, ubicaciones (catálogo oficial de CR), catálogo multivertical, propiedades y CRM.
+El esquema vive en [`predia-saas/predia-api/src/prisma/schema.prisma`](predia-saas/predia-api/src/prisma/schema.prisma) (fuente de verdad, junto con sus migraciones). Dominios principales: tenancy y accesos (incluye sesiones de auth), web white-label, ubicaciones (catálogo oficial de CR), catálogo multivertical, propiedades y CRM. Facturación llega en la Fase 6.
 
 ---
 
@@ -135,7 +146,7 @@ El esquema completo (16 tablas) está documentado en [`docs/schema.dbml`](docs/s
 
 - Node.js 20+
 - pnpm 9+
-- Docker (para PostgreSQL y Redis en local)
+- Docker (para PostgreSQL en local; Redis llega en la Fase 7)
 - Git
 
 ---
@@ -143,29 +154,38 @@ El esquema completo (16 tablas) está documentado en [`docs/schema.dbml`](docs/s
 ## Instalación y desarrollo local
 
 ```bash
-# 1. Clonar el repo
+# 1. Clonar el repo y entrar al monorepo
 git clone https://github.com/BrandonJafeth/predia-saas.git
-cd predia-saas
+cd predia-saas/predia-saas
 
 # 2. Instalar dependencias (todo el monorepo)
 pnpm install
 
-# 3. Levantar PostgreSQL en Docker
+# 3. Levantar PostgreSQL en Docker (expone el puerto 5433; init.sql crea los
+#    roles predia_app / predia_system y el trigger de RLS)
 docker compose up -d
 
 # 4. Configurar variables de entorno
 cp predia-api/.env.example predia-api/.env
 
-# 5. Migrar y sembrar la base de datos
+# 5. Migrar, aplicar grants y sembrar la base de datos
 cd predia-api
-pnpm prisma migrate dev
-pnpm prisma db seed   # incluye ubicaciones de CR y categorías base
+node_modules/.bin/prisma migrate deploy
+docker exec -i predia_postgres psql -U postgres -d predia < ../infra/postgres/post-migrate.sql
+pnpm run seed                                       # ubicaciones de CR, amenidades y categorías
+pnpm run seed:superadmin admin@predia.com <password-de-12+>
+cd ..
 
-# 6. Levantar las apps
+# 6. Generar el cliente tipado del API (lo necesita el build del CRM)
+pnpm generate:api
+
+# 7. Levantar las apps
 pnpm dev:api          # API en NestJS
 pnpm dev:front        # CRM en React + Vite
 pnpm dev:website      # Web en Astro
 ```
+
+Sin Docker, seguí [`predia-api/src/prisma/rls-setup.sql`](predia-saas/predia-api/src/prisma/rls-setup.sql) (PASO 1 → migraciones → PASO 2). Detalles en [`predia-saas/README.md`](predia-saas/README.md).
 
 ---
 
@@ -176,11 +196,16 @@ Cada app tiene su propio archivo `.env`. **Nunca** se suben al repo; se versiona
 Ejemplo para `predia-api`:
 
 ```env
-DATABASE_URL="postgresql://predia:predia@localhost:5432/predia?schema=public"
-JWT_SECRET="cambiar-en-produccion"
-JWT_EXPIRES_IN="7d"
-PORT=3000
+# App (rol con RLS) / sistema (BYPASSRLS, solo super_admin) / migraciones (DDL)
+DATABASE_URL="postgresql://predia_app:predia_app@localhost:5433/predia"
+SYSTEM_DATABASE_URL="postgresql://predia_system:predia_system@localhost:5433/predia"
+MIGRATION_URL="postgresql://postgres:postgres@localhost:5433/predia"
+JWT_SECRET="cambia-esto-en-produccion-min-32-chars"
+JWT_REFRESH_SECRET="cambia-esto-tambien-en-produccion-min-32"
+NODE_ENV="development"   # en producción: production (cookies secure)
 ```
+
+La lista completa está en [`predia-api/.env.example`](predia-saas/predia-api/.env.example).
 
 ---
 
@@ -224,11 +249,11 @@ PORT=3000
 
 El desarrollo sigue un orden por dependencias, dejando las integraciones externas para el final:
 
-- [ ] **Fase 0** — Setup: NestJS + Prisma + Docker (PostgreSQL).
-- [ ] **Fase 1** — Tenancy + Auth (JWT, contexto de tenant, RLS).
-- [ ] **Fase 2** — Datos de referencia: `locations` (seed CR) y `categories`.
-- [ ] **Fase 3** — Propiedades (CRUD, imágenes, validación de `attributes`).
-- [ ] **Fase 4** — CRM (leads + actividades).
+- [x] **Fase 0** — Setup: NestJS + Prisma + Docker (PostgreSQL).
+- [x] **Fase 1** — Tenancy + Auth (JWT, contexto de tenant, RLS).
+- [x] **Fase 2** — Datos de referencia: `locations` (seed CR) y `categories`.
+- [x] **Fase 3** — Propiedades (CRUD, imágenes, validación de `attributes`).
+- [ ] **Fase 4** — CRM (leads + actividades). *En curso: funcional, falta cerrar detalles.*
 - [ ] **Fase 5** — API pública + API keys (portal y web white-label).
 - [ ] **Fase 6** — Facturación SINPE (pagos manuales + cron de vencimiento).
 - [ ] **Fase 7** — Optimización: Redis (cache, rate-limit) y BullMQ.

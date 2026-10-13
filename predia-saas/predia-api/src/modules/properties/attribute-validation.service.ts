@@ -13,9 +13,10 @@ export class AttributeValidationService {
 
   /**
    * Valida `attributes` contra el JSON Schema (draft-07) de `attribute_schema`.
-   * `cacheKey` (normalmente category.id) evita recompilar el mismo schema en
-   * cada llamada; si el schema puede cambiar en runtime, pasa una key que
-   * incluya su versión (ej. `${categoryId}:${updatedAt.getTime()}`).
+   * `cacheKey` evita recompilar el mismo schema en cada llamada. Como el
+   * schema puede cambiar en runtime, la key debe incluir su versión
+   * (`${categoryId}:${updatedAt.getTime()}`); al compilar una versión nueva se
+   * descartan las anteriores de la misma categoría.
    */
   validate(
     attributes: Record<string, unknown>,
@@ -39,6 +40,11 @@ export class AttributeValidationService {
   ): ValidateFunction {
     const cached = this.validatorCache.get(cacheKey);
     if (cached) return cached;
+
+    const prefix = `${cacheKey.split(':')[0]}:`;
+    for (const key of this.validatorCache.keys()) {
+      if (key.startsWith(prefix)) this.validatorCache.delete(key);
+    }
 
     // additionalProperties: false fuerza modo estricto aunque el schema
     // guardado en la categoría no lo declare explícitamente.

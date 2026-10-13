@@ -6,6 +6,7 @@ import {
   Matches,
   MinLength,
 } from 'class-validator';
+import { NormalizeEmail } from 'src/common/decorators/normalize-email.decorator';
 
 export class RegisterDto {
   @ApiProperty({ example: 'Inmobiliaria Norte' })
@@ -25,6 +26,7 @@ export class RegisterDto {
   tenantSlug!: string;
 
   @ApiProperty({ example: 'admin@ejemplo.com' })
+  @NormalizeEmail()
   @IsEmail()
   email!: string;
 

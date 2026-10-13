@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { assertNoNullFields } from '../../common/utils/assert-no-null-fields';
 import { CreateTenantSiteDto } from './dto/create-tenant-site.dto';
 import { UpdateTenantSiteDto } from './dto/update-tenant-site.dto';
 
@@ -53,6 +54,7 @@ export class TenantSitesService {
   }
 
   async update(dto: UpdateTenantSiteDto, tenantId: string) {
+    assertNoNullFields(dto, ['is_active']);
     await this.findByTenant(tenantId);
     return this.prisma.tenantSite.update({
       where: { tenant_id: tenantId },

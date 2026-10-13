@@ -54,3 +54,9 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # ===== Temporales =====
 .temp
 .tmp
+
+# ===== Artefactos de herramientas =====
+# Temporales de TanStack Router y salida de graphify (grafo de conocimiento):
+# se regeneran solos, no van al repo.
+.tanstack/
+graphify-out/

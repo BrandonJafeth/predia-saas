@@ -5,9 +5,10 @@ import {
   Post,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString } from 'class-validator';
-import { Public } from 'src/common/decorators/public.decorator';
+import { UserRole } from '@prisma/client';
+import { Roles } from 'src/common/decorators/roles.decorator';
 import { EmailService } from './email.service';
 
 class TestEmailDto {
@@ -33,7 +34,11 @@ export class EmailController {
     private readonly config: ConfigService,
   ) {}
 
-  @Public()
+  // Antes era @Public(): si se desplegaba sin NODE_ENV=production (Joi pone
+  // 'development' por defecto) cualquiera podía mandar correos desde el
+  // dominio. Ahora además exige un super_admin autenticado.
+  @ApiBearerAuth()
+  @Roles(UserRole.super_admin)
   @Post('test')
   async sendTest(@Body() dto: TestEmailDto) {
     if (this.config.get<string>('NODE_ENV') === 'production') {

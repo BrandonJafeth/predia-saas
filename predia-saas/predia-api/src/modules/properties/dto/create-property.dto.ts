@@ -26,7 +26,7 @@ export class CreatePropertyDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   title!: string;
 
-  @ApiPropertyOptional({ example: 'Hermosa casa de dos pisos en condominio privado' })
+  @ApiPropertyOptional({ example: 'Hermosa casa de dos pisos en condominio privado', nullable: true })
   @IsOptional()
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -49,6 +49,7 @@ export class CreatePropertyDto {
   @ApiPropertyOptional({
     example: 'casa',
     description: 'Subtipo según la categoría (e.g. casa, apartamento)',
+    nullable: true,
   })
   @IsOptional()
   @IsString()
@@ -56,19 +57,19 @@ export class CreatePropertyDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   subtype?: string;
 
-  @ApiPropertyOptional({ example: 500.5, description: 'Área del lote en m²' })
+  @ApiPropertyOptional({ example: 500.5, description: 'Área del lote en m²', nullable: true })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 }, { message: 'lot_area_m2 debe ser un número' })
   @IsPositive({ message: 'lot_area_m2 debe ser mayor a 0' })
   lot_area_m2?: number;
 
-  @ApiPropertyOptional({ example: 180.0, description: 'Área construida en m²' })
+  @ApiPropertyOptional({ example: 180.0, description: 'Área construida en m²', nullable: true })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 }, { message: 'built_area_m2 debe ser un número' })
   @IsPositive({ message: 'built_area_m2 debe ser mayor a 0' })
   built_area_m2?: number;
 
-  @ApiPropertyOptional({ example: 'De la iglesia 200m norte, casa esquinera' })
+  @ApiPropertyOptional({ example: 'De la iglesia 200m norte, casa esquinera', nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(500, { message: 'address no puede superar 500 caracteres' })
@@ -77,7 +78,7 @@ export class CreatePropertyDto {
 
   // lat y lng deben enviarse juntos o no enviarse.
   // @ValidateIf activa los decoradores si cualquiera de los dos está presente.
-  @ApiPropertyOptional({ example: 9.9281, description: 'Latitud decimal. Requiere lng.' })
+  @ApiPropertyOptional({ example: 9.9281, description: 'Latitud decimal. Requiere lng. En PATCH, null limpia.', nullable: true })
   @ValidateIf((o: CreatePropertyDto) => o.lat !== undefined || o.lng !== undefined)
   @IsDefined({ message: 'lat es requerido cuando se envía lng' })
   @IsNumber({}, { message: 'lat debe ser un número' })
@@ -85,7 +86,7 @@ export class CreatePropertyDto {
   @Max(90, { message: 'lat debe ser <= 90' })
   lat?: number;
 
-  @ApiPropertyOptional({ example: -84.0907, description: 'Longitud decimal. Requiere lat.' })
+  @ApiPropertyOptional({ example: -84.0907, description: 'Longitud decimal. Requiere lat. En PATCH, null limpia.', nullable: true })
   @ValidateIf((o: CreatePropertyDto) => o.lat !== undefined || o.lng !== undefined)
   @IsDefined({ message: 'lng es requerido cuando se envía lat' })
   @IsNumber({}, { message: 'lng debe ser un número' })
@@ -95,7 +96,8 @@ export class CreatePropertyDto {
 
   @ApiPropertyOptional({
     example: '550e8400-e29b-41d4-a716-446655440000',
-    description: 'ID de la ubicación. Opcional en borrador.',
+    description: 'ID de la ubicación. Opcional en borrador. En PATCH, null la quita.',
+    nullable: true,
   })
   @IsOptional()
   @IsUUID(4, { message: 'location_id debe ser un UUID v4 válido' })
@@ -104,6 +106,7 @@ export class CreatePropertyDto {
   @ApiPropertyOptional({
     example: '550e8400-e29b-41d4-a716-446655440002',
     description: 'Solo admin. UUID del agente a asignar. Ignorado si el caller es agent (se autoasigna).',
+    nullable: true,
   })
   @IsOptional()
   @IsUUID(4, { message: 'agent_id debe ser un UUID v4 válido' })

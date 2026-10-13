@@ -5,11 +5,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts'
 import { Heading, Text } from '@/design-system/typography'
-import { useProperties } from '@/app/properties/hooks'
+import { usePropertyStats } from '@/app/properties/hooks'
 import { useUsers } from '@/app/users/hooks'
 import { useCurrentUser } from '@/app/auth/hooks'
 import { tokenStorage } from '@/shared/lib/tokens'
-import type { Property } from '@/app/properties/types'
 
 const CHART_COLORS = {
   active:   '#1C2028',
@@ -89,33 +88,27 @@ function DashboardPage() {
   const role = tokenStorage.decodeAccessToken()?.role
   const isAdmin = role === 'admin'
 
-  const { data: propsData } = useProperties({ limit: 100 })
+  // Conteos agregados en el backend: antes se pedían las primeras 100
+  // propiedades y se contaba acá, así que con más de 100 los gráficos mentían.
+  const { data: stats } = usePropertyStats()
   const { data: usersData } = useUsers({ limit: 1 })
 
-  const properties: Property[] = (propsData as { data?: Property[] } | undefined)?.data ?? []
-  const totalProps = (propsData as { meta?: { itemCount?: number } } | undefined)?.meta?.itemCount ?? null
+  const totalProps = stats?.total ?? null
   const totalUsers = (usersData as { meta?: { itemCount?: number } } | undefined)?.meta?.itemCount ?? null
 
   // Pie data
-  const byStatus = Object.entries(
-    properties.reduce<Record<string, number>>((acc, p) => {
-      acc[p.status] = (acc[p.status] ?? 0) + 1
-      return acc
-    }, {})
-  ).map(([key, count]) => ({
-    name: STATUS_LABEL[key] ?? key,
-    value: count,
-    color: CHART_COLORS[key as keyof typeof CHART_COLORS] ?? '#D6DCE5',
-  }))
+  const byStatus = Object.entries(stats?.by_status ?? {})
+    .filter(([, count]) => count > 0)
+    .map(([key, count]) => ({
+      name: STATUS_LABEL[key] ?? key,
+      value: count,
+      color: CHART_COLORS[key as keyof typeof CHART_COLORS] ?? '#D6DCE5',
+    }))
 
   // Bar data
-  const byOp = Object.entries(
-    properties.reduce<Record<string, number>>((acc, p) => {
-      const op = (p as Property & { operation_type?: string }).operation_type ?? 'sale'
-      acc[op] = (acc[op] ?? 0) + 1
-      return acc
-    }, {})
-  ).map(([key, count]) => ({ name: OP_LABEL[key] ?? key, value: count }))
+  const byOp = Object.entries(stats?.by_operation_type ?? {})
+    .filter(([, count]) => count > 0)
+    .map(([key, count]) => ({ name: OP_LABEL[key] ?? key, value: count }))
 
   return (
     <div className="space-y-6">
@@ -137,7 +130,7 @@ function DashboardPage() {
       </div>
 
       {/* Charts */}
-      {properties.length > 0 && (
+      {(totalProps ?? 0) > 0 && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
 
           {/* Bar — ocupa 3 columnas */}

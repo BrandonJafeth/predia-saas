@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { assertNoNullFields } from '../../common/utils/assert-no-null-fields';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
@@ -54,6 +55,7 @@ export class CategoriesService {
   }
 
   async update(id: string, dto: UpdateCategoryDto) {
+    assertNoNullFields(dto, ['name', 'slug', 'attribute_schema']);
     await this.findById(id);
     if (dto.slug) {
       const conflict = await this.prisma.category.findFirst({
@@ -82,7 +84,20 @@ export class CategoriesService {
 
   async remove(id: string) {
     await this.findById(id);
-    return this.prisma.category.delete({ where: { id } });
+    try {
+      return await this.prisma.category.delete({ where: { id } });
+    } catch (error) {
+      // properties.category_id es ON DELETE RESTRICT. Antes esto salía como 500.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2003'
+      ) {
+        throw new ConflictException(
+          'La categoría tiene propiedades asociadas y no se puede eliminar.',
+        );
+      }
+      throw error;
+    }
   }
 
   private async findById(id: string) {

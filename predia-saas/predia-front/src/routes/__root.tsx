@@ -5,24 +5,21 @@ import { refreshAccessToken } from '@/shared/lib/api'
 import { Toaster, TOASTER_OPTIONS } from '@/shared/lib/notifications'
 import NotFoundPage from '@/app/errors/NotFoundPage'
 
-const AUTH_PATHS = ['/login', '/forgot-password']
+// /register va acá: antes no estaba en ninguna lista y un visitante sin
+// sesión era redirigido a /login, así que el registro era inalcanzable.
+const AUTH_PATHS = ['/login', '/forgot-password', '/register']
 const PUBLIC_PATHS = ['/reset-password']
 
-// Shared across all beforeLoad invocations (incl. concurrent ones under
-// StrictMode) so every caller awaits the *same* restoration attempt instead
-// of racing past it — otherwise a second invocation could see the token as
-// still null and redirect to /login before the first refresh resolves.
-let sessionRestorePromise: Promise<void> | null = null
-
-function restoreSession() {
-  if (!sessionRestorePromise) {
-    sessionRestorePromise = (async () => {
-      if (!tokenStorage.getAccessToken()) {
-        await refreshAccessToken()
-      }
-    })()
+// Se llama en cada navegación: si el access token (15 min) ya expiró, se
+// renueva con la cookie de refresh antes de decidir si redirigir a /login.
+// Antes la promesa se cacheaba para siempre, así que tras 15 min sin llamadas
+// al API cualquier navegación mandaba al login aunque la sesión siguiera viva.
+// refreshAccessToken() ya deduplica llamadas concurrentes (StrictMode,
+// varias rutas a la vez), así que todas esperan el mismo intento.
+async function restoreSession() {
+  if (!tokenStorage.getAccessToken()) {
+    await refreshAccessToken()
   }
-  return sessionRestorePromise
 }
 
 // Full-screen loading shown while beforeLoad resolves (session restoration).

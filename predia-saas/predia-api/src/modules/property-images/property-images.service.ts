@@ -14,7 +14,7 @@ import { CloudinaryService } from './cloudinary.service';
 import type { ReorderImagesDto } from './dto/reorder-images.dto';
 
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 const PROPERTY_IMAGE_SELECT = {
   id: true,

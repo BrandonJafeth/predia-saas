@@ -33,7 +33,10 @@ export class CategoriesController {
   @Get()
   @Public()
   @SkipThrottle()
-  @Header('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+  // no-cache (revalidar con ETag) en vez de max-age=3600: con caché de 1h una
+  // categoría recién editada (attribute_schema, amenidades) tardaba hasta una
+  // hora en verse — mismo criterio que AmenitiesController.
+  @Header('Cache-Control', 'public, no-cache')
   @ApiOkResponse({ type: [CategoryResponseDto] })
   findAll() {
     return this.categoriesService.findAll();
@@ -42,7 +45,7 @@ export class CategoriesController {
   @Get(':slug')
   @Public()
   @SkipThrottle()
-  @Header('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400')
+  @Header('Cache-Control', 'public, no-cache')
   @ApiOkResponse({ type: CategoryResponseDto })
   findBySlug(@Param('slug') slug: string) {
     return this.categoriesService.findBySlug(slug);

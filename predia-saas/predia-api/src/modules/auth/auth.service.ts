@@ -25,6 +25,8 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 const DUMMY_HASH =
   '$2b$12$invalidhashpadding000000000000000000000000000000000000000';
 
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -41,23 +43,41 @@ export class AuthService {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
+  /**
+   * Organizaciones donde estas credenciales son válidas. Antes solo pedía el
+   * email y devolvía en qué inmobiliarias existía (enumeración de cuentas);
+   * ahora exige la contraseña y solo lista los tenants donde coincide.
+   */
   async lookupTenants(dto: LookupDto) {
-    const MIN_MS = 400;
+    const MIN_MS = 500;
     const start = Date.now();
 
     const users = await this.systemPrisma.user.findMany({
-      where: { email: dto.email, status: { not: UserStatus.suspended } },
-      select: { tenant: { select: { id: true, name: true } } },
+      where: {
+        email: { equals: dto.email, mode: 'insensitive' },
+        status: UserStatus.active,
+      },
+      select: {
+        password_hash: true,
+        tenant: { select: { id: true, name: true } },
+      },
     });
 
-    // Timing normalization — response time stays constant regardless of whether
-    // the email exists, preventing enumeration via response timing.
+    // En paralelo (threadpool de bcrypt) y con un hash dummy si no hay
+    // usuarios, para que el tiempo no dependa de si el email existe.
+    const checks = await Promise.all(
+      users.length > 0
+        ? users.map((u) => bcrypt.compare(dto.password, u.password_hash))
+        : [bcrypt.compare(dto.password, DUMMY_HASH)],
+    );
+    const tenants = users.filter((_, i) => checks[i]).map((u) => u.tenant);
+
     const elapsed = Date.now() - start;
     if (elapsed < MIN_MS) {
       await new Promise((r) => setTimeout(r, MIN_MS - elapsed));
     }
 
-    return users.map((u) => u.tenant);
+    return tenants;
   }
 
   async register(dto: RegisterDto) {
@@ -87,7 +107,7 @@ export class AuthService {
         return { tenant, user };
       });
 
-      const tokens = this.generateTokens({
+      const tokens = await this.createSessionTokens({
         sub: user.id,
         tenantId: tenant.id,
         role: user.role,
@@ -125,7 +145,10 @@ export class AuthService {
       ? await this.prisma.$transaction(async (tx) => {
           await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
           return tx.user.findFirst({
-            where: { email: dto.email, tenant_id: tenant.id },
+            where: {
+              email: { equals: dto.email, mode: 'insensitive' },
+              tenant_id: tenant.id,
+            },
           });
         })
       : null;
@@ -142,11 +165,12 @@ export class AuthService {
       await new Promise((r) => setTimeout(r, MIN_MS - elapsed));
     }
 
-    if (!tenant || !user || !passwordValid || user.status === UserStatus.suspended) {
+    // Solo `active` entra: suspended, deactivated e invited quedan afuera.
+    if (!tenant || !user || !passwordValid || user.status !== UserStatus.active) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    return this.generateTokens({
+    return this.createSessionTokens({
       sub: user.id,
       tenantId: tenant.id,
       role: user.role,
@@ -163,20 +187,67 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token inválido o expirado');
     }
 
-    // Fetch fresh user data — picks up role changes since last login
-    const user = await this.systemPrisma.user.findUnique({
-      where: { id: payload.sub },
-      select: { id: true, role: true, tenant_id: true, status: true },
-    });
-    if (!user || user.status === UserStatus.suspended) {
+    // Refresh tokens emitidos antes de las sesiones no traen sid: se rechazan
+    // (el usuario vuelve a iniciar sesión una vez).
+    if (!payload.sid) {
       throw new UnauthorizedException('Sesión inválida');
     }
 
-    return this.generateTokens({
-      sub: user.id,
-      tenantId: user.tenant_id,
-      role: user.role,
+    // Fetch fresh user data — picks up role changes since last login
+    const session = await this.systemPrisma.authSession.findUnique({
+      where: { id: payload.sid },
+      select: {
+        id: true,
+        user_id: true,
+        expires_at: true,
+        revoked_at: true,
+        user: { select: { id: true, role: true, tenant_id: true, status: true } },
+      },
     });
+    if (
+      !session ||
+      session.user_id !== payload.sub ||
+      session.revoked_at !== null ||
+      session.expires_at < new Date() ||
+      session.user.status !== UserStatus.active
+    ) {
+      throw new UnauthorizedException('Sesión inválida');
+    }
+
+    // Expiración deslizante: cada refresh extiende la sesión otros 7 días.
+    await this.systemPrisma.authSession.update({
+      where: { id: session.id },
+      data: { expires_at: new Date(Date.now() + SESSION_TTL_MS) },
+    });
+
+    return this.generateTokens(
+      {
+        sub: session.user.id,
+        tenantId: session.user.tenant_id,
+        role: session.user.role,
+      },
+      session.id,
+    );
+  }
+
+  /**
+   * Revoca la sesión del refresh token (si es válido). Nunca falla: el logout
+   * siempre limpia la cookie aunque el token esté vencido o sea basura.
+   */
+  async logout(refreshToken: string | undefined): Promise<void> {
+    if (!refreshToken) return;
+    try {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+        secret: this.refreshSecret,
+      });
+      if (!payload.sid) return;
+      await this.systemPrisma.authSession.updateMany({
+        where: { id: payload.sid, user_id: payload.sub, revoked_at: null },
+        data: { revoked_at: new Date() },
+      });
+    } catch {
+      // token inválido/expirado: no hay sesión que revocar
+    }
   }
 
   async forgotPassword(dto: ForgotPasswordDto): Promise<void> {
@@ -185,7 +256,7 @@ export class AuthService {
 
     try {
       const users = await this.systemPrisma.user.findMany({
-        where: { email: dto.email },
+        where: { email: { equals: dto.email, mode: 'insensitive' } },
         select: { id: true, email: true, first_name: true },
       });
 
@@ -221,7 +292,9 @@ export class AuthService {
     }
   }
 
-  async validateResetToken(token: string): Promise<{ valid: true }> {
+  async validateResetToken(token: string | undefined): Promise<{ valid: true }> {
+    // Sin token, crypto.update(undefined) tiraba un TypeError → 500.
+    if (!token) throw new BadRequestException('Token inválido');
     const tokenHash = this.hashToken(token);
     const record = await this.systemPrisma.passwordResetToken.findUnique({
       where: { token_hash: tokenHash },
@@ -267,6 +340,12 @@ export class AuthService {
       this.systemPrisma.passwordResetToken.deleteMany({
         where: { user_id: record.user_id, id: { not: record.id } },
       }),
+      // Cierra todas las sesiones abiertas: quien tuviera la contraseña vieja
+      // (o un refresh token robado) pierde el acceso.
+      this.systemPrisma.authSession.updateMany({
+        where: { user_id: record.user_id, revoked_at: null },
+        data: { revoked_at: new Date() },
+      }),
     ]);
 
     void this.email.sendPasswordChanged(record.user.email, {
@@ -275,12 +354,36 @@ export class AuthService {
     });
   }
 
-  private generateTokens(payload: JwtPayload) {
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, {
-      expiresIn: '7d',
-      secret: this.refreshSecret,
+  private async createSessionTokens(payload: JwtPayload) {
+    const now = new Date();
+    // Limpieza oportunista de sesiones muertas del usuario.
+    await this.systemPrisma.authSession.deleteMany({
+      where: {
+        user_id: payload.sub,
+        OR: [{ expires_at: { lt: now } }, { revoked_at: { not: null } }],
+      },
     });
+    const session = await this.systemPrisma.authSession.create({
+      data: {
+        user_id: payload.sub,
+        expires_at: new Date(now.getTime() + SESSION_TTL_MS),
+      },
+      select: { id: true },
+    });
+    return this.generateTokens(payload, session.id);
+  }
+
+  private generateTokens(payload: JwtPayload, sessionId: string) {
+    const claims: JwtPayload = {
+      sub: payload.sub,
+      tenantId: payload.tenantId,
+      role: payload.role,
+    };
+    const accessToken = this.jwtService.sign(claims);
+    const refreshToken = this.jwtService.sign(
+      { ...claims, sid: sessionId },
+      { expiresIn: '7d', secret: this.refreshSecret },
+    );
     return { accessToken, refreshToken };
   }
 

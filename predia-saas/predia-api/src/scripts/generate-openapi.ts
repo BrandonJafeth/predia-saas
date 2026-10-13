@@ -16,4 +16,7 @@ async function generateOpenApi() {
   await app.close();
 }
 
-generateOpenApi();
+generateOpenApi().catch((err: unknown) => {
+  console.error(err);
+  process.exit(1);
+});

@@ -71,13 +71,13 @@ describe('LeadsService', () => {
     );
   });
 
-  it('crea lead con status new por defecto y sin asignación', async () => {
+  it('crea lead con status new por defecto y sin asignación (admin)', async () => {
     prisma.lead.create.mockResolvedValue({
       id: LEAD_ID,
       status: LeadStatus.new,
     });
 
-    await service.create({ name: 'Lead Nuevo' }, TENANT_ID);
+    await service.create({ name: 'Lead Nuevo' }, TENANT_ID, adminCaller);
 
     expect(prisma.lead.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -87,6 +87,23 @@ describe('LeadsService', () => {
           status: LeadStatus.new,
           assigned_to: null,
         }),
+      }),
+    );
+  });
+
+  it('autoasigna al agente que crea el lead (si no, no podría verlo)', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: USER_ID });
+    prisma.lead.create.mockResolvedValue({ id: LEAD_ID });
+
+    await service.create(
+      { name: 'Lead del agente', assigned_to: adminCaller.sub },
+      TENANT_ID,
+      caller,
+    );
+
+    expect(prisma.lead.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ assigned_to: USER_ID }),
       }),
     );
   });
@@ -155,6 +172,7 @@ describe('LeadsService', () => {
           assigned_to: USER_ID,
         },
         TENANT_ID,
+        adminCaller,
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
@@ -213,15 +231,26 @@ describe('LeadsService', () => {
     );
   });
 
-  it('rechaza transición inválida new -> won', async () => {
+  // El pipeline es libre (kanban con drag & drop): la validación de
+  // transiciones se quitó a propósito en f66a14c.
+  it('permite mover un lead directo de new a won', async () => {
     prisma.lead.findFirst.mockResolvedValue({
       id: LEAD_ID,
       status: LeadStatus.new,
     });
+    prisma.lead.update.mockResolvedValue({ id: LEAD_ID, status: LeadStatus.won });
+    prisma.leadActivity.create.mockResolvedValue({ id: 'activity-id' });
 
     await expect(
       service.update(LEAD_ID, { status: LeadStatus.won }, TENANT_ID, caller),
+    ).resolves.toEqual({ id: LEAD_ID, status: LeadStatus.won });
+  });
+
+  it('rechaza null en campos obligatorios con 400 (no 500)', async () => {
+    await expect(
+      service.update(LEAD_ID, { name: null as never }, TENANT_ID, caller),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.lead.update).not.toHaveBeenCalled();
   });
 
   it('registra activity al cambiar status', async () => {

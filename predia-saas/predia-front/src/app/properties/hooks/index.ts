@@ -18,6 +18,16 @@ export const useProperties = (filters?: PropertyFilters) => {
   })
 }
 
+// Conteos agregados del tenant (dashboard). Antes se calculaban en el cliente
+// sobre las primeras 100 propiedades.
+export const usePropertyStats = () => {
+  return useQuery({
+    queryKey: propertyKeys.stats(),
+    queryFn: () => propertiesService.getStats(),
+    staleTime: 1000 * 60 * 2,
+  })
+}
+
 export const useProperty = (id: string) => {
   return useQuery({
     queryKey: propertyKeys.detail(id),
@@ -47,6 +57,7 @@ export const useCreateProperty = () => {
     onSuccess: () => {
       notify.success({ title: 'Propiedad creada' })
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: propertyKeys.stats() })
     },
     onError: (err) => {
       notify.error({ title: 'Error al crear propiedad', description: extractApiError(err) })
@@ -85,6 +96,7 @@ export const useUpdateProperty = () => {
     onSettled: (_data, _err, { id }) => {
       queryClient.invalidateQueries({ queryKey: propertyKeys.detail(id) })
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: propertyKeys.stats() })
     },
   })
 }
@@ -97,6 +109,7 @@ export const useDeleteProperty = () => {
     onSuccess: () => {
       notify.success({ title: 'Propiedad eliminada' })
       queryClient.invalidateQueries({ queryKey: propertyKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: propertyKeys.stats() })
     },
     onError: (err) => {
       notify.error({ title: 'Error al eliminar propiedad', description: extractApiError(err) })

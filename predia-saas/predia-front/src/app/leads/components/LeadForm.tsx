@@ -61,14 +61,19 @@ function LeadForm({
       onSubmit: editLeadSchema,
     },
     onSubmit: ({ value }) => {
+      // En edición un campo vaciado viaja como null para que se limpie (y
+      // "Sin asignar" realmente desasigne); en creación simplemente se omite.
+      const optional = (v: string) => v || (isEdit ? null : undefined)
       const payload = {
         name: value.name.trim(),
-        email: value.email.trim() || undefined,
-        phone: value.phone.trim() || undefined,
+        email: optional(value.email.trim()),
+        phone: optional(value.phone.trim()),
         source: value.source,
-        assigned_to: value.assigned_to || undefined,
-        property_id: value.property_id || undefined,
-        notes: value.notes.trim() || undefined,
+        // Los agentes no ven el selector: no mandar el campo para no pisar la
+        // asignación (el backend autoasigna al crear).
+        ...(isAdmin ? { assigned_to: optional(value.assigned_to) } : {}),
+        property_id: optional(value.property_id),
+        notes: optional(value.notes.trim()),
       }
       if (isEdit && lead) {
         onEdit?.(lead.id, { ...payload, status: value.status })

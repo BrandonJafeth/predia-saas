@@ -38,8 +38,23 @@ import { propertyImagesService } from '../services/property-images.service'
 import { propertyKeys, type PropertyDetail, type PropertyStatus, type CreatePropertyRequest } from '../types'
 import { PROPERTY_STATUSES, STATUS_LABEL } from '../constants'
 import { notify, extractApiError } from '@/shared/lib/notifications'
+import type { LocationNode } from '@/app/locations/types'
 
 const NONE_VALUE = '__none__'
+
+// Provincia/cantón que contienen un distrito (para precargar los selects en
+// modo edición).
+function findProvinceAndCanton(tree: LocationNode[] | undefined, districtId: string) {
+  if (!districtId || !tree) return null
+  for (const province of tree) {
+    for (const canton of province.children ?? []) {
+      if (canton.children?.some((d) => d.id === districtId)) {
+        return { provinceId: province.id, cantonId: canton.id }
+      }
+    }
+  }
+  return null
+}
 
 interface PropertyFormProps {
   initialData?: PropertyDetail
@@ -81,16 +96,15 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
   const { data: provinces } = useProvinces()
   const { data: locationTree } = useLocationsTree()
 
-  // Transform initialData attributes to string values for the form
-  const defaultAttributes = useMemo(() => {
-    const attrs: Record<string, string> = {}
-    if (initialData?.attributes) {
-      for (const [k, v] of Object.entries(initialData.attributes)) {
-        attrs[k] = String(v)
-      }
+  // Transform initialData attributes to string values for the form.
+  // Sin useMemo: solo se usa como defaultValues inicial y el React Compiler
+  // ya memoiza (el useMemo manual hacía que el compilador saltara el componente).
+  const defaultAttributes: Record<string, string> = {}
+  if (initialData?.attributes) {
+    for (const [k, v] of Object.entries(initialData.attributes)) {
+      defaultAttributes[k] = String(v)
     }
-    return attrs
-  }, [initialData?.attributes])
+  }
 
   // UI-level selection tracking for the hierarchical selects
   const [uiProvinceId, setUiProvinceId] = useState('')
@@ -132,6 +146,9 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
     },
     validators: { onSubmit: propertyFormSchema },
     onSubmit: ({ value }) => {
+      // En edición un campo vaciado viaja como null para que el backend lo
+      // limpie; omitirlo (como en creación) dejaba guardado el valor anterior.
+      const optional = <T,>(v: T | '') => (v !== '' ? v : isEdit ? null : undefined)
       const payload: CreatePropertyRequest = {
         title: value.title.trim(),
         price: Number(value.price),
@@ -139,10 +156,10 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
         currency: value.currency,
         category_id: value.category_id,
         is_published: value.is_published,
-        ...(value.description.trim() ? { description: value.description.trim() } : {}),
-        ...(value.subtype.trim() ? { subtype: value.subtype.trim() } : {}),
-        ...(value.address.trim() ? { address: value.address.trim() } : {}),
-        ...(value.location_id ? { location_id: value.location_id } : {}),
+        description: optional(value.description.trim()),
+        subtype: optional(value.subtype.trim()),
+        address: optional(value.address.trim()),
+        location_id: optional(value.location_id),
       }
 
       // Build dynamic attributes from category schema
@@ -166,7 +183,9 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
           }
         }
       }
-      if (Object.keys(attributes).length > 0) {
+      // En edición se manda siempre (aunque quede vacío) para poder borrar
+      // atributos que el usuario limpió.
+      if (Object.keys(attributes).length > 0 || isEdit) {
         payload.attributes = attributes
       }
 
@@ -175,6 +194,9 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
       if (hasLat && hasLng) {
         payload.lat = Number(value.lat)
         payload.lng = Number(value.lng)
+      } else if (isEdit && !hasLat && !hasLng) {
+        payload.lat = null
+        payload.lng = null
       }
 
       if (isEdit && initialData) {
@@ -192,7 +214,7 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
             onError: (err) => {
               const msg = extractApiError(err).toLowerCase()
               if (msg.includes('title')) {
-                ;(form as any).setFieldMeta('title', (prev: any) => ({ ...prev, errors: [extractApiError(err)] }))
+                form.setFieldMeta('title', (prev) => ({ ...prev, errors: [extractApiError(err)] }))
               }
             },
           },
@@ -211,7 +233,7 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
           onError: (err) => {
             const msg = extractApiError(err).toLowerCase()
             if (msg.includes('title')) {
-              ;(form as any).setFieldMeta('title', (prev: any) => ({ ...prev, errors: [extractApiError(err)] }))
+              form.setFieldMeta('title', (prev) => ({ ...prev, errors: [extractApiError(err)] }))
             }
           },
         })
@@ -226,10 +248,7 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
   const addressValue = useStore(form.baseStore, (s) => s.values.address)
   const isPublishedValue = useStore(form.baseStore, (s) => s.values.is_published)
 
-  const selectedCategory = useMemo(
-    () => categories.find((c) => c.id === categoryId) ?? null,
-    [categories, categoryId],
-  )
+  const selectedCategory = categories.find((c) => c.id === categoryId) ?? null
 
   const existingAmenityIds = useMemo(() => {
     if (!initialData?.amenities) return new Set<string>()
@@ -294,19 +313,7 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
   }, [categoryId, form])
 
   // Derive province/canton from location_id + full location tree (for edit mode)
-  const derivedLocation = useMemo(() => {
-    if (!locationId || !locationTree) return null
-    for (const province of locationTree) {
-      if (!province.children) continue
-      for (const canton of province.children) {
-        if (!canton.children) continue
-        if (canton.children.some((d) => d.id === locationId)) {
-          return { provinceId: province.id, cantonId: canton.id }
-        }
-      }
-    }
-    return null
-  }, [locationId, locationTree])
+  const derivedLocation = findProvinceAndCanton(locationTree, locationId)
 
   const effectiveProvinceId = derivedLocation?.provinceId ?? uiProvinceId
   const effectiveCantonId = derivedLocation?.cantonId ?? uiCantonId
@@ -504,7 +511,7 @@ function PropertyForm({ initialData, onSuccess, onCancel }: PropertyFormProps) {
                 const current = form.getFieldValue('attributes') ?? {}
                 form.setFieldValue('attributes', { ...current, [key]: val })
               }}
-              onFieldBlur={(_key) => {
+              onFieldBlur={() => {
                 const current = form.getFieldValue('attributes') ?? {}
                 form.setFieldValue('attributes', { ...current }, { dontValidate: true })
               }}

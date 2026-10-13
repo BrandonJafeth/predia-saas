@@ -21,7 +21,6 @@ import {
 import { SkipThrottle } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { Public } from '../../common/decorators/public.decorator';
-import { AuditLog } from '../../common/decorators/audit-log.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
@@ -30,6 +29,8 @@ import { AmenityResponseDto } from './dto/amenity-response.dto';
 import { CreateAmenityDto } from './dto/create-amenity.dto';
 import { UpdateAmenityDto } from './dto/update-amenity.dto';
 
+// Sin @AuditLog() en los handlers: AmenitiesService ya registra cada cambio
+// con auditLogService.log() (payload más útil); con ambos quedaban 2 filas.
 @ApiTags('Amenities')
 @Controller('api/v1/amenities')
 export class AmenitiesController {
@@ -52,7 +53,6 @@ export class AmenitiesController {
   @Post()
   @ApiBearerAuth()
   @Roles(UserRole.super_admin)
-  @AuditLog({ action: 'CREATE', entity: 'amenity' })
   @ApiCreatedResponse({ type: AmenityResponseDto })
   create(@Body() dto: CreateAmenityDto, @CurrentUser() caller: JwtPayload) {
     return this.amenitiesService.create(dto, caller);
@@ -61,7 +61,6 @@ export class AmenitiesController {
   @Patch(':id')
   @ApiBearerAuth()
   @Roles(UserRole.super_admin)
-  @AuditLog({ action: 'UPDATE', entity: 'amenity' })
   @ApiOkResponse({ type: AmenityResponseDto })
   update(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -75,7 +74,6 @@ export class AmenitiesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiBearerAuth()
   @Roles(UserRole.super_admin)
-  @AuditLog({ action: 'DELETE', entity: 'amenity' })
   @ApiNoContentResponse()
   remove(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
