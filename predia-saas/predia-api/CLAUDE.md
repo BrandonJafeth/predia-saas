@@ -128,7 +128,8 @@ JWT_SECRET            # Min 32 chars — signs access tokens
 JWT_REFRESH_SECRET    # Min 32 chars — signs refresh tokens
 PORT                  # Default 3000
 NODE_ENV              # development | production | test
-CORS_ORIGIN           # Default http://localhost:5173 — comma-separated for multiple
+CORS_ORIGIN           # Default http://localhost:5173 — comma-separated for multiple (CRM routes only)
+TRUST_PROXY           # Optional. Express "trust proxy" (e.g. 1, loopback) so req.ip is the client IP behind a proxy — rate limits depend on it
 ```
 
 ## Prisma 7 specifics
@@ -185,6 +186,17 @@ All routes protected by `JwtAuthGuard` by default. Opt out with `@Public()`.
 - Status changes (PATCH or kanban drag & drop) create a `status_change` activity in the same transaction. Users can only log `call | email | meeting | note` manually.
 - `DELETE /leads/:id` archives (soft delete). `GET /leads/stats` returns counts per status with the same filters/visibility as the list (the kanban loads at most 100 leads).
 - Lead responses embed `assignee { id, first_name, last_name }` and `property { id, title, slug }`.
+
+## Public API (`/public/v1`) & API keys
+
+- `ApiKeysModule` (`/api/v1/api-keys`, admin/super_admin): create → plaintext returned ONCE (`pk_|sk_` + `live|test` + 43 base64url), only the SHA-256 is stored, `key_prefix` = first 14 chars. Max 10 active keys per tenant. Manual audit log (no `@AuditLog`: the response carries the plaintext). Admin creates `scope: tenant` keys; super_admin creates `scope: portal` keys (system tenant, Predia's own website).
+- `@ApiKeyAuth(...scopes)` = `@Public()` + `ApiKeyGuard`. The guard: header `X-API-Key` only (key in query → 400), revoked/expired → 401, subscription not trial/active → 403, `publishable` needs an `Origin` in its `allowed_origins`, `secret` is rejected when an `Origin` is present (browser). It sets `request.apiKey` (`@CurrentApiKey()`).
+- Tenant-scope keys run under RLS (`TenantInterceptor` takes the tenant from `request.apiKey`). Portal keys use `SystemPrismaService` and must filter explicitly: `is_published`, `status: active`, tenant subscription `trial|active`.
+- Public DTOs (`public-api/dto`) never expose internal ids, emails, publication flags or exact coordinates (3 decimals). Images go out as size-limited Cloudinary variants.
+- CORS (`config/app-setup.ts`): `/public/*` allows origins registered in any active publishable key (60 s cache, invalidated on create/revoke), no credentials; every other route only allows `CORS_ORIGIN` with credentials.
+- Throttling: named throttler `public` (120/min per key-hash + IP, `POST /public/v1/leads` 5 per 10 min) on top of `default` (300/min per IP). The 429 header is `Retry-After-public`.
+- Leads: honeypot `website` (filled → 202 without saving), `consent` must be `true`, email or phone required. A lead with `property_slug` goes to the property's tenant and is assigned to its agent; a portal lead without property goes to the system tenant (super_admin sees it in `/leads`). `tenantStore.run` must `await` the Prisma call inside the callback (PrismaPromise is lazy).
+- e2e coverage: `test/public-api.e2e-spec.ts`.
 
 ## Pagination pattern
 

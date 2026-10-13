@@ -256,7 +256,7 @@ describe('LeadsService', () => {
     expect(prisma.lead.update).not.toHaveBeenCalled();
   });
 
-  it('solo asigna a usuarios activos del CRM y propiedades no archivadas', async () => {
+  it('solo asigna a usuarios activos del tenant y propiedades no archivadas', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: USER_ID });
     prisma.property.findFirst.mockResolvedValue({ id: 'prop-id' });
     prisma.lead.create.mockResolvedValue({ id: LEAD_ID });
@@ -271,7 +271,7 @@ describe('LeadsService', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           status: 'active',
-          role: { in: [UserRole.admin, UserRole.agent] },
+          role: { in: [UserRole.admin, UserRole.agent, UserRole.super_admin] },
         }),
       }),
     );

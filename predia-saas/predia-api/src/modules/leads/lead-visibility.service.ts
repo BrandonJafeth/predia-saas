@@ -7,6 +7,8 @@ export class LeadVisibilityService {
   getVisibleLeadWhere(caller: JwtPayload): Prisma.LeadWhereInput {
     switch (caller.role) {
       case UserRole.admin:
+      case UserRole.super_admin:
+        // super_admin: todos los leads de SU tenant (el del sistema).
         return {};
       case UserRole.agent:
         return { assigned_to: caller.sub };

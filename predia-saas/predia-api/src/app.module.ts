@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { ExecutionContext, Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { createHash } from 'crypto';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import * as Joi from 'joi';
@@ -23,6 +24,11 @@ import { PropertiesModule } from './modules/properties/properties.module';
 import { PropertyImagesModule } from './modules/property-images/property-images.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { AmenitiesModule } from './modules/amenities/amenities.module';
+import { ApiKeysModule } from './modules/api-keys/api-keys.module';
+import { PublicApiModule } from './modules/public-api/public-api.module';
+
+const isPublicApi = (ctx: ExecutionContext) =>
+  ctx.switchToHttp().getRequest<{ url?: string }>().url?.startsWith('/public/') ?? false;
 
 @Module({
   imports: [
@@ -46,6 +52,9 @@ import { AmenitiesModule } from './modules/amenities/amenities.module';
         CLOUDINARY_CLOUD_NAME: Joi.string().default(''),
         CLOUDINARY_API_KEY: Joi.string().default(''),
         CLOUDINARY_API_SECRET: Joi.string().default(''),
+        // Cantidad de proxies delante del API (Cloudflare, load balancer...):
+        // sin esto req.ip es la IP del proxy y el rate limit por IP no sirve.
+        TRUST_PROXY: Joi.string().optional(),
       }),
     }),
     ThrottlerModule.forRoot([
@@ -61,6 +70,21 @@ import { AmenitiesModule } from './modules/amenities/amenities.module';
         name: 'auth-strict',
         ttl: 60_000,
         limit: 1000,
+      },
+      {
+        // API pública: 120 req/min por key + IP (además del límite por IP
+        // de 'default'). Los endpoints sensibles lo bajan con @Throttle.
+        name: 'public',
+        ttl: 60_000,
+        limit: 120,
+        skipIf: (ctx) => !isPublicApi(ctx),
+        getTracker: (req: Record<string, any>) => {
+          const raw = req.headers?.['x-api-key'] as string | undefined;
+          const ip = (req.ip as string | undefined) ?? 'unknown';
+          return raw
+            ? `${createHash('sha256').update(raw).digest('hex').slice(0, 16)}:${ip}`
+            : ip;
+        },
       },
     ]),
     PrismaModule,
@@ -79,6 +103,8 @@ import { AmenitiesModule } from './modules/amenities/amenities.module';
     PropertyImagesModule,
     LeadsModule,
     AmenitiesModule,
+    ApiKeysModule,
+    PublicApiModule,
   ],
   providers: [
     {

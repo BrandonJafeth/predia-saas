@@ -6,5 +6,6 @@ export function buildSwaggerConfig(): Omit<OpenAPIObject, 'paths'> {
     .setDescription('API del sistema Predia para inmobiliarias SaaS')
     .setVersion('1.0')
     .addBearerAuth()
+    .addApiKey({ type: 'apiKey', in: 'header', name: 'X-API-Key' }, 'api-key')
     .build();
 }

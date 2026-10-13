@@ -71,6 +71,22 @@ enum LeadStatus {
   archived
 }
 
+// publishable (pk_): va en el navegador, atada a allowed_origins, solo lectura
+// pública + captura de leads. secret (sk_): solo servidor; se rechaza si llega
+// con header Origin (uso desde un navegador).
+enum ApiKeyType {
+  publishable
+  secret
+}
+
+// tenant: web white-label de la inmobiliaria, ve solo sus datos.
+// portal: la web de Predia (la crea el super_admin en el tenant del sistema),
+// lee lo publicado de todas las inmobiliarias con suscripción vigente.
+enum ApiKeyScope {
+  tenant
+  portal
+}
+
 enum LeadActivityType {
   call
   email
@@ -93,6 +109,7 @@ model Tenant {
   leads                   Lead[]
   lead_activities         LeadActivity[]
   property_amenities      PropertyAmenity[]
+  api_keys                ApiKey[]
 }
 
 model TenantSite {
@@ -131,6 +148,7 @@ model User {
   properties              Property[]
   assigned_leads          Lead[]               @relation("LeadAssignee")
   created_lead_activities LeadActivity[]       @relation("LeadActivityCreator")
+  created_api_keys        ApiKey[]             @relation("ApiKeyCreator")
 
   @@unique([tenant_id, email])
   @@index([tenant_id])
@@ -162,6 +180,30 @@ model AuthSession {
 
   @@index([user_id])
   @@map("auth_sessions")
+}
+
+// La key en texto plano se muestra una sola vez al crearla; acá solo queda su
+// SHA-256 (256 bits de entropía: no hace falta un hash lento) y un prefijo
+// para identificarla en la UI.
+model ApiKey {
+  id              String      @id @default(uuid())
+  tenant_id       String
+  name            String
+  type            ApiKeyType
+  scope           ApiKeyScope @default(tenant)
+  key_prefix      String
+  key_hash        String      @unique
+  allowed_origins String[]    @default([])
+  created_by      String?
+  last_used_at    DateTime?
+  expires_at      DateTime?
+  revoked_at      DateTime?
+  created_at      DateTime    @default(now())
+  tenant          Tenant      @relation(fields: [tenant_id], references: [id])
+  creator         User?       @relation("ApiKeyCreator", fields: [created_by], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@map("api_keys")
 }
 
 model Location {

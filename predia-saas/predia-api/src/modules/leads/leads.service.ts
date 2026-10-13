@@ -380,13 +380,14 @@ export class LeadsService {
   ) {
     if (!assignedTo) return;
 
-    // Solo usuarios activos del CRM (no suspendidos ni super_admin).
+    // Solo usuarios activos del mismo tenant (super_admin solo existe en el
+    // tenant del sistema, donde trabaja los leads de la web de Predia).
     const user = await this.prisma.user.findFirst({
       where: {
         id: assignedTo,
         tenant_id: tenantId,
         status: UserStatus.active,
-        role: { in: [UserRole.admin, UserRole.agent] },
+        role: { in: [UserRole.admin, UserRole.agent, UserRole.super_admin] },
       },
       select: { id: true },
     });

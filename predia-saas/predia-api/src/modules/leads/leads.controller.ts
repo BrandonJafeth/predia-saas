@@ -38,6 +38,9 @@ import {
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { LeadsService } from './leads.service';
 
+// super_admin: trabaja los leads del tenant del sistema (contactos generales
+// y agencias interesadas que llegan desde la web de Predia). RLS y el
+// tenant_id del JWT lo limitan a ese tenant: nunca ve leads de inmobiliarias.
 @ApiTags('Leads')
 @ApiBearerAuth()
 @Controller('api/v1/leads')
@@ -45,7 +48,7 @@ export class LeadsController {
   constructor(private readonly leadsService: LeadsService) {}
 
   @Post()
-  @Roles(UserRole.admin, UserRole.agent)
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @AuditLog({ action: 'CREATE', entity: 'lead' })
   @ApiCreatedResponse({ type: LeadResponseDto })
   create(
@@ -57,7 +60,7 @@ export class LeadsController {
   }
 
   @Get()
-  @Roles(UserRole.admin, UserRole.agent)
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @ApiOkResponse({ type: PageOf(LeadResponseDto) })
   findAll(
     @Query() filters: FilterLeadsDto,
@@ -69,7 +72,7 @@ export class LeadsController {
 
   // Declarado antes de ':id' para que no lo capture ParseUUIDPipe.
   @Get('stats')
-  @Roles(UserRole.admin, UserRole.agent)
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @ApiOkResponse({ type: LeadStatsResponseDto })
   getStats(
     @Query() filters: LeadStatsQueryDto,
@@ -80,7 +83,7 @@ export class LeadsController {
   }
 
   @Get(':id')
-  @Roles(UserRole.admin, UserRole.agent)
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @RequireLeadVisibility('id')
   @UseGuards(LeadVisibilityGuard)
   @ApiOkResponse({ type: LeadDetailResponseDto })
@@ -93,7 +96,7 @@ export class LeadsController {
   }
 
   @Post(':leadId/activities')
-  @Roles(UserRole.admin, UserRole.agent)
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @RequireLeadVisibility('leadId')
   @UseGuards(LeadVisibilityGuard)
   @AuditLog({ action: 'CREATE', entity: 'lead_activity' })
@@ -108,7 +111,7 @@ export class LeadsController {
   }
 
   @Get(':leadId/activities')
-  @Roles(UserRole.admin, UserRole.agent)
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @RequireLeadVisibility('leadId')
   @UseGuards(LeadVisibilityGuard)
   @ApiOkResponse({ type: PageOf(LeadActivityResponseDto) })
@@ -122,7 +125,7 @@ export class LeadsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.admin, UserRole.agent)
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @RequireLeadVisibility('id')
   @UseGuards(LeadVisibilityGuard)
   @AuditLog({ action: 'UPDATE', entity: 'lead' })
@@ -137,7 +140,7 @@ export class LeadsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.admin, UserRole.agent)
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @RequireLeadVisibility('id')
   @UseGuards(LeadVisibilityGuard)
   @AuditLog({ action: 'DELETE', entity: 'lead' })

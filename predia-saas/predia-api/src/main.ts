@@ -1,31 +1,13 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule } from '@nestjs/swagger';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const cookieParser = require('cookie-parser') as typeof import('cookie-parser');
 import { AppModule } from './app.module';
+import { configureApp } from './config/app-setup';
 import { buildSwaggerConfig } from './config/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
-  app.enableCors({
-    origin: corsOrigin.split(',').map((o) => o.trim()),
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID', 'Cache-Control', 'Pragma'],
-    credentials: true,
-  });
-
-  app.use(cookieParser());
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  configureApp(app);
 
   const document = SwaggerModule.createDocument(app, buildSwaggerConfig());
   SwaggerModule.setup('docs', app, document);

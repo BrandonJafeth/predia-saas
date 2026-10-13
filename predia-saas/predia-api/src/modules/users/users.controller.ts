@@ -52,7 +52,8 @@ export class UsersController {
   }
 
   @Get()
-  @Roles(UserRole.admin, UserRole.agent)
+  // super_admin: lista los usuarios de su propio tenant (para asignar leads).
+  @Roles(UserRole.admin, UserRole.agent, UserRole.super_admin)
   @ApiOkResponse({ type: PageOf(UserResponseDto) })
   findAll(
     @Query() pageOptionsDto: PageOptionsDto,
