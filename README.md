@@ -110,12 +110,13 @@ predia-api/src/
 │   ├── locations/
 │   ├── leads/
 │   ├── audit-log/
+│   ├── api-keys/          # alta/revocación de keys (hash SHA-256) + resolución en el guard
 │   ├── email/             # Resend
 │   ├── subscriptions/     # (Fase 6, pendiente)
 │   ├── payments/          # (Fase 6, pendiente)
-│   └── public-api/        # (Fase 5, pendiente) feed con API key + captura pública de leads
+│   └── public-api/        # /public/v1: propiedades publicadas, catálogos y captura de leads
 ├── common/                # guards, interceptors, decorators, utils
-│   ├── guards/            # JwtAuthGuard, RolesGuard (ApiKeyGuard en Fase 5)
+│   ├── guards/            # JwtAuthGuard, RolesGuard, ApiKeyGuard
 │   └── decorators/        # @CurrentTenant(), @CurrentUser(), @Roles(), @Public()
 ├── config/
 └── prisma/                # schema.prisma, migraciones, PrismaService (tenant-aware)
@@ -131,8 +132,21 @@ Todas las inmobiliarias comparten las mismas tablas, distinguidas por una column
 ### Catálogo multivertical (categories + attributes)
 La tabla `categories` define cada vertical (bienes raíces, vehículos) mediante un `attribute_schema` en JSONB. Cada propiedad guarda sus campos específicos en una columna `attributes` (JSONB), mientras que los campos comunes y filtrables (precio, área, ubicación) viven como columnas nativas. Agregar un vertical nuevo es insertar una fila, no una migración.
 
-### API keys por tenant
-Cada tenant tiene una o varias API keys (almacenadas **hasheadas**, nunca en texto plano) que autorizan a su web white-label a leer sus datos. El acceso se valida en un `ApiKeyGuard` que también revisa el estado de la suscripción y el dominio de origen.
+### API pública y API keys
+La API pública (`/public/v1`, versionada en la URL) sirve propiedades publicadas, catálogos y un endpoint de leads. Se autentica solo con la cabecera `X-API-Key` (una key en la query string se rechaza: terminaría en logs). Las keys se guardan **hasheadas** (SHA-256); el texto plano se muestra una sola vez al crearlas en el CRM.
+
+| Tipo | Dónde vive | Qué puede hacer |
+| --- | --- | --- |
+| **Publishable** `pk_…` | En el navegador (es pública por diseño) | Solo desde los orígenes registrados en la key (CORS + guard); solo lectura de lo publicado y alta de leads (5 cada 10 min) |
+| **Secret** `sk_…` | Solo en servidores/CI | Lo mismo, sin restricción de origen; **se rechaza si la request trae `Origin`**, o sea si sale de un navegador |
+
+Y dos alcances:
+- **tenant** — las crea el admin de una inmobiliaria (CRM → *API keys*) para su web white-label; solo ven sus propiedades (RLS).
+- **portal** — las crea el super_admin (CRM → *API keys* del sistema) para la web de Predia (`predia-website`); ven las propiedades publicadas de todas las inmobiliarias con suscripción vigente.
+
+**Cómo las usa la web de Predia:** el build de Astro lee el catálogo con la key **secreta** de portal (`PREDIA_API_SECRET_KEY`, variable *server* de `astro:env`: el build falla si se intenta importar desde código del navegador, y el schema exige que empiece con `sk_`). Los formularios de contacto usan la key **publishable** de portal (`PUBLIC_PREDIA_PUBLISHABLE_KEY`, debe empezar con `pk_`) limitada al dominio del sitio. Un lead sobre una propiedad va al CRM de la inmobiliaria que la publica (asignado a su agente); el contacto general va al CRM de Predia (super_admin → *Leads*).
+
+El `ApiKeyGuard` corta el acceso si la key está revocada o vencida, o si la suscripción de la inmobiliaria no está vigente. Medidas OWASP API Top 10: respuestas sin ids internos ni emails (API3), coordenadas aproximadas, imágenes en tamaño web acotado, paginación obligatoria (máx. 50), rate limit por key + IP y por IP (API4), honeypot y consentimiento obligatorio en leads (API6, Ley 8968), cabeceras de seguridad y CORS por ruta (API8).
 
 ### Facturación por SINPE (manual)
 SINPE no tiene API ni webhooks, así que la confirmación de pago es manual: el cliente paga, se registra un `payment` con su comprobante y se extiende el `current_period_end` de la suscripción. Un cron marca como `past_due` las suscripciones vencidas y el `ApiKeyGuard` corta el acceso.
@@ -230,7 +244,7 @@ La lista completa está en [`predia-api/.env.example`](predia-saas/predia-api/.e
 - API keys siempre **hasheadas** (SHA-256), nunca en texto plano.
 - Las contraseñas con `bcrypt`/`argon2`.
 - Ningún secreto en el repositorio (`.env` ignorado, `.env.example` versionado).
-- Medidas anti-scraping en la API pública: rate limiting, allowlist de dominios, paginación obligatoria y URLs firmadas para imágenes en alta.
+- Medidas anti-scraping en la API pública: rate limiting, allowlist de orígenes, paginación obligatoria e imágenes servidas en tamaño web (nunca el original en alta).
 
 ### Git
 - **Commits convencionales:** `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`.
@@ -254,7 +268,7 @@ El desarrollo sigue un orden por dependencias, dejando las integraciones externa
 - [x] **Fase 2** — Datos de referencia: `locations` (seed CR) y `categories`.
 - [x] **Fase 3** — Propiedades (CRUD, imágenes, validación de `attributes`).
 - [x] **Fase 4** — CRM (leads + actividades).
-- [ ] **Fase 5** — API pública + API keys (portal y web white-label).
+- [x] **Fase 5** — API pública + API keys (portal y web white-label).
 - [ ] **Fase 6** — Facturación SINPE (pagos manuales + cron de vencimiento).
 - [ ] **Fase 7** — Optimización: Redis (cache, rate-limit) y BullMQ.
 
