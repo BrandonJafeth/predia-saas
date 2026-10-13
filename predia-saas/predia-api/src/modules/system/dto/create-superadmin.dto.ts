@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { NormalizeEmail } from 'src/common/decorators/normalize-email.decorator';
 
 export class CreateSuperAdminDto {
   @ApiProperty({ example: 'superadmin@predia.com' })
+  @NormalizeEmail()
   @IsEmail({}, { message: 'El email no es válido' })
   email!: string;
 

@@ -17,7 +17,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
-import * as express from 'express';
+// import type: un `import * as express` de valor sobrevive al plugin de
+// Swagger del CLI de Nest y emite require('express'), que no es dependencia
+// directa del API → el build compilado no arrancaba (Cannot find module).
+import type * as express from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -46,9 +49,13 @@ export class AuthController {
 
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  // Verifica contraseñas: mismo límite que login.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @ApiBody({ type: LookupDto })
-  @ApiOkResponse({ type: [TenantOptionDto], description: 'Organizaciones donde existe el email' })
+  @ApiOkResponse({
+    type: [TenantOptionDto],
+    description: 'Organizaciones donde email + contraseña son válidos',
+  })
   lookupTenants(@Body() dto: LookupDto): Promise<TenantOptionDto[]> {
     return this.authService.lookupTenants(dto);
   }
@@ -81,18 +88,28 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  logout(@Res({ passthrough: true }) res: express.Response): void {
+  async logout(
+    @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
+  ): Promise<void> {
+    const token = (req.cookies as Record<string, string> | undefined)?.[REFRESH_COOKIE];
+    // Revoca la sesión en DB: antes solo se borraba la cookie y el refresh
+    // token seguía sirviendo 7 días si alguien lo había copiado.
+    await this.authService.logout(token);
     res.clearCookie(REFRESH_COOKIE, { path: COOKIE_OPTIONS.path });
   }
 
   @Get('validate-reset-token')
   @ApiOkResponse({ description: 'Token válido y no expirado' })
-  validateResetToken(@Query('token') token: string): Promise<{ valid: true }> {
+  validateResetToken(@Query('token') token?: string): Promise<{ valid: true }> {
     return this.authService.validateResetToken(token);
   }
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  // El @SkipThrottle de la clase gana sobre @Throttle si no se anula acá
+  // explícitamente: sin esto el límite de 3/15min nunca se aplicaba.
+  @SkipThrottle({ 'auth-strict': false })
   @Throttle({ 'auth-strict': { ttl: 15 * 60_000, limit: 3 } })
   @ApiBody({ type: ForgotPasswordDto })
   @ApiOkResponse({ description: 'Respuesta idéntica exista o no el email (anti-enumeración)' })
@@ -102,6 +119,9 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
+  // El @SkipThrottle de la clase gana sobre @Throttle si no se anula acá
+  // explícitamente: sin esto el límite de 3/15min nunca se aplicaba.
+  @SkipThrottle({ 'auth-strict': false })
   @Throttle({ 'auth-strict': { ttl: 15 * 60_000, limit: 3 } })
   @ApiBody({ type: ResetPasswordDto })
   @ApiOkResponse({ description: 'Contraseña actualizada' })

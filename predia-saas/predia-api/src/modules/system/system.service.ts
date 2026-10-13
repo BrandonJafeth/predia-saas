@@ -80,6 +80,15 @@ export class SystemService {
       select: { id: true },
     });
 
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        tenant_id: tenant.id,
+        email: { equals: dto.email, mode: 'insensitive' },
+      },
+      select: { id: true },
+    });
+    if (existing) throw new ConflictException('El email ya está registrado');
+
     const password_hash = await bcrypt.hash(dto.password, 12);
 
     try {

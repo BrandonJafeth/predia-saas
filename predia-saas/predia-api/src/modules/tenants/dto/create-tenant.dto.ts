@@ -9,6 +9,7 @@ import {
   IsInt,
   Min,
 } from 'class-validator';
+import { NormalizeEmail } from 'src/common/decorators/normalize-email.decorator';
 
 export class CreateTenantDto {
   @ApiProperty({ example: 'Inmobiliaria Norte' })
@@ -24,6 +25,7 @@ export class CreateTenantDto {
 
   @ApiPropertyOptional({ example: 'asesor@inmobiliaria.com' })
   @IsOptional()
+  @NormalizeEmail()
   @IsEmail()
   advisor_email?: string;
 

@@ -7,7 +7,7 @@ const SYSTEM_TENANT_SLUG = 'predia-saas';
 const SYSTEM_TENANT_NAME = 'Predia SaaS';
 
 async function main() {
-  const email = process.env.SUPERADMIN_EMAIL ?? process.argv[2];
+  const email = (process.env.SUPERADMIN_EMAIL ?? process.argv[2])?.trim().toLowerCase();
   const password = process.env.SUPERADMIN_PASSWORD ?? process.argv[3];
 
   if (!email || !password) {
@@ -53,7 +53,7 @@ async function main() {
       await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenant.id}, true)`;
 
       const existing = await tx.user.findFirst({
-        where: { email, tenant_id: tenant.id },
+        where: { email: { equals: email, mode: 'insensitive' }, tenant_id: tenant.id },
       });
 
       if (existing) return null;
