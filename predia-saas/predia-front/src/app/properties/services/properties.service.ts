@@ -6,6 +6,7 @@ import type {
   Property,
   PropertyDetail,
   PropertyFilters,
+  PropertyStats,
   UpdatePropertyRequest,
 } from '../types'
 
@@ -16,6 +17,12 @@ export const propertiesService = {
     })
     if (error) throw error
     return data as unknown as PaginatedResponse<Property>
+  },
+
+  async getStats(): Promise<PropertyStats> {
+    const { data, error } = await apiClient.GET('/api/v1/properties/stats')
+    if (error) throw error
+    return data
   },
 
   async getProperty(id: string): Promise<PropertyDetail> {

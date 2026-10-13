@@ -3,12 +3,9 @@ import type { Category, CreateCategoryRequest, UpdateCategoryRequest } from '../
 
 export const categoriesService = {
   async findAll(): Promise<Category[]> {
-    const { data, error } = await apiClient.GET('/api/v1/categories', {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-      },
-    })
+    // El API responde Cache-Control: no-cache (revalida con ETag): ya no hace
+    // falta forzar headers acá, que además disparaban un preflight CORS.
+    const { data, error } = await apiClient.GET('/api/v1/categories')
     if (error) throw error
     return data as unknown as Category[]
   },
@@ -16,10 +13,6 @@ export const categoriesService = {
   async findBySlug(slug: string): Promise<Category> {
     const { data, error } = await apiClient.GET('/api/v1/categories/{slug}', {
       params: { path: { slug } },
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-      },
     })
     if (error) throw error
     return data as unknown as Category

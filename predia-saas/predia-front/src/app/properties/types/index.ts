@@ -111,4 +111,7 @@ export const propertyKeys = {
   details: () => [...propertyKeys.all, 'detail'] as const,
   detail: (id: string) => [...propertyKeys.details(), id] as const,
   bySlug: (slug: string) => [...propertyKeys.all, 'slug', slug] as const,
+  stats: () => [...propertyKeys.all, 'stats'] as const,
 }
+
+export type PropertyStats = components['schemas']['PropertyStatsResponseDto']

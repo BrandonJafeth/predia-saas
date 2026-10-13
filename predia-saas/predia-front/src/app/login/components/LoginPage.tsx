@@ -71,19 +71,22 @@ function OrgInitial({ name }: { name: string }) {
   )
 }
 
-type Step = 'email' | 'password' | 'success'
+// Paso 1: email + contraseña. /auth/lookup ya no revela en qué organizaciones
+// existe un correo: solo devuelve las organizaciones donde las credenciales son
+// válidas. Con una sola, se entra directo; con varias, se elige en el paso 2.
+type Step = 'credentials' | 'organization' | 'success'
 
 function LoginPage() {
   const navigate = useNavigate()
 
-  const [step, setStep] = useState<Step>('email')
+  const [step, setStep] = useState<Step>('credentials')
   const [email, setEmail] = useState('')
-  const [hasSearched, setHasSearched] = useState(false)
   const [tenants, setTenants] = useState<TenantOption[]>([])
   const [selectedTenant, setSelectedTenant] = useState<TenantOption | null>(null)
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [invalidCredentials, setInvalidCredentials] = useState(false)
   const [exiting, setExiting] = useState(false)
 
   const { mutate: lookup, isPending: isLooking, error: lookupError, reset: resetLookup } = useLookupTenants()
@@ -97,39 +100,53 @@ function LoginPage() {
     return () => { clearTimeout(exitTimer); clearTimeout(navTimer) }
   }, [step, navigate])
 
-  function handleEmailSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setHasSearched(true)
-    lookup({ email }, {
-      onSuccess: (data) => {
-        if (data.length === 0) return
-        setTenants(data)
-        setSelectedTenant(data.length === 1 ? data[0] : null)
-        setStep('password')
-      },
-    })
-  }
-
-  function handleLoginSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (!selectedTenant) return
-    login({ email, password, tenantId: selectedTenant.id }, {
+  function loginInto(tenant: TenantOption) {
+    setSelectedTenant(tenant)
+    login({ email, password, tenantId: tenant.id }, {
       onSuccess: () => setStep('success'),
     })
   }
 
+  function handleCredentialsSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setInvalidCredentials(false)
+    resetLogin()
+    lookup({ email, password }, {
+      onSuccess: (data) => {
+        if (data.length === 0) {
+          setInvalidCredentials(true)
+          return
+        }
+        setTenants(data)
+        if (data.length === 1) {
+          loginInto(data[0])
+        } else {
+          setSelectedTenant(null)
+          setStep('organization')
+        }
+      },
+    })
+  }
+
   function goBack() {
-    setStep('email')
+    setStep('credentials')
     setTenants([])
     setSelectedTenant(null)
     setPassword('')
-    setHasSearched(false)
+    setInvalidCredentials(false)
     resetLookup()
+    resetLogin()
   }
 
-  const noTenantsFound = hasSearched && !isLooking && !lookupError && tenants.length === 0
-  const lookupErrorMsg = lookupError ? toFriendlyMessage(lookupError) : null
-  const loginErrorMsg = loginError ? toFriendlyMessage(loginError) : null
+  const isBusy = isLooking || isLoggingIn
+  const credentialsErrorMsg = invalidCredentials
+    ? 'El correo o la contraseña no son correctos. Por favor verifica e intenta de nuevo.'
+    : lookupError
+      ? toFriendlyMessage(lookupError)
+      : step === 'credentials' && loginError
+        ? toFriendlyMessage(loginError)
+        : null
+  const loginErrorMsg = step === 'organization' && loginError ? toFriendlyMessage(loginError) : null
 
   // ── Welcome / success screen ──────────────────────────────────────────────
   if (step === 'success') {
@@ -171,13 +188,13 @@ function LoginPage() {
           <div className="px-8 pt-8 pb-6 text-center border-b border-hairline">
             <img src="/isotipoClaro.png" alt="Predia" className="h-12 w-12 object-contain mx-auto mb-5" />
 
-            {step === 'email' ? (
+            {step === 'credentials' ? (
               <>
                 <h3 className="text-[18px] font-medium leading-snug tracking-tight text-ink">
                   Iniciar sesión
                 </h3>
                 <p className="text-sm text-ink-muted mt-1.5">
-                  Ingresa tu correo para continuar
+                  Ingresa tu correo y contraseña para continuar
                 </p>
               </>
             ) : (
@@ -195,10 +212,10 @@ function LoginPage() {
           {/* Form */}
           <div className="px-8 py-8">
 
-            {/* Step 1 — Email */}
-            {step === 'email' && (
-              <form onSubmit={handleEmailSubmit} noValidate className="space-y-6">
-                {lookupErrorMsg && <AlertBanner message={lookupErrorMsg} />}
+            {/* Step 1 — Email + password */}
+            {step === 'credentials' && (
+              <form onSubmit={handleCredentialsSubmit} noValidate className="space-y-6">
+                {credentialsErrorMsg && <AlertBanner message={credentialsErrorMsg} />}
 
                 <div className="flex flex-col">
                   <Label htmlFor="email" className="text-sm font-medium text-ink-body mb-3">
@@ -211,7 +228,7 @@ function LoginPage() {
                     value={email}
                     onChange={e => {
                       setEmail(e.target.value)
-                      if (hasSearched) setHasSearched(false)
+                      setInvalidCredentials(false)
                     }}
                     required
                     autoComplete="email"
@@ -221,78 +238,6 @@ function LoginPage() {
                     Ejemplo: tu@correo.com.
                   </p>
                 </div>
-
-                {noTenantsFound && (
-                  <div className="rounded-md bg-surface-card border border-hairline px-4 py-3 text-center">
-                    <p className="text-sm text-ink-muted">
-                      No encontramos organizaciones asociadas a este correo.
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="remember"
-                    checked={rememberMe}
-                    onCheckedChange={setRememberMe}
-                    className="scale-[0.85] origin-left"
-                  />
-                  <Label
-                    htmlFor="remember"
-                    className="text-caption text-ink-muted font-normal cursor-pointer select-none"
-                  >
-                    Recordarme
-                  </Label>
-                </div>
-
-                <Button type="submit" className="w-full" disabled={isLooking || !email.trim()}>
-                  {isLooking && <Loader2 className="animate-spin" />}
-                  {isLooking ? 'Buscando...' : 'Continuar'}
-                </Button>
-              </form>
-            )}
-
-            {/* Step 2 — Org + Password */}
-            {step === 'password' && (
-              <form onSubmit={handleLoginSubmit} noValidate className="space-y-5">
-                {loginErrorMsg && <AlertBanner message={loginErrorMsg} />}
-
-                {tenants.length > 1 ? (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-ink-body">Organización</Label>
-                    <div className="flex flex-col gap-2">
-                      {tenants.map(t => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => { setSelectedTenant(t); resetLogin() }}
-                          className={[
-                            'w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors',
-                            selectedTenant?.id === t.id
-                              ? 'border-ink bg-surface-card ring-1 ring-ink/10'
-                              : 'border-hairline bg-canvas hover:border-surface-strong hover:bg-surface-soft',
-                          ].join(' ')}
-                        >
-                          <OrgInitial name={t.name} />
-                          <p className="font-medium text-sm text-ink truncate">{t.name}</p>
-                          {selectedTenant?.id === t.id && (
-                            <div className="ml-auto size-4 rounded-full bg-ink flex items-center justify-center shrink-0">
-                              <div className="size-1.5 rounded-full bg-white" />
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 rounded-lg border border-hairline bg-surface-soft px-4 py-3">
-                    <OrgInitial name={tenants[0]?.name ?? ''} />
-                    <div className="min-w-0">
-                      <p className="text-caption text-ink-muted">Organización</p>
-                      <p className="font-medium text-sm text-ink truncate">{tenants[0]?.name}</p>
-                    </div>
-                  </div>
-                )}
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
@@ -312,10 +257,13 @@ function LoginPage() {
                       name="password"
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={e => { setPassword(e.target.value); resetLogin() }}
+                      onChange={e => {
+                        setPassword(e.target.value)
+                        setInvalidCredentials(false)
+                        resetLogin()
+                      }}
                       required
                       autoComplete="current-password"
-                      autoFocus
                       className="pr-9"
                     />
                     <button
@@ -329,20 +277,64 @@ function LoginPage() {
                   </div>
                 </div>
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isLoggingIn || !selectedTenant || !password}
-                >
-                  {isLoggingIn && <Loader2 className="animate-spin" />}
-                  {isLoggingIn ? 'Verificando...' : 'Entrar'}
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="remember"
+                    checked={rememberMe}
+                    onCheckedChange={setRememberMe}
+                    className="scale-[0.85] origin-left"
+                  />
+                  <Label
+                    htmlFor="remember"
+                    className="text-caption text-ink-muted font-normal cursor-pointer select-none"
+                  >
+                    Recordarme
+                  </Label>
+                </div>
+
+                <Button type="submit" className="w-full" disabled={isBusy || !email.trim() || !password}>
+                  {isBusy && <Loader2 className="animate-spin" />}
+                  {isBusy ? 'Verificando...' : 'Entrar'}
                 </Button>
               </form>
+            )}
+
+            {/* Step 2 — Org (solo si la cuenta existe en varias) */}
+            {step === 'organization' && (
+              <div className="space-y-5">
+                {loginErrorMsg && <AlertBanner message={loginErrorMsg} />}
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-ink-body">Organización</Label>
+                  <div className="flex flex-col gap-2">
+                    {tenants.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        disabled={isLoggingIn}
+                        onClick={() => { resetLogin(); loginInto(t) }}
+                        className={[
+                          'w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors disabled:opacity-60',
+                          selectedTenant?.id === t.id
+                            ? 'border-ink bg-surface-card ring-1 ring-ink/10'
+                            : 'border-hairline bg-canvas hover:border-surface-strong hover:bg-surface-soft',
+                        ].join(' ')}
+                      >
+                        <OrgInitial name={t.name} />
+                        <p className="font-medium text-sm text-ink truncate">{t.name}</p>
+                        {selectedTenant?.id === t.id && isLoggingIn && (
+                          <Loader2 className="ml-auto size-4 animate-spin text-ink-muted" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        {step === 'password' && (
+        {step === 'organization' && (
           <div className="flex justify-center">
             <button
               type="button"
